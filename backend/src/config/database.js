@@ -41,7 +41,7 @@ const connectDB = async () => {
 
     return sequelize;
   } catch (error) {
-    logger.error('Unable to connect to the database:', error);
+    logger.error('Unable to connect to the database:', error.message);
 
     // In development, continue without database for testing
     if (process.env.NODE_ENV === 'development') {
