@@ -105,13 +105,18 @@ app.use(errorHandler);
 // Database connection and server startup
 const startServer = async () => {
   try {
-    // Connect to database
-    await connectDB();
-    logger.info('Database connected successfully');
+    // Try to connect to database
+    const dbConnection = await connectDB();
+    if (dbConnection) {
+      logger.info('Database connected successfully');
+    } else {
+      logger.warn('Server starting without database connection');
+    }
 
     // Start server
     const server = app.listen(PORT, () => {
       logger.info(`Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
+      logger.info(`API documentation available at http://localhost:${PORT}/api-docs`);
     });
 
     // Graceful shutdown
