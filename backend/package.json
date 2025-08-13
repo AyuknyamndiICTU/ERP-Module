@@ -1,0 +1,85 @@
+{
+  "name": "educational-erp-backend",
+  "version": "1.0.0",
+  "description": "Backend API for Educational ERP System",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "jest --watchAll=false",
+    "test:watch": "jest --watchAll",
+    "test:coverage": "jest --coverage",
+    "migrate": "node src/database/migrate.js",
+    "seed": "node src/database/seed.js",
+    "lint": "eslint src/ --ext .js",
+    "lint:fix": "eslint src/ --ext .js --fix",
+    "format": "prettier --write \"src/**/*.js\"",
+    "docs": "swagger-jsdoc -d swaggerDef.js src/routes/*.js -o swagger.json"
+  },
+  "keywords": [
+    "erp",
+    "educational",
+    "api",
+    "backend",
+    "nodejs",
+    "express"
+  ],
+  "author": "Software Engineering Students Team",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.0.0",
+    "morgan": "^1.10.0",
+    "dotenv": "^16.3.1",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.11.3",
+    "pg-hstore": "^2.3.4",
+    "sequelize": "^6.32.1",
+    "express-validator": "^7.0.1",
+    "express-rate-limit": "^6.10.0",
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^6.9.4",
+    "redis": "^4.6.7",
+    "stripe": "^13.5.0",
+    "winston": "^3.10.0",
+    "compression": "^1.7.4",
+    "express-session": "^1.17.3",
+    "connect-redis": "^7.1.0",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.0",
+    "joi": "^17.9.2",
+    "moment": "^2.29.4",
+    "uuid": "^9.0.0",
+    "csv-parser": "^3.0.0",
+    "pdf-lib": "^1.17.1",
+    "nodemailer-express-handlebars": "^6.1.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "jest": "^29.6.2",
+    "supertest": "^6.3.3",
+    "eslint": "^8.46.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-import": "^2.28.0",
+    "prettier": "^3.0.1",
+    "@types/jest": "^29.5.3"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "coverageDirectory": "coverage",
+    "collectCoverageFrom": [
+      "src/**/*.js",
+      "!src/server.js",
+      "!src/config/*.js"
+    ],
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ]
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  }
+}
