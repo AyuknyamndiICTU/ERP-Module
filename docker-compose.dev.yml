@@ -1,0 +1,101 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: erp_postgres_dev
+    environment:
+      POSTGRES_DB: educational_erp_dev
+      POSTGRES_USER: erp_user
+      POSTGRES_PASSWORD: erp_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    networks:
+      - erp_network
+
+  # Redis for Session Management
+  redis:
+    image: redis:7-alpine
+    container_name: erp_redis_dev
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - erp_network
+
+  # Backend API Server
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: erp_backend_dev
+    environment:
+      NODE_ENV: development
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: educational_erp_dev
+      DB_USER: erp_user
+      DB_PASSWORD: erp_password
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: your_jwt_secret_key_here
+      JWT_EXPIRE: 24h
+      BCRYPT_ROUNDS: 12
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - erp_network
+    command: npm run dev
+
+  # Frontend React Application
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: erp_frontend_dev
+    environment:
+      REACT_APP_API_URL: http://localhost:3001/api
+      REACT_APP_ENVIRONMENT: development
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - erp_network
+    command: npm start
+
+  # pgAdmin for Database Management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: erp_pgadmin_dev
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@erp.local
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - erp_network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  erp_network:
+    driver: bridge
