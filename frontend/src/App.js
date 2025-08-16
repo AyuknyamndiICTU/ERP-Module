@@ -10,6 +10,7 @@ import { useAuth } from './context/AuthContext';
 import Layout from './components/Layout/Layout';
 import LoadingSpinner from './components/Common/LoadingSpinner';
 import ErrorBoundary from './components/Common/ErrorBoundary';
+import AnimatedBackground from './components/AnimatedBackground';
 
 // Pages
 import LoginPage from './pages/Auth/LoginPage';
@@ -82,7 +83,10 @@ function App() {
         <meta name="description" content="Comprehensive Educational ERP System for managing academic, finance, and HR operations" />
       </Helmet>
       
-      <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+      <Box sx={{ display: 'flex', minHeight: '100vh', position: 'relative' }}>
+        {/* Animated Background */}
+        <AnimatedBackground />
+
         <Routes>
           {/* Public Routes */}
           <Route 
