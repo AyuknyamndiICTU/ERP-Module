@@ -9,11 +9,58 @@ import {
   Container,
   InputAdornment,
   IconButton,
+  keyframes,
+  Grid,
+  Chip,
+  Avatar,
 } from '@mui/material';
-import { Visibility, VisibilityOff, Email, Lock } from '@mui/icons-material';
+import {
+  Visibility,
+  VisibilityOff,
+  Email,
+  Lock,
+  School as SchoolIcon,
+  Person as PersonIcon,
+} from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from '../../components/Common/LoadingSpinner';
+import GlassCard, { GradientCard } from '../../components/GlassCard';
+
+// Animation keyframes
+const fadeInUp = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+const slideInLeft = keyframes`
+  from {
+    opacity: 0;
+    transform: translateX(-50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+`;
+
+const pulse = keyframes`
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+`;
 
 const LoginPage = () => {
   const { login, loading, error, clearError } = useAuth();
