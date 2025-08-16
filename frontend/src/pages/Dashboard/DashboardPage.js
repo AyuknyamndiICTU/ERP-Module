@@ -2,106 +2,186 @@ import React from 'react';
 import {
   Box,
   Grid,
-  Card,
-  CardContent,
   Typography,
-  Paper,
   Avatar,
   Chip,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemAvatar,
+  Divider,
+  Button,
+  IconButton,
+  Paper,
+  keyframes,
 } from '@mui/material';
 import {
-  School,
-  AttachMoney,
-  People,
-  TrendingUp,
-  Assignment,
-  Event,
+  School as SchoolIcon,
+  People as PeopleIcon,
+  AttachMoney as MoneyIcon,
+  Work as WorkIcon,
+  TrendingUp as TrendingUpIcon,
+  Notifications as NotificationsIcon,
+  Assignment as AssignmentIcon,
+  Event as EventIcon,
+  MoreVert as MoreVertIcon,
+  AutoGraph as AutoGraphIcon,
+  CalendarToday as CalendarIcon,
+  Star as StarIcon,
+  Rocket as RocketIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
+import GlassCard, { GradientCard, StatsCard, FeatureCard } from '../../components/GlassCard';
+
+// Animation keyframes
+const countUp = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+const pulse = keyframes`
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+`;
+
+const slideIn = keyframes`
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+`;
 
 const DashboardPage = () => {
   const { user } = useAuth();
 
-  // Mock data - in real app, this would come from API
+  // Mock data for demonstration
   const stats = {
-    academic: {
-      totalCourses: 45,
-      totalStudents: 1250,
-      activeEnrollments: 3200,
-      averageGPA: 3.2,
-    },
-    finance: {
-      totalRevenue: 2500000,
-      pendingPayments: 125000,
-      monthlyGrowth: 8.5,
-      activeCampaigns: 12,
-    },
-    hr: {
-      totalEmployees: 180,
-      activeLeaveRequests: 8,
-      pendingReviews: 15,
-      assetsAssigned: 340,
-    },
+    students: 2847,
+    courses: 156,
+    revenue: 125000,
+    employees: 89,
   };
 
   const recentActivities = [
     {
       id: 1,
-      type: 'academic',
-      title: 'New course enrollment',
-      description: 'Computer Science 101 - 25 new students enrolled',
+      type: 'enrollment',
+      message: 'New student enrolled in Computer Science',
       time: '2 hours ago',
-      icon: <School />,
+      avatar: 'CS',
+      color: '#667eea',
     },
     {
       id: 2,
-      type: 'finance',
-      title: 'Payment received',
-      description: '$15,000 tuition payment processed',
+      type: 'payment',
+      message: 'Payment received from John Doe',
       time: '4 hours ago',
-      icon: <AttachMoney />,
+      avatar: 'JD',
+      color: '#10b981',
     },
     {
       id: 3,
-      type: 'hr',
-      title: 'Leave request approved',
-      description: 'John Doe - Vacation leave approved',
+      type: 'grade',
+      message: 'Grades updated for Mathematics 101',
       time: '6 hours ago',
-      icon: <People />,
+      avatar: 'M1',
+      color: '#f59e0b',
     },
     {
       id: 4,
-      type: 'academic',
-      title: 'Grade submission',
-      description: 'Mathematics 201 - Final grades submitted',
-      time: '1 day ago',
-      icon: <Assignment />,
+      type: 'event',
+      message: 'Faculty meeting scheduled for tomorrow',
+      time: '8 hours ago',
+      avatar: 'FM',
+      color: '#ec4899',
     },
   ];
 
-  const StatCard = ({ title, value, icon, color, subtitle }) => (
-    <Card sx={{ height: '100%' }}>
-      <CardContent>
-        <Box display="flex" alignItems="center" justifyContent="space-between">
-          <Box>
-            <Typography color="textSecondary" gutterBottom variant="body2">
-              {title}
-            </Typography>
-            <Typography variant="h4" component="div">
-              {value}
-            </Typography>
-            {subtitle && (
-              <Typography variant="body2" color="textSecondary">
-                {subtitle}
-              </Typography>
-            )}
-          </Box>
-          <Avatar sx={{ bgcolor: color, width: 56, height: 56 }}>
-            {icon}
-          </Avatar>
-        </Box>
-      </CardContent>
-    </Card>
+  const upcomingEvents = [
+    {
+      id: 1,
+      title: 'Faculty Meeting',
+      date: 'Today, 2:00 PM',
+      type: 'meeting',
+      priority: 'high',
+    },
+    {
+      id: 2,
+      title: 'Student Registration Deadline',
+      date: 'Tomorrow',
+      type: 'deadline',
+      priority: 'high',
+    },
+    {
+      id: 3,
+      title: 'Semester Exam Schedule',
+      date: 'Next Week',
+      type: 'exam',
+      priority: 'medium',
+    },
+    {
+      id: 4,
+      title: 'Parent-Teacher Conference',
+      date: 'Friday, 10:00 AM',
+      type: 'conference',
+      priority: 'medium',
+    },
+  ];
+
+  const ModernStatCard = ({ title, value, icon, gradient, trend, delay = 0 }) => (
+    <StatsCard
+      icon={icon}
+      color="primary"
+      sx={{
+        background: gradient,
+        color: '#ffffff',
+        animation: `${countUp} 0.6s ease-out ${delay}s both`,
+        '&:hover': {
+          animation: `${pulse} 0.3s ease-in-out`,
+        },
+        '& .MuiTypography-root': {
+          color: '#ffffff',
+        },
+      }}
+    >
+      <Box sx={{ position: 'relative', zIndex: 2 }}>
+        <Typography variant="h3" component="div" fontWeight="800" sx={{ mb: 1 }}>
+          {typeof value === 'number' ? value.toLocaleString() : value}
+        </Typography>
+        <Typography variant="body1" sx={{ opacity: 0.9, mb: 2 }}>
+          {title}
+        </Typography>
+        {trend && (
+          <Chip
+            icon={<TrendingUpIcon />}
+            label={`+${trend}%`}
+            sx={{
+              background: 'rgba(255, 255, 255, 0.2)',
+              color: '#ffffff',
+              fontWeight: 600,
+            }}
+            size="small"
+          />
+        )}
+      </Box>
+    </StatsCard>
   );
 
   const getWelcomeMessage = () => {
@@ -109,8 +189,8 @@ const DashboardPage = () => {
     let greeting = 'Good morning';
     if (hour >= 12 && hour < 17) greeting = 'Good afternoon';
     else if (hour >= 17) greeting = 'Good evening';
-    
-    return `${greeting}, ${user?.firstName}!`;
+
+    return `${greeting}, ${user?.firstName || user?.name || 'User'}!`;
   };
 
   const getRoleBasedStats = () => {
