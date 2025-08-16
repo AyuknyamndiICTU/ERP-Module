@@ -197,38 +197,38 @@ const DashboardPage = () => {
     switch (user?.role) {
       case 'admin':
         return [
-          { title: 'Total Students', value: stats.academic.totalStudents, icon: <School />, color: '#2196f3', subtitle: 'Active enrollments' },
-          { title: 'Total Revenue', value: `$${(stats.finance.totalRevenue / 1000000).toFixed(1)}M`, icon: <AttachMoney />, color: '#4caf50', subtitle: 'This academic year' },
-          { title: 'Total Employees', value: stats.hr.totalEmployees, icon: <People />, color: '#ff9800', subtitle: 'Active staff' },
-          { title: 'Growth Rate', value: `${stats.finance.monthlyGrowth}%`, icon: <TrendingUp />, color: '#9c27b0', subtitle: 'Monthly growth' },
+          { title: 'Total Students', value: stats.academic.totalStudents, icon: <SchoolIcon />, color: '#2196f3', subtitle: 'Active enrollments' },
+          { title: 'Total Revenue', value: `$${(stats.finance.totalRevenue / 1000000).toFixed(1)}M`, icon: <MoneyIcon />, color: '#4caf50', subtitle: 'This academic year' },
+          { title: 'Total Employees', value: stats.hr.totalEmployees, icon: <PeopleIcon />, color: '#ff9800', subtitle: 'Active staff' },
+          { title: 'Growth Rate', value: `${stats.finance.monthlyGrowth}%`, icon: <TrendingUpIcon />, color: '#9c27b0', subtitle: 'Monthly growth' },
         ];
       case 'academic_staff':
         return [
-          { title: 'My Courses', value: 8, icon: <School />, color: '#2196f3', subtitle: 'Active courses' },
-          { title: 'Total Students', value: 245, icon: <People />, color: '#4caf50', subtitle: 'Enrolled students' },
-          { title: 'Pending Grades', value: 12, icon: <Assignment />, color: '#ff9800', subtitle: 'To be graded' },
-          { title: 'Attendance Rate', value: '92%', icon: <Event />, color: '#9c27b0', subtitle: 'Average attendance' },
+          { title: 'My Courses', value: 8, icon: <SchoolIcon />, color: '#2196f3', subtitle: 'Active courses' },
+          { title: 'Total Students', value: 245, icon: <PeopleIcon />, color: '#4caf50', subtitle: 'Enrolled students' },
+          { title: 'Pending Grades', value: 12, icon: <AssignmentIcon />, color: '#ff9800', subtitle: 'To be graded' },
+          { title: 'Attendance Rate', value: '92%', icon: <EventIcon />, color: '#9c27b0', subtitle: 'Average attendance' },
         ];
       case 'student':
         return [
-          { title: 'Enrolled Courses', value: 6, icon: <School />, color: '#2196f3', subtitle: 'Current semester' },
-          { title: 'Current GPA', value: '3.7', icon: <TrendingUp />, color: '#4caf50', subtitle: 'Cumulative GPA' },
-          { title: 'Attendance', value: '95%', icon: <Event />, color: '#ff9800', subtitle: 'This semester' },
-          { title: 'Credits Earned', value: 78, icon: <Assignment />, color: '#9c27b0', subtitle: 'Total credits' },
+          { title: 'Enrolled Courses', value: 6, icon: <SchoolIcon />, color: '#2196f3', subtitle: 'Current semester' },
+          { title: 'Current GPA', value: '3.7', icon: <TrendingUpIcon />, color: '#4caf50', subtitle: 'Cumulative GPA' },
+          { title: 'Attendance', value: '95%', icon: <EventIcon />, color: '#ff9800', subtitle: 'This semester' },
+          { title: 'Credits Earned', value: 78, icon: <AssignmentIcon />, color: '#9c27b0', subtitle: 'Total credits' },
         ];
       case 'finance_staff':
         return [
-          { title: 'Pending Invoices', value: 45, icon: <AttachMoney />, color: '#2196f3', subtitle: 'Awaiting payment' },
-          { title: 'Monthly Revenue', value: '$125K', icon: <TrendingUp />, color: '#4caf50', subtitle: 'This month' },
-          { title: 'Active Campaigns', value: stats.finance.activeCampaigns, icon: <Event />, color: '#ff9800', subtitle: 'Marketing campaigns' },
-          { title: 'Budget Utilization', value: '78%', icon: <Assignment />, color: '#9c27b0', subtitle: 'Current fiscal year' },
+          { title: 'Pending Invoices', value: 45, icon: <MoneyIcon />, color: '#2196f3', subtitle: 'Awaiting payment' },
+          { title: 'Monthly Revenue', value: '$125K', icon: <TrendingUpIcon />, color: '#4caf50', subtitle: 'This month' },
+          { title: 'Active Campaigns', value: stats.finance.activeCampaigns, icon: <EventIcon />, color: '#ff9800', subtitle: 'Marketing campaigns' },
+          { title: 'Budget Utilization', value: '78%', icon: <AssignmentIcon />, color: '#9c27b0', subtitle: 'Current fiscal year' },
         ];
       case 'hr_personnel':
         return [
-          { title: 'Total Employees', value: stats.hr.totalEmployees, icon: <People />, color: '#2196f3', subtitle: 'Active staff' },
-          { title: 'Leave Requests', value: stats.hr.activeLeaveRequests, icon: <Event />, color: '#4caf50', subtitle: 'Pending approval' },
-          { title: 'Performance Reviews', value: stats.hr.pendingReviews, icon: <Assignment />, color: '#ff9800', subtitle: 'Due this month' },
-          { title: 'Assets Assigned', value: stats.hr.assetsAssigned, icon: <TrendingUp />, color: '#9c27b0', subtitle: 'Total assets' },
+          { title: 'Total Employees', value: stats.hr.totalEmployees, icon: <PeopleIcon />, color: '#2196f3', subtitle: 'Active staff' },
+          { title: 'Leave Requests', value: stats.hr.activeLeaveRequests, icon: <EventIcon />, color: '#4caf50', subtitle: 'Pending approval' },
+          { title: 'Performance Reviews', value: stats.hr.pendingReviews, icon: <AssignmentIcon />, color: '#ff9800', subtitle: 'Due this month' },
+          { title: 'Assets Assigned', value: stats.hr.assetsAssigned, icon: <TrendingUpIcon />, color: '#9c27b0', subtitle: 'Total assets' },
         ];
       default:
         return [];
@@ -261,7 +261,7 @@ const DashboardPage = () => {
       <Grid container spacing={3} sx={{ mb: 3 }}>
         {getRoleBasedStats().map((stat, index) => (
           <Grid item xs={12} sm={6} md={3} key={index}>
-            <StatCard {...stat} />
+            <StatsCard {...stat} />
           </Grid>
         ))}
       </Grid>
@@ -269,8 +269,8 @@ const DashboardPage = () => {
       {/* Recent Activities */}
       <Grid container spacing={3}>
         <Grid item xs={12} md={8}>
-          <Card>
-            <CardContent>
+          <GlassCard>
+            <Box sx={{ p: 2 }}>
               <Typography variant="h6" gutterBottom>
                 Recent Activities
               </Typography>
@@ -304,13 +304,13 @@ const DashboardPage = () => {
                   </Box>
                 ))}
               </Box>
-            </CardContent>
-          </Card>
+            </Box>
+          </GlassCard>
         </Grid>
 
         <Grid item xs={12} md={4}>
-          <Card>
-            <CardContent>
+          <GlassCard>
+            <Box sx={{ p: 2 }}>
               <Typography variant="h6" gutterBottom>
                 Quick Actions
               </Typography>
@@ -351,8 +351,8 @@ const DashboardPage = () => {
                   </>
                 )}
               </Box>
-            </CardContent>
-          </Card>
+            </Box>
+          </GlassCard>
         </Grid>
       </Grid>
     </Box>

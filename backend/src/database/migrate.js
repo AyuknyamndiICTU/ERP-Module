@@ -152,15 +152,84 @@ class DatabaseMigrator {
    * Split SQL content into individual statements
    */
   splitSQLStatements(sql) {
-    // Remove comments and split by semicolon
-    const statements = sql
-      .split('\n')
-      .filter(line => !line.trim().startsWith('--') && line.trim() !== '')
-      .join('\n')
-      .split(';')
-      .filter(statement => statement.trim() !== '');
+    // Remove comments but preserve dollar-quoted strings
+    const lines = sql.split('\n');
+    const cleanedLines = [];
+    let inDollarQuoteClean = false;
+    let dollarTagClean = '';
 
-    return statements;
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+
+      // Skip empty lines and comments (but not inside dollar quotes)
+      if (!inDollarQuoteClean && (trimmedLine === '' || trimmedLine.startsWith('--'))) {
+        continue;
+      }
+
+      // Check for dollar quote start/end
+      const dollarQuoteMatch = line.match(/\$([^$]*)\$/);
+      if (dollarQuoteMatch) {
+        const currentTag = dollarQuoteMatch[0];
+        if (!inDollarQuoteClean) {
+          inDollarQuoteClean = true;
+          dollarTagClean = currentTag;
+        } else if (currentTag === dollarTagClean) {
+          inDollarQuoteClean = false;
+          dollarTagClean = '';
+        }
+      }
+
+      cleanedLines.push(line);
+    }
+
+    const cleanedSql = cleanedLines.join('\n');
+
+    // Split by semicolon, but be careful with dollar-quoted strings
+    const statements = [];
+    let currentStatement = '';
+    let inDollarQuote = false;
+    let dollarTag = '';
+
+    for (let i = 0; i < cleanedSql.length; i++) {
+      const char = cleanedSql[i];
+      currentStatement += char;
+
+      // Check for dollar quote
+      if (char === '$') {
+        const remaining = cleanedSql.substring(i);
+        const dollarQuoteMatch = remaining.match(/^\$([^$]*)\$/);
+        if (dollarQuoteMatch) {
+          const currentTag = dollarQuoteMatch[0];
+          if (!inDollarQuote) {
+            inDollarQuote = true;
+            dollarTag = currentTag;
+          } else if (currentTag === dollarTag) {
+            inDollarQuote = false;
+            dollarTag = '';
+          }
+          // Skip the tag part
+          i += currentTag.length - 1;
+          currentStatement += currentTag.substring(1);
+        }
+      }
+
+      // Split on semicolon only if not in dollar quote
+      if (char === ';' && !inDollarQuote) {
+        const statement = currentStatement.trim();
+        if (statement && statement !== ';') {
+          statements.push(statement);
+        }
+        currentStatement = '';
+      }
+    }
+
+    // Add the last statement if it exists
+    const lastStatement = currentStatement.trim();
+    if (lastStatement && lastStatement !== ';') {
+      statements.push(lastStatement);
+    }
+
+    return statements.filter(statement => statement.trim() !== '');
   }
 
   /**
