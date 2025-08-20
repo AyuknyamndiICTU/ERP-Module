@@ -10,24 +10,20 @@ import {
   InputAdornment,
   IconButton,
   keyframes,
-  Grid,
-  Chip,
-  Avatar,
+
 } from '@mui/material';
 import {
   Visibility,
   VisibilityOff,
   Email,
   Lock,
-  School as SchoolIcon,
-  Person as PersonIcon,
+
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import logger from '../../utils/logger';
 import LoadingSpinner from '../../components/Common/LoadingSpinner';
-import GlassCard, { GradientCard } from '../../components/GlassCard';
-
-// Animation keyframes
+// Animation keyframes for the login form
 const fadeInUp = keyframes`
   from {
     opacity: 0;
@@ -36,29 +32,6 @@ const fadeInUp = keyframes`
   to {
     opacity: 1;
     transform: translateY(0);
-  }
-`;
-
-const slideInLeft = keyframes`
-  from {
-    opacity: 0;
-    transform: translateX(-50px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-`;
-
-const pulse = keyframes`
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-  100% {
-    transform: scale(1);
   }
 `;
 
@@ -115,15 +88,18 @@ const LoginPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
 
     const result = await login(formData.email, formData.password);
-    
+
     if (result.success) {
       navigate('/dashboard');
+    } else {
+      // Error is already handled in AuthContext and displayed via error state
+      logger.error('Login failed', result.error);
     }
   };
 
