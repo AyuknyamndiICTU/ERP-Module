@@ -1,4 +1,7 @@
 const express = require('express');
+const { sequelize } = require('../config/database');
+const { logger } = require('../utils/logger');
+const { authenticateToken: auth } = require('../middleware/auth');
 const router = express.Router();
 
 /**
@@ -67,12 +70,68 @@ router.get('/', (req, res) => {
  *       500:
  *         description: Server error
  */
-router.get('/profile', (req, res) => {
-  // TODO: Implement get user profile
-  res.status(501).json({
-    success: false,
-    message: 'Get profile endpoint not implemented yet'
-  });
+router.get('/profile', auth, async (req, res) => {
+  try {
+    // Check if database is connected
+    if (!sequelize) {
+      return res.status(503).json({
+        success: false,
+        error: 'Database not available'
+      });
+    }
+
+    // Get user profile from database
+    const [users] = await sequelize.query(
+      `SELECT
+        id, email, first_name, last_name, phone, role, status,
+        email_verified, date_of_birth, gender, address,
+        profile_image_url, last_login, created_at
+      FROM users
+      WHERE id = :userId`,
+      {
+        replacements: { userId: req.user.userId },
+        type: sequelize.QueryTypes.SELECT
+      }
+    );
+
+    if (!users || users.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    const user = users[0];
+
+    // Return user profile
+    res.json({
+      success: true,
+      data: {
+        id: user.id,
+        email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        name: `${user.first_name} ${user.last_name}`,
+        phone: user.phone,
+        role: user.role,
+        status: user.status,
+        emailVerified: user.email_verified,
+        dateOfBirth: user.date_of_birth,
+        gender: user.gender,
+        address: user.address ? JSON.parse(user.address) : null,
+        profileImageUrl: user.profile_image_url,
+        lastLogin: user.last_login,
+        createdAt: user.created_at
+      }
+    });
+
+  } catch (error) {
+    logger.error('Get profile error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
 });
 
 /**
@@ -291,6 +350,73 @@ router.put('/change-password', (req, res) => {
     success: false,
     message: 'Change password endpoint not implemented yet'
   });
+});
+
+// Dashboard Statistics Route
+/**
+ * @swagger
+ * /api/users/dashboard/stats:
+ *   get:
+ *     summary: Get dashboard statistics
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Dashboard statistics retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.get('/dashboard/stats', auth, async (req, res) => {
+  try {
+    // Get basic statistics from the database
+    const [userStats] = await sequelize.query(`
+      SELECT
+        COUNT(CASE WHEN role = 'student' THEN 1 END) as total_students,
+        COUNT(CASE WHEN role = 'academic_staff' THEN 1 END) as total_faculty,
+        COUNT(CASE WHEN role = 'hr_personnel' THEN 1 END) as total_hr,
+        COUNT(CASE WHEN role = 'finance_staff' THEN 1 END) as total_finance,
+        COUNT(*) as total_users
+      FROM users
+      WHERE status = 'active'
+    `);
+
+    // Mock additional statistics (these would come from actual tables in a real implementation)
+    const stats = {
+      academic: {
+        totalStudents: parseInt(userStats.total_students) || 0,
+        totalCourses: 156,
+        activeEnrollments: parseInt(userStats.total_students) * 4 || 0,
+        averageGrade: 85.4
+      },
+      finance: {
+        totalRevenue: 1250000,
+        monthlyGrowth: 12.5,
+        pendingInvoices: 45,
+        activeCampaigns: 8
+      },
+      hr: {
+        totalEmployees: parseInt(userStats.total_hr) + parseInt(userStats.total_finance) + parseInt(userStats.total_faculty) || 89,
+        activeLeaveRequests: 12,
+        pendingReviews: 23,
+        assetsAssigned: 156
+      }
+    };
+
+    res.json({
+      success: true,
+      data: stats
+    });
+
+  } catch (error) {
+    logger.error('Error fetching dashboard statistics:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch dashboard statistics'
+    });
+  }
 });
 
 module.exports = router;

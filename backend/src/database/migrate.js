@@ -299,10 +299,10 @@ async function migrate() {
       logger.info('Running initial database setup...');
       await migrator.runMigrations();
       
-      // Run seeds in development environment
-      if (process.env.NODE_ENV === 'development') {
-        await migrator.runSeeds();
-      }
+      // Run seeds in development environment (disabled for now)
+      // if (process.env.NODE_ENV === 'development') {
+      //   await migrator.runSeeds();
+      // }
     } else {
       logger.info('Database is already migrated');
     }
@@ -341,9 +341,10 @@ async function reset() {
     await migrator.resetDatabase();
     await migrator.runMigrations();
     
-    if (process.env.NODE_ENV === 'development') {
-      await migrator.runSeeds();
-    }
+    // Seeding disabled for now
+    // if (process.env.NODE_ENV === 'development') {
+    //   await migrator.runSeeds();
+    // }
     
     logger.info('Database reset completed');
     process.exit(0);

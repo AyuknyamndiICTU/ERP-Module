@@ -1,4 +1,8 @@
 const express = require('express');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { sequelize } = require('../config/database');
+const { logger } = require('../utils/logger');
 const router = express.Router();
 
 /**
@@ -142,12 +146,108 @@ router.post('/register', (req, res) => {
  *       500:
  *         description: Server error
  */
-router.post('/login', (req, res) => {
-  // TODO: Implement user login
-  res.status(501).json({
-    success: false,
-    message: 'Login endpoint not implemented yet'
-  });
+router.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Validate input
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email and password are required'
+      });
+    }
+
+    // Check if database is connected
+    if (!sequelize) {
+      logger.warn('Database not connected, using demo mode');
+      return res.status(503).json({
+        success: false,
+        error: 'Database not available. Please check database connection.'
+      });
+    }
+
+    // Find user in database
+    const users = await sequelize.query(
+      'SELECT id, email, password_hash, first_name, last_name, role, status FROM users WHERE email = :email',
+      {
+        replacements: { email },
+        type: sequelize.QueryTypes.SELECT
+      }
+    );
+
+    if (!users || users.length === 0) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid email or password'
+      });
+    }
+
+    const user = users[0];
+
+    // Check if user is active
+    if (user.status !== 'active') {
+      return res.status(401).json({
+        success: false,
+        error: 'Account is not active. Please contact administrator.'
+      });
+    }
+
+    // Verify password
+    const isValidPassword = await bcrypt.compare(password, user.password_hash);
+    if (!isValidPassword) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid email or password'
+      });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      {
+        userId: user.id,
+        email: user.email,
+        role: user.role
+      },
+      process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production',
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    );
+
+    // Update last login
+    await sequelize.query(
+      'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = :userId',
+      {
+        replacements: { userId: user.id },
+        type: sequelize.QueryTypes.UPDATE
+      }
+    );
+
+    // Log successful login
+    logger.info(`User logged in successfully: ${user.email}`);
+
+    // Return success response
+    res.json({
+      success: true,
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.first_name,
+          lastName: user.last_name,
+          name: `${user.first_name} ${user.last_name}`,
+          role: user.role
+        },
+        token
+      }
+    });
+
+  } catch (error) {
+    logger.error('Login error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
 });
 
 /**
