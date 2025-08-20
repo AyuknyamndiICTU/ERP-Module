@@ -2,7 +2,8 @@ import React from 'react';
 import { Card, CardContent, Box, keyframes } from '@mui/material';
 import { styled } from '@mui/material/styles';
 
-// Hover animation
+// Hover animation (unused)
+/*
 const hoverGlow = keyframes`
   0% {
     box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
@@ -14,6 +15,7 @@ const hoverGlow = keyframes`
     box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
   }
 `;
+*/
 
 // Shimmer effect
 const shimmer = keyframes`
