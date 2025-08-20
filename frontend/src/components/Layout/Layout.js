@@ -20,7 +20,7 @@ import {
 } from '@mui/material';
 import {
   Menu as MenuIcon,
-  AccountCircle,
+
   Dashboard,
   School,
   AttachMoney,
@@ -31,6 +31,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import ChatButton from '../Chat/ChatButton';
 
 const Layout = ({ children }) => {
   const theme = useTheme();
@@ -281,6 +282,9 @@ const Layout = ({ children }) => {
       >
         {children}
       </Box>
+
+      {/* Community Chat Button */}
+      <ChatButton />
     </Box>
   );
 };
