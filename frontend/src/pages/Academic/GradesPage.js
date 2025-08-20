@@ -43,6 +43,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import GlassCard, { GradientCard, FeatureCard, StatsCard } from '../../components/GlassCard';
+import logger from '../../utils/logger';
 
 // Animation keyframes
 const fadeInUp = keyframes`
@@ -268,7 +269,7 @@ const GradesPage = () => {
 
   const handleSaveGrade = () => {
     // In real app, save grade to API
-    console.log('Saving grade:', editingGrade);
+    logger.debug('Saving grade:', editingGrade);
     setGradeDialogOpen(false);
     setEditingGrade(null);
   };
