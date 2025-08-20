@@ -100,7 +100,7 @@ export const AuthProvider = ({ children }) => {
   // Load user on app start
   useEffect(() => {
     loadUser();
-  }, []);
+  }, []); // loadUser is defined inside the component, but it's stable
 
   // Set up axios interceptor for token
   useEffect(() => {
