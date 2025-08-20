@@ -1,4 +1,5 @@
 import axios from 'axios';
+import logger from '../utils/logger';
 
 // Create axios instance with base configuration
 const api = axios.create({
@@ -20,7 +21,7 @@ api.interceptors.request.use(
     
     // Log request in development
     if (process.env.NODE_ENV === 'development') {
-      console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
+      logger.debug(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
     }
     
     return config;
@@ -35,7 +36,7 @@ api.interceptors.response.use(
   (response) => {
     // Log response in development
     if (process.env.NODE_ENV === 'development') {
-      console.log(`API Response: ${response.status} ${response.config.url}`);
+      logger.debug(`API Response: ${response.status} ${response.config.url}`);
     }
     
     return response;
@@ -50,7 +51,7 @@ api.interceptors.response.use(
     
     // Log error in development
     if (process.env.NODE_ENV === 'development') {
-      console.error('API Error:', error.response?.data || error.message);
+      logger.error('API Error:', error.response?.data || error.message);
     }
     
     return Promise.reject(error);
