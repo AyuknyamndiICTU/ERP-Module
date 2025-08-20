@@ -25,7 +25,14 @@ const config = {
 };
 
 // Create Sequelize instance
-const sequelize = new Sequelize(config);
+const sequelize = new Sequelize(config.database, config.username, config.password, {
+  host: config.host,
+  port: config.port,
+  dialect: config.dialect,
+  logging: config.logging,
+  pool: config.pool,
+  define: config.define
+});
 
 // Test database connection
 const connectDB = async () => {
