@@ -8,7 +8,7 @@ import {
   InputAdornment,
   Chip,
   Avatar,
-  IconButton,
+
   Menu,
   MenuItem,
   Dialog,
@@ -28,13 +28,10 @@ import {
   Person as PersonIcon,
   Schedule as ScheduleIcon,
   Group as GroupIcon,
-  MoreVert as MoreVertIcon,
   Edit as EditIcon,
-  Delete as DeleteIcon,
-  Visibility as ViewIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
-import GlassCard, { GradientCard, FeatureCard } from '../../components/GlassCard';
+import GlassCard, { FeatureCard } from '../../components/GlassCard';
 
 // Animation keyframes
 const fadeInUp = keyframes`
