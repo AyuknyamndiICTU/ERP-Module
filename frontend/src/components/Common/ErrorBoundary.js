@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Typography, Button, Paper } from '@mui/material';
 import { ErrorOutline } from '@mui/icons-material';
+import logger from '../../utils/logger';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -20,7 +21,7 @@ class ErrorBoundary extends React.Component {
     
     // Log error to console in development
     if (process.env.NODE_ENV === 'development') {
-      console.error('Error caught by boundary:', error, errorInfo);
+      logger.error('Error caught by boundary:', error, errorInfo);
     }
   }
 
