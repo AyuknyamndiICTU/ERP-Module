@@ -25,15 +25,11 @@ import {
   Tabs,
   Tab,
   LinearProgress,
-  Switch,
-  FormControlLabel,
   keyframes,
-  Paper,
   IconButton,
-  Tooltip,
 } from '@mui/material';
 import {
-  Add as AddIcon,
+
   Search as SearchIcon,
   CalendarToday as CalendarIcon,
   CheckCircle as PresentIcon,
@@ -41,15 +37,16 @@ import {
   Schedule as LateIcon,
   EventBusy as ExcusedIcon,
   Person as PersonIcon,
-  Assessment as AssessmentIcon,
+
   TrendingUp as TrendingUpIcon,
   Warning as WarningIcon,
-  Edit as EditIcon,
+
   Save as SaveIcon,
   Download as DownloadIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
-import GlassCard, { GradientCard, FeatureCard, StatsCard } from '../../components/GlassCard';
+import GlassCard, { StatsCard } from '../../components/GlassCard';
+import logger from '../../utils/logger';
 
 // Animation keyframes
 const fadeInUp = keyframes`
@@ -182,7 +179,7 @@ const AttendancePage = () => {
   };
 
   useEffect(() => {
-    // Simulate API call
+    // Simulate API call - mock data is static so no dependencies needed
     setTimeout(() => {
       setCourses(mockCourses);
       if (mockCourses.length > 0) {
@@ -200,7 +197,7 @@ const AttendancePage = () => {
       }
       setLoading(false);
     }, 1000);
-  }, []);
+  }, []); // Mock data is static, no dependencies needed
 
   const filteredStudents = students.filter(student =>
     student.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -254,7 +251,7 @@ const AttendancePage = () => {
 
   const handleSaveAttendance = () => {
     // In real app, save attendance to API
-    console.log('Saving attendance for', selectedDate, attendanceRecords);
+    logger.debug('Saving attendance for', selectedDate, attendanceRecords);
     setAttendanceDialogOpen(false);
   };
 
