@@ -8,7 +8,6 @@ import {
   InputAdornment,
   Chip,
   Avatar,
-  IconButton,
   Menu,
   MenuItem,
   Dialog,
@@ -20,15 +19,8 @@ import {
   Select,
   Tabs,
   Tab,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   LinearProgress,
-  keyframes,
-} from '@mui/material';
+  keyframes} from '@mui/material';
 import {
   Add as AddIcon,
   Search as SearchIcon,
@@ -43,10 +35,9 @@ import {
   Edit as EditIcon,
   Visibility as ViewIcon,
   Download as DownloadIcon,
-  TrendingUp as TrendingUpIcon,
-} from '@mui/icons-material';
+  TrendingUp as TrendingUpIcon} from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
-import GlassCard, { GradientCard, FeatureCard, StatsCard } from '../../components/GlassCard';
+import GlassCard, { FeatureCard, StatsCard } from '../../components/GlassCard';
 
 // Animation keyframes
 const fadeInUp = keyframes`
@@ -261,8 +252,7 @@ const StudentsPage = () => {
       sx={{
         animation: `${fadeInUp} 0.6s ease-out ${index * 0.1}s both`,
         cursor: 'pointer',
-        height: '100%',
-      }}
+        height: '100%'}}
       onClick={() => handleStudentClick(student)}
     >
       <Box sx={{ position: 'relative', mb: 2 }}>
@@ -275,8 +265,7 @@ const StudentsPage = () => {
                 height: 48,
                 mr: 2,
                 fontSize: '1.2rem',
-                fontWeight: 700,
-              }}
+                fontWeight: 700}}
             >
               {student.first_name[0]}{student.last_name[0]}
             </Avatar>
@@ -342,8 +331,7 @@ const StudentsPage = () => {
               borderRadius: 3,
               background: '#f3f4f6',
               position: 'relative',
-              overflow: 'hidden',
-            }}
+              overflow: 'hidden'}}
           >
             <Box
               sx={{
@@ -351,8 +339,7 @@ const StudentsPage = () => {
                 height: '100%',
                 background: getGPAColor(student.current_gpa),
                 borderRadius: 3,
-                transition: 'width 0.3s ease',
-              }}
+                transition: 'width 0.3s ease'}}
             />
           </Box>
         </Box>
@@ -373,8 +360,7 @@ const StudentsPage = () => {
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
             fontWeight: 800,
-            mb: 1,
-          }}
+            mb: 1}}
         >
           Student Management
         </Typography>
@@ -392,8 +378,7 @@ const StudentsPage = () => {
             sx={{
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               color: '#ffffff',
-              animation: `${fadeInUp} 0.6s ease-out 0.1s both`,
-            }}
+              animation: `${fadeInUp} 0.6s ease-out 0.1s both`}}
           >
             <Typography variant="h3" fontWeight="800" sx={{ mb: 1 }}>
               {students.length}
@@ -410,8 +395,7 @@ const StudentsPage = () => {
             sx={{
               background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
               color: '#ffffff',
-              animation: `${fadeInUp} 0.6s ease-out 0.2s both`,
-            }}
+              animation: `${fadeInUp} 0.6s ease-out 0.2s both`}}
           >
             <Typography variant="h3" fontWeight="800" sx={{ mb: 1 }}>
               {students.filter(s => s.status === 'active').length}
@@ -428,8 +412,7 @@ const StudentsPage = () => {
             sx={{
               background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
               color: '#ffffff',
-              animation: `${fadeInUp} 0.6s ease-out 0.3s both`,
-            }}
+              animation: `${fadeInUp} 0.6s ease-out 0.3s both`}}
           >
             <Typography variant="h3" fontWeight="800" sx={{ mb: 1 }}>
               {(students.reduce((sum, s) => sum + s.current_gpa, 0) / students.length).toFixed(2)}
@@ -446,8 +429,7 @@ const StudentsPage = () => {
             sx={{
               background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
               color: '#ffffff',
-              animation: `${fadeInUp} 0.6s ease-out 0.4s both`,
-            }}
+              animation: `${fadeInUp} 0.6s ease-out 0.4s both`}}
           >
             <Typography variant="h3" fontWeight="800" sx={{ mb: 1 }}>
               {students.filter(s => s.current_gpa >= 3.5).length}
@@ -471,8 +453,7 @@ const StudentsPage = () => {
                 <InputAdornment position="start">
                   <SearchIcon />
                 </InputAdornment>
-              ),
-            }}
+              )}}
             sx={{ flexGrow: 1, minWidth: 300 }}
           />
 
@@ -491,8 +472,7 @@ const StudentsPage = () => {
               startIcon={<AddIcon />}
               sx={{
                 background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                minWidth: 140,
-              }}
+                minWidth: 140}}
             >
               Add Student
             </Button>
@@ -585,8 +565,7 @@ const StudentsPage = () => {
                       height: 56,
                       mr: 2,
                       fontSize: '1.5rem',
-                      fontWeight: 700,
-                    }}
+                      fontWeight: 700}}
                   >
                     {selectedStudent.first_name[0]}{selectedStudent.last_name[0]}
                   </Avatar>
@@ -691,9 +670,7 @@ const StudentsPage = () => {
                           backgroundColor: '#f3f4f6',
                           '& .MuiLinearProgress-bar': {
                             backgroundColor: getGPAColor(selectedStudent.current_gpa),
-                            borderRadius: 4,
-                          },
-                        }}
+                            borderRadius: 4}}}
                       />
                     </Box>
                   </Grid>

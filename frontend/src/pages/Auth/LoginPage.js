@@ -9,16 +9,12 @@ import {
   Container,
   InputAdornment,
   IconButton,
-  keyframes,
-
-} from '@mui/material';
+  keyframes} from '@mui/material';
 import {
   Visibility,
   VisibilityOff,
   Email,
-  Lock,
-
-} from '@mui/icons-material';
+  Lock} from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import logger from '../../utils/logger';
@@ -41,8 +37,7 @@ const LoginPage = () => {
   
   const [formData, setFormData] = useState({
     email: '',
-    password: '',
-  });
+    password: ''});
   const [showPassword, setShowPassword] = useState(false);
   const [formErrors, setFormErrors] = useState({});
 
@@ -50,15 +45,13 @@ const LoginPage = () => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value,
-    }));
+      [name]: value}));
     
     // Clear field error when user starts typing
     if (formErrors[name]) {
       setFormErrors(prev => ({
         ...prev,
-        [name]: '',
-      }));
+        [name]: ''}));
     }
     
     // Clear auth error
@@ -119,8 +112,7 @@ const LoginPage = () => {
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
-          alignItems: 'center',
-        }}
+          alignItems: 'center'}}
       >
         <Paper
           elevation={3}
@@ -130,8 +122,7 @@ const LoginPage = () => {
             flexDirection: 'column',
             alignItems: 'center',
             width: '100%',
-            maxWidth: 400,
-          }}
+            maxWidth: 400}}
         >
           {/* Logo/Title */}
           <Typography component="h1" variant="h4" gutterBottom>
@@ -168,8 +159,7 @@ const LoginPage = () => {
                   <InputAdornment position="start">
                     <Email />
                   </InputAdornment>
-                ),
-              }}
+                )}}
             />
             
             <TextField
@@ -201,8 +191,7 @@ const LoginPage = () => {
                       {showPassword ? <VisibilityOff /> : <Visibility />}
                     </IconButton>
                   </InputAdornment>
-                ),
-              }}
+                )}}
             />
 
             <Button

@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
   Button,
   TextField,
-  Grid,
   Table,
   TableBody,
   TableCell,
@@ -17,158 +16,109 @@ import {
   Menu,
   MenuItem,
   Avatar,
+  Paper,
+  Grid,
   Card,
   CardContent,
-  Tabs,
-  Tab,
+  CircularProgress,
 } from '@mui/material';
 import {
   Add as AddIcon,
   Search as SearchIcon,
-  FilterList as FilterIcon,
   MoreVert as MoreVertIcon,
   Computer as ComputerIcon,
+  Phone as PhoneIcon,
   Chair as FurnitureIcon,
   Build as ToolIcon,
-  DirectionsCar as VehicleIcon,
   Visibility as ViewIcon,
   Edit as EditIcon,
-  Delete as DeleteIcon,
   Assignment as AssignIcon,
-  AssignmentReturn as ReturnIcon,
 } from '@mui/icons-material';
-import { useApiData, useDialogState } from '../../hooks/useApiData';
-import { FormDialog, ConfirmDialog, DetailDialog } from '../../components/Common/DialogComponents';
+import { useAuth } from '../../context/AuthContext';
 import GlassCard from '../../components/GlassCard';
-import logger from '../../utils/logger';
 
 const AssetsPage = () => {
+  const { user } = useAuth();
+  const [assets, setAssets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedAsset, setSelectedAsset] = useState(null);
-  const [tabValue, setTabValue] = useState(0);
 
-  // Mock API service for assets
-  const mockAssetService = {
-    getAll: async () => ({
-      data: {
-        success: true,
-        data: [
-          {
-            id: 1,
-            assetId: 'AST001',
-            name: 'Dell Laptop XPS 13',
-            category: 'IT Equipment',
-            type: 'Laptop',
-            serialNumber: 'DL123456789',
-            purchaseDate: '2023-01-15',
-            purchasePrice: 1200,
-            currentValue: 800,
-            status: 'assigned',
-            assignedTo: 'John Smith (EMP001)',
-            location: 'Computer Science Dept',
-            condition: 'good',
-            warrantyExpiry: '2026-01-15',
-            vendor: 'Dell Technologies'
-          },
-          {
-            id: 2,
-            assetId: 'AST002',
-            name: 'Office Chair Ergonomic',
-            category: 'Furniture',
-            type: 'Chair',
-            serialNumber: 'OC987654321',
-            purchaseDate: '2022-06-10',
-            purchasePrice: 350,
-            currentValue: 200,
-            status: 'available',
-            assignedTo: null,
-            location: 'Storage Room A',
-            condition: 'excellent',
-            warrantyExpiry: '2025-06-10',
-            vendor: 'Office Furniture Co.'
-          },
-          {
-            id: 3,
-            assetId: 'AST003',
-            name: 'Projector Epson EB-X41',
-            category: 'AV Equipment',
-            type: 'Projector',
-            serialNumber: 'EP456789123',
-            purchaseDate: '2023-03-20',
-            purchasePrice: 600,
-            currentValue: 450,
-            status: 'maintenance',
-            assignedTo: null,
-            location: 'IT Service Center',
-            condition: 'fair',
-            warrantyExpiry: '2026-03-20',
-            vendor: 'Epson Inc.'
-          },
-          {
-            id: 4,
-            assetId: 'AST004',
-            name: 'Toyota Camry 2022',
-            category: 'Vehicle',
-            type: 'Sedan',
-            serialNumber: 'TC789123456',
-            purchaseDate: '2022-01-01',
-            purchasePrice: 25000,
-            currentValue: 20000,
-            status: 'assigned',
-            assignedTo: 'Sarah Johnson (EMP002)',
-            location: 'Parking Lot B',
-            condition: 'excellent',
-            warrantyExpiry: '2025-01-01',
-            vendor: 'Toyota Motors'
-          }
-        ]
-      }
-    }),
-    create: async (data) => ({
-      data: {
-        success: true,
-        data: { id: Date.now(), ...data, assetId: `AST${String(Date.now()).slice(-3)}` }
-      }
-    }),
-    update: async (id, data) => ({ data: { success: true, data: { id, ...data } } }),
-    delete: async (id) => ({ data: { success: true } }),
-    getById: async (id) => ({ data: { success: true, data: {} } })
-  };
-
-  const { data: assets, loading, createItem, updateItem, deleteItem, handleSearch } = useApiData(mockAssetService);
-  const { dialogs, selectedItem, openDialog, closeDialog } = useDialogState();
-
-  const assetFields = [
-    { name: 'name', label: 'Asset Name', type: 'text', required: true },
-    { name: 'category', label: 'Category', type: 'select', required: true, options: [
-      { value: 'IT Equipment', label: 'IT Equipment' },
-      { value: 'Furniture', label: 'Furniture' },
-      { value: 'AV Equipment', label: 'AV Equipment' },
-      { value: 'Vehicle', label: 'Vehicle' },
-      { value: 'Tools', label: 'Tools' },
-      { value: 'Office Supplies', label: 'Office Supplies' }
-    ]},
-    { name: 'type', label: 'Type', type: 'text', required: true },
-    { name: 'serialNumber', label: 'Serial Number', type: 'text', required: true },
-    { name: 'purchaseDate', label: 'Purchase Date', type: 'date', required: true, width: 6 },
-    { name: 'purchasePrice', label: 'Purchase Price ($)', type: 'number', required: true, min: 0, width: 6 },
-    { name: 'vendor', label: 'Vendor', type: 'text', required: true },
-    { name: 'location', label: 'Location', type: 'text', required: true },
-    { name: 'warrantyExpiry', label: 'Warranty Expiry', type: 'date' },
-    { name: 'condition', label: 'Condition', type: 'select', options: [
-      { value: 'excellent', label: 'Excellent' },
-      { value: 'good', label: 'Good' },
-      { value: 'fair', label: 'Fair' },
-      { value: 'poor', label: 'Poor' }
-    ]}
+  // Mock data
+  const mockAssets = [
+    {
+      id: 1,
+      assetId: 'AST001',
+      name: 'Dell Laptop OptiPlex 7090',
+      category: 'Computer',
+      serialNumber: 'DL7090-001',
+      purchaseDate: '2023-01-15',
+      purchasePrice: 1200.00,
+      currentValue: 800.00,
+      status: 'assigned',
+      assignedTo: 'John Doe (EMP001)',
+      location: 'Computer Science Lab',
+      condition: 'good'
+    },
+    {
+      id: 2,
+      assetId: 'AST002',
+      name: 'iPhone 14 Pro',
+      category: 'Mobile Device',
+      serialNumber: 'IP14P-002',
+      purchaseDate: '2023-03-20',
+      purchasePrice: 999.00,
+      currentValue: 750.00,
+      status: 'available',
+      assignedTo: null,
+      location: 'IT Storage',
+      condition: 'excellent'
+    },
+    {
+      id: 3,
+      assetId: 'AST003',
+      name: 'Office Chair Ergonomic',
+      category: 'Furniture',
+      serialNumber: 'OC-ERG-003',
+      purchaseDate: '2022-08-10',
+      purchasePrice: 350.00,
+      currentValue: 200.00,
+      status: 'assigned',
+      assignedTo: 'Jane Smith (EMP002)',
+      location: 'Mathematics Department',
+      condition: 'good'
+    },
+    {
+      id: 4,
+      assetId: 'AST004',
+      name: 'Projector Epson EB-X41',
+      category: 'Equipment',
+      serialNumber: 'EP-EBX41-004',
+      purchaseDate: '2023-06-05',
+      purchasePrice: 450.00,
+      currentValue: 380.00,
+      status: 'maintenance',
+      assignedTo: null,
+      location: 'Maintenance Room',
+      condition: 'needs_repair'
+    }
   ];
+
+  useEffect(() => {
+    // Simulate API call
+    setTimeout(() => {
+      setAssets(mockAssets);
+      setLoading(false);
+    }, 1000);
+  }, []);
 
   const getStatusColor = (status) => {
     switch (status) {
       case 'available': return 'success';
       case 'assigned': return 'info';
       case 'maintenance': return 'warning';
-      case 'retired': return 'error';
+      case 'disposed': return 'error';
       default: return 'default';
     }
   };
@@ -178,172 +128,66 @@ const AssetsPage = () => {
       case 'excellent': return 'success';
       case 'good': return 'info';
       case 'fair': return 'warning';
-      case 'poor': return 'error';
+      case 'needs_repair': return 'error';
       default: return 'default';
     }
   };
 
   const getCategoryIcon = (category) => {
     switch (category) {
-      case 'IT Equipment': return <ComputerIcon />;
+      case 'Computer': return <ComputerIcon />;
+      case 'Mobile Device': return <PhoneIcon />;
       case 'Furniture': return <FurnitureIcon />;
-      case 'Vehicle': return <VehicleIcon />;
-      case 'Tools': return <ToolIcon />;
-      default: return <ComputerIcon />;
+      case 'Equipment': return <ToolIcon />;
+      default: return <ToolIcon />;
     }
   };
 
-  const handleMenuClick = (event, asset) => {
-    setAnchorEl(event.currentTarget);
-    setSelectedAsset(asset);
-  };
+  const filteredAssets = assets.filter(asset => 
+    asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    asset.assetId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    asset.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    asset.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (asset.assignedTo && asset.assignedTo.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-    setSelectedAsset(null);
-  };
-
-  const handleCreateAsset = async (data) => {
-    try {
-      await createItem({
-        ...data,
-        status: 'available',
-        currentValue: data.purchasePrice
-      });
-      closeDialog('create');
-    } catch (error) {
-      logger.error('Error creating asset:', error);
-    }
-  };
-
-  const handleUpdateAsset = async (data) => {
-    try {
-      await updateItem(selectedItem.id, data);
-      closeDialog('edit');
-    } catch (error) {
-      logger.error('Error updating asset:', error);
-    }
-  };
-
-  const handleDeleteAsset = async () => {
-    try {
-      await deleteItem(selectedItem.id);
-      closeDialog('delete');
-    } catch (error) {
-      logger.error('Error deleting asset:', error);
-    }
-  };
-
-  const handleAssignAsset = (asset) => {
-    // This would open an assignment dialog
-    logger.debug('Assign asset:', asset);
-    handleMenuClose();
-  };
-
-  const handleReturnAsset = (asset) => {
-    updateItem(asset.id, {
-      ...asset,
-      status: 'available',
-      assignedTo: null
-    });
-    handleMenuClose();
-  };
-
-  // Filter assets based on tab
-  const getFilteredAssets = () => {
-    switch (tabValue) {
-      case 0: return assets; // All
-      case 1: return assets.filter(asset => asset.status === 'available');
-      case 2: return assets.filter(asset => asset.status === 'assigned');
-      case 3: return assets.filter(asset => asset.status === 'maintenance');
-      default: return assets;
-    }
-  };
-
-  // Calculate summary statistics
-  const totalAssets = assets.length;
-  const availableAssets = assets.filter(asset => asset.status === 'available').length;
-  const assignedAssets = assets.filter(asset => asset.status === 'assigned').length;
-  const totalValue = assets.reduce((sum, asset) => sum + asset.currentValue, 0);
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
-    <Box>
+    <Box sx={{ p: 3 }}>
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" fontWeight="700">
+        <Typography variant="h4" fontWeight="700" sx={{ color: 'primary.main' }}>
           Asset Management
         </Typography>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
-          onClick={() => openDialog('create')}
           sx={{
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            borderRadius: 2,
+            '&:hover': {
+              background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
+            }
           }}
         >
           Add Asset
         </Button>
       </Box>
 
-      {/* Summary Cards */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} md={3}>
-          <GlassCard>
-            <CardContent>
-              <Typography variant="h6" color="primary" gutterBottom>
-                Total Assets
-              </Typography>
-              <Typography variant="h4" fontWeight="700">
-                {totalAssets}
-              </Typography>
-            </CardContent>
-          </GlassCard>
-        </Grid>
-        <Grid item xs={12} md={3}>
-          <GlassCard>
-            <CardContent>
-              <Typography variant="h6" color="success.main" gutterBottom>
-                Available
-              </Typography>
-              <Typography variant="h4" fontWeight="700">
-                {availableAssets}
-              </Typography>
-            </CardContent>
-          </GlassCard>
-        </Grid>
-        <Grid item xs={12} md={3}>
-          <GlassCard>
-            <CardContent>
-              <Typography variant="h6" color="info.main" gutterBottom>
-                Assigned
-              </Typography>
-              <Typography variant="h4" fontWeight="700">
-                {assignedAssets}
-              </Typography>
-            </CardContent>
-          </GlassCard>
-        </Grid>
-        <Grid item xs={12} md={3}>
-          <GlassCard>
-            <CardContent>
-              <Typography variant="h6" color="text.secondary" gutterBottom>
-                Total Value
-              </Typography>
-              <Typography variant="h4" fontWeight="700">
-                ${totalValue.toLocaleString()}
-              </Typography>
-            </CardContent>
-          </GlassCard>
-        </Grid>
-      </Grid>
-
-      {/* Search and Filters */}
+      {/* Search */}
       <GlassCard sx={{ mb: 3 }}>
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+        <Box sx={{ p: 2 }}>
           <TextField
+            fullWidth
             placeholder="Search assets..."
-            onChange={(e) => handleSearch(e.target.value)}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -351,46 +195,96 @@ const AssetsPage = () => {
                 </InputAdornment>
               ),
             }}
-            sx={{ flexGrow: 1 }}
           />
-          <Button
-            variant="outlined"
-            startIcon={<FilterIcon />}
-            sx={{ minWidth: 120 }}
-          >
-            Filter
-          </Button>
         </Box>
       </GlassCard>
 
+      {/* Statistics Cards */}
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="h4" fontWeight="700">
+                    {assets.length}
+                  </Typography>
+                  <Typography variant="body2">Total Assets</Typography>
+                </Box>
+                <ToolIcon sx={{ fontSize: 40, opacity: 0.8 }} />
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', color: 'white' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="h4" fontWeight="700">
+                    {assets.filter(a => a.status === 'available').length}
+                  </Typography>
+                  <Typography variant="body2">Available</Typography>
+                </Box>
+                <ComputerIcon sx={{ fontSize: 40, opacity: 0.8 }} />
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', color: 'white' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="h4" fontWeight="700">
+                    {assets.filter(a => a.status === 'assigned').length}
+                  </Typography>
+                  <Typography variant="body2">Assigned</Typography>
+                </Box>
+                <AssignIcon sx={{ fontSize: 40, opacity: 0.8 }} />
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', color: 'white' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="h4" fontWeight="700">
+                    ${(assets.reduce((sum, a) => sum + a.currentValue, 0) / 1000).toFixed(0)}K
+                  </Typography>
+                  <Typography variant="body2">Total Value</Typography>
+                </Box>
+                <ToolIcon sx={{ fontSize: 40, opacity: 0.8 }} />
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
       {/* Assets Table */}
       <GlassCard>
-        <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)} sx={{ px: 3, pt: 2 }}>
-          <Tab label="All Assets" />
-          <Tab label="Available" />
-          <Tab label="Assigned" />
-          <Tab label="Maintenance" />
-        </Tabs>
-
         <TableContainer>
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Asset</TableCell>
-                <TableCell>Category</TableCell>
-                <TableCell>Serial Number</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Assigned To</TableCell>
-                <TableCell>Value</TableCell>
-                <TableCell align="center">Actions</TableCell>
+                <TableCell><strong>Asset</strong></TableCell>
+                <TableCell><strong>Category</strong></TableCell>
+                <TableCell><strong>Serial Number</strong></TableCell>
+                <TableCell><strong>Value</strong></TableCell>
+                <TableCell><strong>Status</strong></TableCell>
+                <TableCell><strong>Assigned To</strong></TableCell>
+                <TableCell><strong>Condition</strong></TableCell>
+                <TableCell align="right"><strong>Actions</strong></TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {getFilteredAssets().map((asset) => (
+              {filteredAssets.map((asset) => (
                 <TableRow key={asset.id} hover>
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <Avatar sx={{ width: 32, height: 32, mr: 1, bgcolor: 'primary.main' }}>
+                      <Avatar sx={{ mr: 2, bgcolor: 'primary.main' }}>
                         {getCategoryIcon(asset.category)}
                       </Avatar>
                       <Box>
@@ -398,58 +292,61 @@ const AssetsPage = () => {
                           {asset.name}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {asset.assetId} • {asset.type}
+                          {asset.assetId} • {asset.location}
                         </Typography>
                       </Box>
                     </Box>
                   </TableCell>
+                  <TableCell>{asset.category}</TableCell>
                   <TableCell>
-                    <Typography variant="body2" fontWeight="500">
-                      {asset.category}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">
+                    <Typography variant="body2" fontFamily="monospace">
                       {asset.serialNumber}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Box>
-                      <Chip
-                        label={asset.status.toUpperCase()}
-                        color={getStatusColor(asset.status)}
-                        size="small"
-                        sx={{ mb: 0.5 }}
-                      />
-                      <br />
-                      <Chip
-                        label={asset.condition.toUpperCase()}
-                        color={getConditionColor(asset.condition)}
-                        size="small"
-                        variant="outlined"
-                      />
+                      <Typography variant="body2" fontWeight="600" color="primary.main">
+                        ${asset.currentValue.toLocaleString()}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Purchase: ${asset.purchasePrice.toLocaleString()}
+                      </Typography>
                     </Box>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2">
-                      {asset.assignedTo || 'Not Assigned'}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {asset.location}
-                    </Typography>
+                    <Chip
+                      label={asset.status.charAt(0).toUpperCase() + asset.status.slice(1)}
+                      color={getStatusColor(asset.status)}
+                      size="small"
+                      sx={{ fontWeight: 600 }}
+                    />
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2" fontWeight="600">
-                      ${asset.currentValue.toLocaleString()}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Purchase: ${asset.purchasePrice.toLocaleString()}
-                    </Typography>
+                    {asset.assignedTo ? (
+                      <Typography variant="body2">
+                        {asset.assignedTo}
+                      </Typography>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        Not assigned
+                      </Typography>
+                    )}
                   </TableCell>
-                  <TableCell align="center">
-                    <IconButton
+                  <TableCell>
+                    <Chip
+                      label={asset.condition.replace('_', ' ').charAt(0).toUpperCase() + asset.condition.replace('_', ' ').slice(1)}
+                      color={getConditionColor(asset.condition)}
                       size="small"
-                      onClick={(e) => handleMenuClick(e, asset)}
+                      variant="outlined"
+                    />
+                  </TableCell>
+                  <TableCell align="right">
+                    <IconButton
+                      onClick={(e) => {
+                        setAnchorEl(e.currentTarget);
+                        setSelectedAsset(asset);
+                      }}
+                      sx={{ color: 'primary.main' }}
                     >
                       <MoreVertIcon />
                     </IconButton>
@@ -465,112 +362,21 @@ const AssetsPage = () => {
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
-        onClose={handleMenuClose}
+        onClose={() => setAnchorEl(null)}
       >
-        <MenuItem onClick={() => { openDialog('detail', selectedAsset); handleMenuClose(); }}>
-          <ViewIcon sx={{ mr: 1 }} fontSize="small" />
+        <MenuItem onClick={() => setAnchorEl(null)}>
+          <ViewIcon sx={{ mr: 1 }} />
           View Details
         </MenuItem>
-        <MenuItem onClick={() => { openDialog('edit', selectedAsset); handleMenuClose(); }}>
-          <EditIcon sx={{ mr: 1 }} fontSize="small" />
+        <MenuItem onClick={() => setAnchorEl(null)}>
+          <EditIcon sx={{ mr: 1 }} />
           Edit Asset
         </MenuItem>
-        {selectedAsset?.status === 'available' && (
-          <MenuItem onClick={() => handleAssignAsset(selectedAsset)}>
-            <AssignIcon sx={{ mr: 1 }} fontSize="small" />
-            Assign Asset
-          </MenuItem>
-        )}
-        {selectedAsset?.status === 'assigned' && (
-          <MenuItem onClick={() => handleReturnAsset(selectedAsset)}>
-            <ReturnIcon sx={{ mr: 1 }} fontSize="small" />
-            Return Asset
-          </MenuItem>
-        )}
-        <MenuItem onClick={() => { openDialog('delete', selectedAsset); handleMenuClose(); }} sx={{ color: 'error.main' }}>
-          <DeleteIcon sx={{ mr: 1 }} fontSize="small" />
-          Delete Asset
+        <MenuItem onClick={() => setAnchorEl(null)}>
+          <AssignIcon sx={{ mr: 1 }} />
+          Assign/Unassign
         </MenuItem>
       </Menu>
-
-      {/* Dialogs */}
-      <FormDialog
-        open={dialogs.create}
-        onClose={() => closeDialog('create')}
-        title="Add New Asset"
-        fields={assetFields}
-        onSave={handleCreateAsset}
-        loading={loading}
-      />
-
-      <FormDialog
-        open={dialogs.edit}
-        onClose={() => closeDialog('edit')}
-        title="Edit Asset"
-        fields={assetFields}
-        data={selectedItem}
-        onSave={handleUpdateAsset}
-        loading={loading}
-      />
-
-      <DetailDialog
-        open={dialogs.detail}
-        onClose={() => closeDialog('detail')}
-        title="Asset Details"
-        data={selectedItem}
-        fields={[
-          { name: 'assetId', label: 'Asset ID' },
-          { name: 'name', label: 'Asset Name' },
-          { name: 'category', label: 'Category' },
-          { name: 'type', label: 'Type' },
-          { name: 'serialNumber', label: 'Serial Number' },
-          { name: 'purchaseDate', label: 'Purchase Date' },
-          { name: 'purchasePrice', label: 'Purchase Price', render: (value) => `$${value?.toLocaleString()}` },
-          { name: 'currentValue', label: 'Current Value', render: (value) => `$${value?.toLocaleString()}` },
-          { name: 'vendor', label: 'Vendor' },
-          { name: 'location', label: 'Location' },
-          { name: 'warrantyExpiry', label: 'Warranty Expiry' },
-          { name: 'status', label: 'Status', render: (value) => (
-            <Chip label={value?.toUpperCase()} color={getStatusColor(value)} size="small" />
-          )},
-          { name: 'condition', label: 'Condition', render: (value) => (
-            <Chip label={value?.toUpperCase()} color={getConditionColor(value)} size="small" />
-          )},
-          { name: 'assignedTo', label: 'Assigned To', width: 12 }
-        ]}
-        actions={[
-          {
-            label: 'Edit',
-            onClick: () => { closeDialog('detail'); openDialog('edit', selectedItem); },
-            icon: <EditIcon />,
-            variant: 'outlined'
-          },
-          ...(selectedItem?.status === 'available' ? [{
-            label: 'Assign Asset',
-            onClick: () => { handleAssignAsset(selectedItem); closeDialog('detail'); },
-            icon: <AssignIcon />,
-            variant: 'contained'
-          }] : []),
-          ...(selectedItem?.status === 'assigned' ? [{
-            label: 'Return Asset',
-            onClick: () => { handleReturnAsset(selectedItem); closeDialog('detail'); },
-            icon: <ReturnIcon />,
-            variant: 'contained',
-            color: 'warning'
-          }] : [])
-        ]}
-      />
-
-      <ConfirmDialog
-        open={dialogs.delete}
-        onClose={() => closeDialog('delete')}
-        onConfirm={handleDeleteAsset}
-        title="Delete Asset"
-        message={`Are you sure you want to delete the asset "${selectedItem?.name}"? This action cannot be undone.`}
-        confirmText="Delete"
-        severity="error"
-        loading={loading}
-      />
     </Box>
   );
 };

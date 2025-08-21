@@ -5,71 +5,33 @@ import {
   Typography,
   Avatar,
   Chip,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemAvatar,
-  Divider,
-  Button,
-  IconButton,
   Paper,
-  keyframes,
-} from '@mui/material';
+  Button,
+  keyframes} from '@mui/material';
 import {
   School as SchoolIcon,
   People as PeopleIcon,
   AttachMoney as MoneyIcon,
-  Work as WorkIcon,
   TrendingUp as TrendingUpIcon,
-  Notifications as NotificationsIcon,
   Assignment as AssignmentIcon,
+  Assessment as AssessmentIcon,
   Event as EventIcon,
-  MoreVert as MoreVertIcon,
-  AutoGraph as AutoGraphIcon,
+
   CalendarToday as CalendarIcon,
   Star as StarIcon,
-  Rocket as RocketIcon,
-} from '@mui/icons-material';
+
+  Settings as SettingsIcon,
+  Person as PersonIcon,
+  Payment as PaymentIcon} from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import GlassCard, { GradientCard, StatsCard, FeatureCard } from '../../components/GlassCard';
-import { FormDialog, ConfirmDialog } from '../../components/Common/DialogComponents';
+import GlassCard, { StatsCard} from '../../components/GlassCard';
+import { FormDialog} from '../../components/Common/DialogComponents';
 import logger from '../../utils/logger';
 
-// Animation keyframes
-const countUp = keyframes`
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-`;
 
-const pulse = keyframes`
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-  100% {
-    transform: scale(1);
-  }
-`;
 
-const slideIn = keyframes`
-  from {
-    opacity: 0;
-    transform: translateX(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-`;
+
 
 const DashboardPage = () => {
   const { user } = useAuth();
@@ -80,8 +42,7 @@ const DashboardPage = () => {
     open: false,
     type: '',
     title: '',
-    fields: [],
-  });
+    fields: []});
 
   // Mock data for demonstration
   const stats = {
@@ -112,103 +73,33 @@ const DashboardPage = () => {
       message: 'New student enrolled in Computer Science',
       time: '2 hours ago',
       avatar: 'CS',
-      color: '#667eea',
-    },
+      color: '#667eea'},
     {
       id: 2,
       type: 'payment',
       message: 'Payment received from John Doe',
       time: '4 hours ago',
       avatar: 'JD',
-      color: '#10b981',
-    },
+      color: '#10b981'},
     {
       id: 3,
       type: 'grade',
       message: 'Grades updated for Mathematics 101',
       time: '6 hours ago',
       avatar: 'M1',
-      color: '#f59e0b',
-    },
+      color: '#f59e0b'},
     {
       id: 4,
       type: 'event',
       message: 'Faculty meeting scheduled for tomorrow',
       time: '8 hours ago',
       avatar: 'FM',
-      color: '#ec4899',
-    },
+      color: '#ec4899'},
   ];
 
-  const upcomingEvents = [
-    {
-      id: 1,
-      title: 'Faculty Meeting',
-      date: 'Today, 2:00 PM',
-      type: 'meeting',
-      priority: 'high',
-    },
-    {
-      id: 2,
-      title: 'Student Registration Deadline',
-      date: 'Tomorrow',
-      type: 'deadline',
-      priority: 'high',
-    },
-    {
-      id: 3,
-      title: 'Semester Exam Schedule',
-      date: 'Next Week',
-      type: 'exam',
-      priority: 'medium',
-    },
-    {
-      id: 4,
-      title: 'Parent-Teacher Conference',
-      date: 'Friday, 10:00 AM',
-      type: 'conference',
-      priority: 'medium',
-    },
-  ];
 
-  const ModernStatCard = ({ title, value, icon, gradient, trend, delay = 0 }) => (
-    <StatsCard
-      icon={icon}
-      color="primary"
-      sx={{
-        background: gradient,
-        color: '#ffffff',
-        animation: `${countUp} 0.6s ease-out ${delay}s both`,
-        '&:hover': {
-          animation: `${pulse} 0.3s ease-in-out`,
-        },
-        '& .MuiTypography-root': {
-          color: '#ffffff',
-        },
-      }}
-    >
-      <Box sx={{ position: 'relative', zIndex: 2 }}>
-        <Typography variant="h3" component="div" fontWeight="800" sx={{ mb: 1 }}>
-          {typeof value === 'number' ? value.toLocaleString() : value}
-        </Typography>
-        <Typography variant="body1" sx={{ opacity: 0.9, mb: 2 }}>
-          {title}
-        </Typography>
-        {trend && (
-          <Chip
-            icon={<TrendingUpIcon />}
-            label={`+${trend}%`}
-            sx={{
-              background: 'rgba(255, 255, 255, 0.2)',
-              color: '#ffffff',
-              fontWeight: 600,
-            }}
-            size="small"
-          />
-        )}
-      </Box>
-    </StatsCard>
-  );
+
+
 
   const getWelcomeMessage = () => {
     const hour = new Date().getHours();
@@ -444,10 +335,14 @@ const DashboardPage = () => {
                       p: 2,
                       borderBottom: '1px solid',
                       borderColor: 'divider',
-                      '&:last-child': { borderBottom: 'none' },
-                    }}
+                      '&:last-child': { borderBottom: 'none' }}}
                   >
-                    <Avatar sx={{ mr: 2, bgcolor: 'primary.main' }}>
+                    <Avatar sx={{
+                      mr: 2,
+                      bgcolor: activity.color,
+                      width: 40,
+                      height: 40
+                    }}>
                       {activity.icon}
                     </Avatar>
                     <Box sx={{ flexGrow: 1 }}>
@@ -470,45 +365,186 @@ const DashboardPage = () => {
 
         <Grid item xs={12} md={4}>
           <GlassCard>
-            <Box sx={{ p: 2 }}>
-              <Typography variant="h6" gutterBottom>
+            <Box sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom sx={{
+                fontWeight: 600,
+                color: 'primary.main',
+                mb: 2
+              }}>
                 Quick Actions
               </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {user?.role === 'student' && (
                   <>
-                    <Chip label="View Grades" clickable color="primary" onClick={() => handleQuickAction('viewGrades')} />
-                    <Chip label="Check Attendance" clickable color="secondary" onClick={() => handleQuickAction('checkAttendance')} />
-                    <Chip label="Pay Fees" clickable color="success" onClick={() => handleQuickAction('payFees')} />
+                    <Button
+                      variant="contained"
+                      fullWidth
+                      startIcon={<AssessmentIcon />}
+                      onClick={() => handleQuickAction('viewGrades')}
+                      sx={{
+                        py: 1.5,
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)'}
+                      }}
+                    >
+                      View Grades
+                    </Button>
+                    <Button
+                      variant="contained"
+                      fullWidth
+                      startIcon={<CalendarIcon />}
+                      onClick={() => handleQuickAction('checkAttendance')}
+                      sx={{
+                        py: 1.5,
+                        background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #e081e9 0%, #e3455a 100%)'}
+                      }}
+                    >
+                      Check Attendance
+                    </Button>
+                    <Button
+                      variant="contained"
+                      fullWidth
+                      startIcon={<PaymentIcon />}
+                      onClick={() => handleQuickAction('payFees')}
+                      sx={{
+                        py: 1.5,
+                        background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #3d9aec 0%, #00d9ec 100%)'}
+                      }}
+                    >
+                      Pay Fees
+                    </Button>
                   </>
                 )}
-                {user?.role === 'academic_staff' && (
+                {(user?.role === 'academic_staff' || user?.role === 'admin') && (
                   <>
-                    <Chip label="Grade Assignments" clickable color="primary" onClick={() => handleQuickAction('gradeAssignments')} />
-                    <Chip label="Mark Attendance" clickable color="secondary" onClick={() => handleQuickAction('markAttendance')} />
-                    <Chip label="Schedule Exam" clickable color="success" onClick={() => handleQuickAction('scheduleExam')} />
+                    <Button
+                      variant="contained"
+                      fullWidth
+                      startIcon={<AssessmentIcon />}
+                      onClick={() => handleQuickAction('gradeAssignments')}
+                      sx={{
+                        py: 1.5,
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)'}
+                      }}
+                    >
+                      Grade Assignments
+                    </Button>
+                    <Button
+                      variant="contained"
+                      fullWidth
+                      startIcon={<CalendarIcon />}
+                      onClick={() => handleQuickAction('markAttendance')}
+                      sx={{
+                        py: 1.5,
+                        background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #e081e9 0%, #e3455a 100%)'}
+                      }}
+                    >
+                      Mark Attendance
+                    </Button>
+                    <Button
+                      variant="contained"
+                      fullWidth
+                      startIcon={<StarIcon />}
+                      onClick={() => handleQuickAction('scheduleExam')}
+                      sx={{
+                        py: 1.5,
+                        background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #3d9aec 0%, #00d9ec 100%)'}
+                      }}
+                    >
+                      Schedule Exam
+                    </Button>
                   </>
                 )}
-                {user?.role === 'finance_staff' && (
+                {(user?.role === 'finance_staff' || user?.role === 'admin') && (
                   <>
-                    <Chip label="Generate Invoice" clickable color="primary" onClick={() => handleQuickAction('generateInvoice')} />
-                    <Chip label="Process Payment" clickable color="secondary" onClick={() => handleQuickAction('processPayment')} />
-                    <Chip label="View Reports" clickable color="success" onClick={() => handleQuickAction('viewReports')} />
+                    <Button
+                      variant="contained"
+                      fullWidth
+                      startIcon={<PaymentIcon />}
+                      onClick={() => handleQuickAction('generateInvoice')}
+                      sx={{
+                        py: 1.5,
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)'}
+                      }}
+                    >
+                      Generate Invoice
+                    </Button>
+                    <Button
+                      variant="contained"
+                      fullWidth
+                      startIcon={<PaymentIcon />}
+                      onClick={() => handleQuickAction('processPayment')}
+                      sx={{
+                        py: 1.5,
+                        background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #e081e9 0%, #e3455a 100%)'}
+                      }}
+                    >
+                      Process Payment
+                    </Button>
                   </>
                 )}
-                {user?.role === 'hr_personnel' && (
+                {(user?.role === 'hr_personnel' || user?.role === 'admin') && (
                   <>
-                    <Chip label="Add Employee" clickable color="primary" onClick={() => handleQuickAction('addEmployee')} />
-                    <Chip label="Process Payroll" clickable color="secondary" onClick={() => handleQuickAction('processPayroll')} />
-                    <Chip label="Approve Leave" clickable color="success" onClick={() => handleQuickAction('approveLeave')} />
+                    <Button
+                      variant="contained"
+                      fullWidth
+                      startIcon={<PersonIcon />}
+                      onClick={() => handleQuickAction('addEmployee')}
+                      sx={{
+                        py: 1.5,
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)'}
+                      }}
+                    >
+                      Add Employee
+                    </Button>
+                    <Button
+                      variant="contained"
+                      fullWidth
+                      startIcon={<PaymentIcon />}
+                      onClick={() => handleQuickAction('processPayroll')}
+                      sx={{
+                        py: 1.5,
+                        background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #e081e9 0%, #e3455a 100%)'}
+                      }}
+                    >
+                      Process Payroll
+                    </Button>
                   </>
                 )}
                 {user?.role === 'admin' && (
-                  <>
-                    <Chip label="System Settings" clickable color="primary" onClick={() => handleQuickAction('systemSettings')} />
-                    <Chip label="User Management" clickable color="secondary" onClick={() => handleQuickAction('userManagement')} />
-                    <Chip label="View Reports" clickable color="success" onClick={() => handleQuickAction('viewReports')} />
-                  </>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    startIcon={<SettingsIcon />}
+                    onClick={() => handleQuickAction('systemSettings')}
+                    sx={{
+                      py: 1.5,
+                      background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                      '&:hover': {
+                        background: 'linear-gradient(135deg, #3d9aec 0%, #00d9ec 100%)'}
+                    }}
+                  >
+                    System Settings
+                  </Button>
                 )}
               </Box>
             </Box>

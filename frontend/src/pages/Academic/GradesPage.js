@@ -25,9 +25,7 @@ import {
   Tabs,
   Tab,
   LinearProgress,
-  keyframes,
-  Paper,
-} from '@mui/material';
+  keyframes} from '@mui/material';
 import {
   Add as AddIcon,
   Search as SearchIcon,
@@ -39,10 +37,11 @@ import {
   Edit as EditIcon,
   Save as SaveIcon,
   Cancel as CancelIcon,
-  Download as DownloadIcon,
+  Download as DownloadIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
-import GlassCard, { GradientCard, FeatureCard, StatsCard } from '../../components/GlassCard';
+import GlassCard, { StatsCard } from '../../components/GlassCard';
+import TranscriptGenerator from '../../components/Transcript/TranscriptGenerator';
 import logger from '../../utils/logger';
 
 // Animation keyframes
@@ -80,6 +79,8 @@ const GradesPage = () => {
   const [tabValue, setTabValue] = useState(0);
   const [gradeDialogOpen, setGradeDialogOpen] = useState(false);
   const [editingGrade, setEditingGrade] = useState(null);
+  const [transcriptOpen, setTranscriptOpen] = useState(false);
+  const [gradeComponents, setGradeComponents] = useState([]);
 
   // Mock data for demonstration
   const mockCourses = [
@@ -178,26 +179,88 @@ const GradesPage = () => {
     }
   ];
 
-  const mockAssignments = [
+  // Restructured grading system with CA and Exam components
+  const mockGradeComponents = [
     {
-      assignment_type: 'exam',
-      assignment_name: 'Midterm Exam',
-      points_possible: 100,
-      weight: 0.3,
-      due_date: '2024-10-15',
-      submission_count: 45,
-      average_score: 88.5
+      component_type: 'CA', // Continuous Assessment
+      component_name: 'Continuous Assessment',
+      weight: 0.4, // 40% of total grade
+      max_score: 100,
+      assessments: [
+        {
+          id: 1,
+          name: 'Assignment 1',
+          type: 'assignment',
+          max_points: 25,
+          weight: 0.25, // 25% of CA
+          due_date: '2024-02-15',
+          submission_count: 45,
+          average_score: 88.0
+        },
+        {
+          id: 2,
+          name: 'Quiz 1',
+          type: 'quiz',
+          max_points: 15,
+          weight: 0.15, // 15% of CA
+          due_date: '2024-02-28',
+          submission_count: 45,
+          average_score: 86.7
+        },
+        {
+          id: 3,
+          name: 'Lab Work',
+          type: 'lab',
+          max_points: 30,
+          weight: 0.30, // 30% of CA
+          due_date: '2024-03-10',
+          submission_count: 45,
+          average_score: 91.3
+        },
+        {
+          id: 4,
+          name: 'Participation',
+          type: 'participation',
+          max_points: 30,
+          weight: 0.30, // 30% of CA
+          due_date: '2024-04-30',
+          submission_count: 45,
+          average_score: 89.5
+        }
+      ]
     },
     {
-      assignment_type: 'assignment',
-      assignment_name: 'Programming Project 1',
-      points_possible: 100,
-      weight: 0.2,
-      due_date: '2024-09-30',
-      submission_count: 45,
-      average_score: 92.3
+      component_type: 'EXAM', // Final Examination
+      component_name: 'Final Examination',
+      weight: 0.6, // 60% of total grade
+      max_score: 100,
+      assessments: [
+        {
+          id: 5,
+          name: 'Final Exam',
+          type: 'final_exam',
+          max_points: 100,
+          weight: 1.0, // 100% of exam component
+          due_date: '2024-05-15',
+          submission_count: 45,
+          average_score: 82.4
+        }
+      ]
     }
   ];
+
+  // Keep legacy assignments for backward compatibility
+  const mockAssignments = mockGradeComponents.flatMap(component =>
+    component.assessments.map(assessment => ({
+      assignment_type: assessment.type,
+      assignment_name: assessment.name,
+      points_possible: assessment.max_points,
+      weight: component.weight * assessment.weight,
+      due_date: assessment.due_date,
+      submission_count: assessment.submission_count,
+      average_score: assessment.average_score
+    }))
+  );
 
   const mockGradeDistribution = [
     { letter_grade: 'A', count: 15 },
@@ -213,13 +276,34 @@ const GradesPage = () => {
       setCourses(mockCourses);
       if (mockCourses.length > 0) {
         setSelectedCourse(mockCourses[0]);
-        setStudents(mockStudents);
-        setAssignments(mockAssignments);
+
+        // Filter data based on user role for privacy
+        if (user?.role === 'student') {
+          // Students can only see their own grades
+          const currentStudentId = user?.id || 1; // In real app, get from user context
+          const filteredStudents = mockStudents.filter(student => student.student_id === currentStudentId);
+          setStudents(filteredStudents);
+
+          // Filter assignments to show only the student's grades
+          const filteredAssignments = mockAssignments.map(assignment => ({
+            ...assignment,
+            grades: assignment.grades.filter(grade => grade.student_id === currentStudentId)
+          }));
+          setAssignments(filteredAssignments);
+        } else {
+          // Admin and faculty can see all data
+          setStudents(mockStudents);
+          setAssignments(mockAssignments);
+        }
+
         setGradeDistribution(mockGradeDistribution);
+
+        // Set grade components for the new system
+        setGradeComponents(mockGradeComponents);
       }
       setLoading(false);
     }, 1000);
-  }, []);
+  }, [user]);
 
   const filteredStudents = students.filter(student =>
     student.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -249,22 +333,31 @@ const GradesPage = () => {
   };
 
   const handleAddGrade = () => {
-    setEditingGrade({
-      enrollment_id: '',
-      assignment_type: 'assignment',
-      assignment_name: '',
-      points_earned: '',
-      points_possible: 100,
-      weight: 1.0,
-      due_date: '',
-      comments: ''
-    });
-    setGradeDialogOpen(true);
+    if (user?.role === 'admin' || user?.role === 'academic_staff') {
+      setEditingGrade({
+        enrollment_id: '',
+        assignment_type: 'assignment',
+        assignment_name: '',
+        points_earned: '',
+        points_possible: 100,
+        weight: 1.0,
+        due_date: '',
+        comments: ''
+      });
+      setGradeDialogOpen(true);
+    } else {
+      // Show restriction dialog
+      alert('Access Restricted: Only administrators and academic staff can add grades.');
+    }
   };
 
   const handleEditGrade = (grade) => {
-    setEditingGrade(grade);
-    setGradeDialogOpen(true);
+    if (user?.role === 'admin' || user?.role === 'academic_staff') {
+      setEditingGrade(grade);
+      setGradeDialogOpen(true);
+    } else {
+      alert('Access Restricted: Only administrators and academic staff can edit grades.');
+    }
   };
 
   const handleSaveGrade = () => {
@@ -287,8 +380,7 @@ const GradesPage = () => {
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
             fontWeight: 800,
-            mb: 1,
-          }}
+            mb: 1}}
         >
           Grade Management
         </Typography>
@@ -324,10 +416,24 @@ const GradesPage = () => {
                 <InputAdornment position="start">
                   <SearchIcon />
                 </InputAdornment>
-              ),
-            }}
+              )}}
             sx={{ flexGrow: 1, minWidth: 250 }}
           />
+
+          {user?.role === 'student' && (
+            <Button
+              variant="contained"
+              startIcon={<DownloadIcon />}
+              onClick={() => setTranscriptOpen(true)}
+              sx={{
+                background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                minWidth: 140,
+                mr: 2
+              }}
+            >
+              Download Transcript
+            </Button>
+          )}
 
           {(user?.role === 'admin' || user?.role === 'academic_staff') && (
             <Button
@@ -336,8 +442,7 @@ const GradesPage = () => {
               onClick={handleAddGrade}
               sx={{
                 background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                minWidth: 140,
-              }}
+                minWidth: 140}}
             >
               Add Grade
             </Button>
@@ -356,8 +461,7 @@ const GradesPage = () => {
                 sx={{
                   background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                   color: '#ffffff',
-                  animation: `${fadeInUp} 0.6s ease-out 0.2s both`,
-                }}
+                  animation: `${fadeInUp} 0.6s ease-out 0.2s both`}}
               >
                 <Typography variant="h3" fontWeight="800" sx={{ mb: 1 }}>
                   {students.length}
@@ -374,8 +478,7 @@ const GradesPage = () => {
                 sx={{
                   background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
                   color: '#ffffff',
-                  animation: `${fadeInUp} 0.6s ease-out 0.3s both`,
-                }}
+                  animation: `${fadeInUp} 0.6s ease-out 0.3s both`}}
               >
                 <Typography variant="h3" fontWeight="800" sx={{ mb: 1 }}>
                   {assignments.length}
@@ -392,8 +495,7 @@ const GradesPage = () => {
                 sx={{
                   background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
                   color: '#ffffff',
-                  animation: `${fadeInUp} 0.6s ease-out 0.4s both`,
-                }}
+                  animation: `${fadeInUp} 0.6s ease-out 0.4s both`}}
               >
                 <Typography variant="h3" fontWeight="800" sx={{ mb: 1 }}>
                   {(students.reduce((sum, s) => sum + s.current_grade, 0) / students.length).toFixed(2)}
@@ -410,8 +512,7 @@ const GradesPage = () => {
                 sx={{
                   background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
                   color: '#ffffff',
-                  animation: `${fadeInUp} 0.6s ease-out 0.5s both`,
-                }}
+                  animation: `${fadeInUp} 0.6s ease-out 0.5s both`}}
               >
                 <Typography variant="h3" fontWeight="800" sx={{ mb: 1 }}>
                   {gradeDistribution.find(g => g.letter_grade === 'A')?.count || 0}
@@ -451,9 +552,7 @@ const GradesPage = () => {
                         sx={{
                           animation: `${fadeInUp} 0.6s ease-out ${index * 0.1}s both`,
                           '&:hover': {
-                            backgroundColor: 'rgba(102, 126, 234, 0.05)',
-                          },
-                        }}
+                            backgroundColor: 'rgba(102, 126, 234, 0.05)'}}}
                       >
                         <TableCell>
                           <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -464,8 +563,7 @@ const GradesPage = () => {
                                 height: 40,
                                 mr: 2,
                                 fontSize: '1rem',
-                                fontWeight: 700,
-                              }}
+                                fontWeight: 700}}
                             >
                               {student.first_name[0]}{student.last_name[0]}
                             </Avatar>
@@ -490,8 +588,7 @@ const GradesPage = () => {
                             sx={{
                               background: getLetterGradeColor(student.current_grade >= 3.7 ? 'A' : student.current_grade >= 3.0 ? 'B' : student.current_grade >= 2.0 ? 'C' : 'D'),
                               color: '#ffffff',
-                              fontWeight: 600,
-                            }}
+                              fontWeight: 600}}
                           />
                         </TableCell>
                         <TableCell align="center">
@@ -510,9 +607,7 @@ const GradesPage = () => {
                                 backgroundColor: '#f3f4f6',
                                 '& .MuiLinearProgress-bar': {
                                   backgroundColor: getGradeColor(student.current_grade),
-                                  borderRadius: 4,
-                                },
-                              }}
+                                  borderRadius: 4}}}
                             />
                           </Box>
                         </TableCell>
@@ -551,8 +646,7 @@ const GradesPage = () => {
                       <TableRow
                         key={assignment.assignment_name}
                         sx={{
-                          animation: `${fadeInUp} 0.6s ease-out ${index * 0.1}s both`,
-                        }}
+                          animation: `${fadeInUp} 0.6s ease-out ${index * 0.1}s both`}}
                       >
                         <TableCell>
                           <Typography variant="subtitle2" fontWeight="600">
@@ -612,8 +706,7 @@ const GradesPage = () => {
                         display: 'flex',
                         alignItems: 'center',
                         mb: 2,
-                        animation: `${fadeInUp} 0.6s ease-out ${index * 0.1}s both`,
-                      }}
+                        animation: `${fadeInUp} 0.6s ease-out ${index * 0.1}s both`}}
                     >
                       <Typography variant="h6" sx={{ minWidth: 40, fontWeight: 700 }}>
                         {grade.letter_grade}
@@ -628,9 +721,7 @@ const GradesPage = () => {
                             backgroundColor: '#f3f4f6',
                             '& .MuiLinearProgress-bar': {
                               backgroundColor: getLetterGradeColor(grade.letter_grade),
-                              borderRadius: 6,
-                            },
-                          }}
+                              borderRadius: 6}}}
                         />
                       </Box>
                       <Typography variant="body2" fontWeight="600" sx={{ minWidth: 60 }}>
@@ -767,6 +858,13 @@ const GradesPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Transcript Generator */}
+      <TranscriptGenerator
+        open={transcriptOpen}
+        onClose={() => setTranscriptOpen(false)}
+        studentData={user?.role === 'student' ? user : null}
+      />
     </Box>
   );
 };

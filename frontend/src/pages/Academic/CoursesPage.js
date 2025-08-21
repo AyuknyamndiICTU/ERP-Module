@@ -66,6 +66,18 @@ const CoursesPage = () => {
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [courseDialogOpen, setCourseDialogOpen] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState(null);
+  const [addCourseDialog, setAddCourseDialog] = useState(false);
+  const [restrictionDialog, setRestrictionDialog] = useState(false);
+  const [newCourse, setNewCourse] = useState({
+    code: '',
+    name: '',
+    description: '',
+    lecturer: '',
+    credits: '',
+    semester: '',
+    department: '',
+    maxStudents: ''
+  });
 
   // Mock data for demonstration
   const mockCourses = [
@@ -188,6 +200,57 @@ const CoursesPage = () => {
     }
   };
 
+  const handleAddCourse = () => {
+    if (user?.role === 'admin' || user?.role === 'academic_staff') {
+      setAddCourseDialog(true);
+    } else {
+      setRestrictionDialog(true);
+    }
+  };
+
+  const handleSaveCourse = () => {
+    // Validate required fields
+    if (!newCourse.code || !newCourse.name || !newCourse.lecturer) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    // Add the new course to the list
+    const courseToAdd = {
+      id: courses.length + 1,
+      code: newCourse.code,
+      name: newCourse.name,
+      description: newCourse.description,
+      instructor_name: newCourse.lecturer,
+      credits: parseInt(newCourse.credits) || 3,
+      semester: newCourse.semester || 'Fall 2024',
+      department_name: newCourse.department || 'Computer Science',
+      enrolled_students: 0,
+      max_students: parseInt(newCourse.maxStudents) || 30,
+      status: 'active'
+    };
+
+    setCourses([...courses, courseToAdd]);
+    setAddCourseDialog(false);
+    setNewCourse({
+      code: '',
+      name: '',
+      description: '',
+      lecturer: '',
+      credits: '',
+      semester: '',
+      department: '',
+      maxStudents: ''
+    });
+  };
+
+  const handleCourseInputChange = (field, value) => {
+    setNewCourse(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
   const getEnrollmentColor = (enrolled, capacity) => {
     const percentage = (enrolled / capacity) * 100;
     if (percentage >= 90) return '#ef4444';
@@ -195,88 +258,155 @@ const CoursesPage = () => {
     return '#10b981';
   };
 
+  const getRandomGradient = (index) => {
+    const gradients = [
+      'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+      'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+      'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+      'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+      'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+      'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
+      'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)'
+    ];
+    return gradients[index % gradients.length];
+  };
+
   const CourseCard = ({ course, index }) => (
-    <FeatureCard
+    <Box
       sx={{
         animation: `${fadeInUp} 0.6s ease-out ${index * 0.1}s both`,
         cursor: 'pointer',
         height: '100%',
+        borderRadius: 3,
+        overflow: 'hidden',
+        background: 'rgba(255, 255, 255, 0.1)',
+        backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255, 255, 255, 0.2)',
+        transition: 'all 0.3s ease',
+        '&:hover': {
+          transform: 'translateY(-8px)',
+          boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+        }
       }}
       onClick={() => handleCourseClick(course)}
     >
-      <Box sx={{ position: 'relative', mb: 2 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-          <Box>
-            <Typography variant="h6" fontWeight="700" sx={{ mb: 0.5 }}>
+      {/* Header with gradient */}
+      <Box
+        sx={{
+          background: getRandomGradient(index),
+          p: 3,
+          color: 'white',
+          position: 'relative',
+          overflow: 'hidden'
+        }}
+      >
+        <Box sx={{ position: 'relative', zIndex: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+            <Typography variant="h5" fontWeight="700" sx={{ color: 'white' }}>
               {course.code}
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              {course.department_name}
-            </Typography>
+            <Chip
+              label={course.status}
+              sx={{
+                bgcolor: 'rgba(255,255,255,0.2)',
+                color: 'white',
+                fontWeight: 600,
+                border: '1px solid rgba(255,255,255,0.3)'
+              }}
+              size="small"
+            />
           </Box>
-          <Chip
-            label={course.status}
-            color={getStatusColor(course.status)}
-            size="small"
-            sx={{ fontWeight: 600 }}
-          />
-        </Box>
 
-        <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
-          {course.name}
-        </Typography>
+          <Typography variant="h6" sx={{ mb: 1, fontWeight: 600, color: 'white' }}>
+            {course.name}
+          </Typography>
 
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2, lineHeight: 1.6 }}>
-          {course.description}
-        </Typography>
-
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <Avatar
-            sx={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              width: 32,
-              height: 32,
-              mr: 1,
-            }}
-          >
-            <PersonIcon sx={{ fontSize: 18 }} />
-          </Avatar>
-          <Typography variant="body2" fontWeight="600">
-            {course.instructor_name}
+          <Typography variant="body2" sx={{ opacity: 0.9, lineHeight: 1.5 }}>
+            {course.description?.substring(0, 80)}...
           </Typography>
         </Box>
 
-        <Grid container spacing={2} sx={{ mb: 2 }}>
+        {/* Decorative elements */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: -20,
+            right: -20,
+            width: 80,
+            height: 80,
+            borderRadius: '50%',
+            background: 'rgba(255,255,255,0.1)',
+            zIndex: 1
+          }}
+        />
+      </Box>
+
+      {/* Content */}
+      <Box sx={{ p: 3 }}>
+        {/* Instructor */}
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+          <Avatar
+            sx={{
+              background: getRandomGradient(index),
+              width: 40,
+              height: 40,
+              mr: 2,
+              fontSize: '1rem',
+              fontWeight: 600
+            }}
+          >
+            {course.instructor_name?.split(' ').map(n => n[0]).join('')}
+          </Avatar>
+          <Box>
+            <Typography variant="body2" fontWeight="600" color="text.primary">
+              {course.instructor_name}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Instructor
+            </Typography>
+          </Box>
+        </Box>
+
+        {/* Course Details */}
+        <Grid container spacing={2} sx={{ mb: 3 }}>
           <Grid item xs={6}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <SchoolIcon sx={{ fontSize: 16, mr: 0.5, color: 'text.secondary' }} />
+            <Box sx={{ textAlign: 'center', p: 1.5, bgcolor: 'rgba(0,0,0,0.02)', borderRadius: 2 }}>
+              <Typography variant="h6" fontWeight="700" color="primary.main">
+                {course.credits}
+              </Typography>
               <Typography variant="caption" color="text.secondary">
-                {course.credits} Credits
+                Credits
               </Typography>
             </Box>
           </Grid>
           <Grid item xs={6}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <ScheduleIcon sx={{ fontSize: 16, mr: 0.5, color: 'text.secondary' }} />
+            <Box sx={{ textAlign: 'center', p: 1.5, bgcolor: 'rgba(0,0,0,0.02)', borderRadius: 2 }}>
+              <Typography variant="h6" fontWeight="700" color="primary.main">
+                {course.enrolled_count || 0}
+              </Typography>
               <Typography variant="caption" color="text.secondary">
-                {course.semester} {course.year}
+                Students
               </Typography>
             </Box>
           </Grid>
         </Grid>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <GroupIcon sx={{ fontSize: 16, mr: 0.5, color: 'text.secondary' }} />
+        {/* Progress and Status */}
+        <Box sx={{ mb: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
             <Typography variant="body2" color="text.secondary">
-              {course.enrolled_count}/{course.capacity}
+              Enrollment
+            </Typography>
+            <Typography variant="body2" fontWeight="600">
+              {course.enrolled_count || 0}/{course.max_students || course.capacity || 30}
             </Typography>
           </Box>
           <Box
             sx={{
-              width: 60,
-              height: 6,
-              borderRadius: 3,
+              width: '100%',
+              height: 8,
+              borderRadius: 4,
               background: '#f3f4f6',
               position: 'relative',
               overflow: 'hidden',
@@ -284,17 +414,37 @@ const CoursesPage = () => {
           >
             <Box
               sx={{
-                width: `${(course.enrolled_count / course.capacity) * 100}%`,
+                width: `${((course.enrolled_count || 0) / (course.max_students || course.capacity || 30)) * 100}%`,
                 height: '100%',
-                background: getEnrollmentColor(course.enrolled_count, course.capacity),
-                borderRadius: 3,
+                background: getRandomGradient(index),
+                borderRadius: 4,
                 transition: 'width 0.3s ease',
               }}
             />
           </Box>
         </Box>
+
+        {/* Footer */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="caption" color="text.secondary">
+            {course.semester} • {course.department_name}
+          </Typography>
+          <Chip
+            label="View Details"
+            size="small"
+            variant="outlined"
+            sx={{
+              borderColor: 'primary.main',
+              color: 'primary.main',
+              '&:hover': {
+                bgcolor: 'primary.main',
+                color: 'white'
+              }
+            }}
+          />
+        </Box>
       </Box>
-    </FeatureCard>
+    </Box>
   );
 
   return (
@@ -346,18 +496,17 @@ const CoursesPage = () => {
             Filters
           </Button>
 
-          {(user?.role === 'admin' || user?.role === 'academic_staff') && (
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              sx={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                minWidth: 140,
-              }}
-            >
-              Add Course
-            </Button>
-          )}
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleAddCourse}
+            sx={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              minWidth: 140,
+            }}
+          >
+            Add Course
+          </Button>
         </Box>
       </GlassCard>
 
@@ -476,6 +625,125 @@ const CoursesPage = () => {
             </DialogActions>
           </>
         )}
+      </Dialog>
+
+      {/* Add Course Dialog */}
+      <Dialog open={addCourseDialog} onClose={() => setAddCourseDialog(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          <Typography variant="h5" fontWeight="700">
+            Add New Course
+          </Typography>
+        </DialogTitle>
+        <DialogContent>
+          <Grid container spacing={3} sx={{ mt: 1 }}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Course Code"
+                value={newCourse.code}
+                onChange={(e) => handleCourseInputChange('code', e.target.value)}
+                required
+                placeholder="e.g., CS101"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Course Name"
+                value={newCourse.name}
+                onChange={(e) => handleCourseInputChange('name', e.target.value)}
+                required
+                placeholder="e.g., Introduction to Computer Science"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Description"
+                value={newCourse.description}
+                onChange={(e) => handleCourseInputChange('description', e.target.value)}
+                multiline
+                rows={3}
+                placeholder="Course description..."
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Lecturer"
+                value={newCourse.lecturer}
+                onChange={(e) => handleCourseInputChange('lecturer', e.target.value)}
+                required
+                placeholder="e.g., Dr. John Smith"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Credits"
+                type="number"
+                value={newCourse.credits}
+                onChange={(e) => handleCourseInputChange('credits', e.target.value)}
+                placeholder="e.g., 3"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Semester"
+                value={newCourse.semester}
+                onChange={(e) => handleCourseInputChange('semester', e.target.value)}
+                placeholder="e.g., Fall 2024"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Department"
+                value={newCourse.department}
+                onChange={(e) => handleCourseInputChange('department', e.target.value)}
+                placeholder="e.g., Computer Science"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Max Students"
+                type="number"
+                value={newCourse.maxStudents}
+                onChange={(e) => handleCourseInputChange('maxStudents', e.target.value)}
+                placeholder="e.g., 30"
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAddCourseDialog(false)}>
+            Cancel
+          </Button>
+          <Button variant="contained" onClick={handleSaveCourse}>
+            Add Course
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Restriction Dialog */}
+      <Dialog open={restrictionDialog} onClose={() => setRestrictionDialog(false)}>
+        <DialogTitle>
+          <Typography variant="h6" color="error">
+            Access Restricted
+          </Typography>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1">
+            You do not have permission to add courses. Only administrators and academic staff can add new courses.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRestrictionDialog(false)} variant="contained">
+            OK
+          </Button>
+        </DialogActions>
       </Dialog>
     </Box>
   );

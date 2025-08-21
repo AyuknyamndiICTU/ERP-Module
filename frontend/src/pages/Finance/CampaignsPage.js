@@ -14,9 +14,7 @@ import {
   Menu,
   MenuItem,
   Avatar,
-  LinearProgress,
-  Tooltip,
-} from '@mui/material';
+  LinearProgress} from '@mui/material';
 import {
   Add as AddIcon,
   Search as SearchIcon,
@@ -30,8 +28,7 @@ import {
   PlayArrow as PlayIcon,
   Pause as PauseIcon,
   Stop as StopIcon,
-  Analytics as AnalyticsIcon,
-} from '@mui/icons-material';
+  Analytics as AnalyticsIcon} from '@mui/icons-material';
 import { useApiData, useDialogState } from '../../hooks/useApiData';
 import { FormDialog, ConfirmDialog, DetailDialog } from '../../components/Common/DialogComponents';
 import GlassCard from '../../components/GlassCard';
@@ -209,8 +206,7 @@ const CampaignsPage = () => {
           onClick={() => openDialog('create')}
           sx={{
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            borderRadius: 2,
-          }}
+            borderRadius: 2}}
         >
           Create Campaign
         </Button>
@@ -291,8 +287,7 @@ const CampaignsPage = () => {
                 <InputAdornment position="start">
                   <SearchIcon />
                 </InputAdornment>
-              ),
-            }}
+              )}}
             sx={{ flexGrow: 1 }}
           />
           <Button

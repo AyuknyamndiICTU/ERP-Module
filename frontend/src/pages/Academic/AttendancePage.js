@@ -73,6 +73,8 @@ const slideIn = keyframes`
 
 const AttendancePage = () => {
   const { user } = useAuth();
+
+  // All hooks must be called before any conditional returns
   const [courses, setCourses] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [students, setStudents] = useState([]);
@@ -85,8 +87,120 @@ const AttendancePage = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [attendanceRecords, setAttendanceRecords] = useState({});
 
-  // Mock data for demonstration
+  // Mock data and useEffect must be before conditional return
   const mockCourses = [
+    {
+      id: 1,
+      code: 'CS101',
+      name: 'Introduction to Computer Science',
+      instructor_name: 'Dr. Sarah Johnson',
+      semester: 'Fall 2024',
+      enrolled_count: 45,
+      schedule: 'Mon, Wed, Fri 10:00 AM'
+    },
+    {
+      id: 2,
+      code: 'MATH201',
+      name: 'Calculus II',
+      instructor_name: 'Prof. Michael Chen',
+      semester: 'Fall 2024',
+      enrolled_count: 38,
+      schedule: 'Tue, Thu 2:00 PM'
+    }
+  ];
+
+  const mockStudents = [
+    {
+      enrollment_id: 1,
+      student_number: 'STU2024001',
+      first_name: 'Alice',
+      last_name: 'Johnson',
+      email: 'alice.johnson@university.edu',
+      attendance_percentage: 95.5,
+      total_sessions: 22,
+      attended_sessions: 21
+    },
+    {
+      enrollment_id: 2,
+      student_number: 'STU2024002',
+      first_name: 'Bob',
+      last_name: 'Smith',
+      email: 'bob.smith@university.edu',
+      attendance_percentage: 88.2,
+      total_sessions: 22,
+      attended_sessions: 19
+    }
+  ];
+
+  const mockSessions = [
+    {
+      id: 1,
+      date: '2024-10-15',
+      topic: 'Introduction to Programming',
+      attendance_count: 42,
+      total_students: 45
+    },
+    {
+      id: 2,
+      date: '2024-10-17',
+      topic: 'Variables and Data Types',
+      attendance_count: 44,
+      total_students: 45
+    }
+  ];
+
+  const mockSummary = {
+    total_sessions: 22,
+    total_students: 45,
+    average_attendance_rate: 92.5,
+    total_absences: 15
+  };
+
+  useEffect(() => {
+    // Simulate API call - mock data is static so no dependencies needed
+    setTimeout(() => {
+      setCourses(mockCourses);
+      if (mockCourses.length > 0) {
+        setSelectedCourse(mockCourses[0]);
+        setStudents(mockStudents);
+        setSessions(mockSessions);
+        setAttendanceSummary(mockSummary);
+
+        // Initialize attendance records for today
+        const initialRecords = {};
+        mockStudents.forEach(student => {
+          initialRecords[student.enrollment_id] = 'present';
+        });
+        setAttendanceRecords(initialRecords);
+      }
+      setLoading(false);
+    }, 1000);
+  }, []); // Mock data is static, no dependencies needed
+
+  // Check if user has access to attendance management
+  const hasAttendanceAccess = user?.role === 'admin' || user?.role === 'academic_staff';
+
+  // If user doesn't have access, show restriction message
+  if (!hasAttendanceAccess) {
+    return (
+      <Box sx={{ p: 3, textAlign: 'center' }}>
+        <GlassCard>
+          <Box sx={{ p: 4 }}>
+            <Typography variant="h5" color="error" gutterBottom>
+              Access Restricted
+            </Typography>
+            <Typography variant="body1" color="textSecondary">
+              You do not have permission to access attendance management.
+              Only administrators, academic staff, and course lecturers can manage attendance.
+            </Typography>
+          </Box>
+        </GlassCard>
+      </Box>
+    );
+  }
+
+  // Mock data for demonstration - REMOVED DUPLICATE
+  /*const mockCourses = [
     {
       id: 1,
       code: 'CS101',
@@ -197,7 +311,7 @@ const AttendancePage = () => {
       }
       setLoading(false);
     }, 1000);
-  }, []); // Mock data is static, no dependencies needed
+  }, []); // Mock data is static, no dependencies needed */
 
   const filteredStudents = students.filter(student =>
     student.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||

@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
   Button,
   TextField,
-  Grid,
   Table,
   TableBody,
   TableCell,
@@ -17,255 +16,141 @@ import {
   Menu,
   MenuItem,
   Avatar,
+  Paper,
+  Grid,
   Card,
   CardContent,
-  LinearProgress,
+  CircularProgress,
 } from '@mui/material';
 import {
   Add as AddIcon,
   Search as SearchIcon,
-  FilterList as FilterIcon,
   MoreVert as MoreVertIcon,
   Payment as PaymentIcon,
   Receipt as ReceiptIcon,
-  Undo as RefundIcon,
-  Download as DownloadIcon,
+  AttachMoney as MoneyIcon,
   CreditCard as CreditCardIcon,
-  AccountBalance as BankIcon,
 } from '@mui/icons-material';
-import { useApiData, useDialogState } from '../../hooks/useApiData';
-import { FormDialog, ConfirmDialog, DetailDialog } from '../../components/Common/DialogComponents';
+import { useAuth } from '../../context/AuthContext';
 import GlassCard from '../../components/GlassCard';
-import logger from '../../utils/logger';
 
 const PaymentsPage = () => {
+  const { user } = useAuth();
+  const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedPayment, setSelectedPayment] = useState(null);
 
-  // Mock API service for payments
-  const mockPaymentService = {
-    getAll: async () => ({
-      data: {
-        success: true,
-        data: [
-          {
-            id: 1,
-            transactionId: 'TXN-2024-001',
-            invoiceNumber: 'INV-2024-001',
-            studentName: 'Alice Johnson',
-            studentId: 'STU001',
-            amount: 2500.00,
-            paymentMethod: 'Credit Card',
-            status: 'completed',
-            paymentDate: '2024-08-20',
-            description: 'Tuition Fee Payment'
-          },
-          {
-            id: 2,
-            transactionId: 'TXN-2024-002',
-            invoiceNumber: 'INV-2024-002',
-            studentName: 'Bob Smith',
-            studentId: 'STU002',
-            amount: 150.00,
-            paymentMethod: 'Bank Transfer',
-            status: 'pending',
-            paymentDate: '2024-08-21',
-            description: 'Library Fee Payment'
-          },
-          {
-            id: 3,
-            transactionId: 'TXN-2024-003',
-            invoiceNumber: 'INV-2024-003',
-            studentName: 'Carol Davis',
-            studentId: 'STU003',
-            amount: 500.00,
-            paymentMethod: 'Cash',
-            status: 'failed',
-            paymentDate: '2024-08-19',
-            description: 'Lab Fee Payment'
-          }
-        ]
-      }
-    }),
-    create: async (data) => ({
-      data: {
-        success: true,
-        data: { id: Date.now(), ...data, transactionId: `TXN-2024-${String(Date.now()).slice(-3)}` }
-      }
-    }),
-    update: async (id, data) => ({ data: { success: true, data: { id, ...data } } }),
-    delete: async (id) => ({ data: { success: true } }),
-    getById: async (id) => ({ data: { success: true, data: {} } })
-  };
-
-  const { data: payments, loading, createItem, updateItem, deleteItem, handleSearch } = useApiData(mockPaymentService);
-  const { dialogs, selectedItem, openDialog, closeDialog } = useDialogState();
-
-  const paymentFields = [
-    { name: 'invoiceNumber', label: 'Invoice Number', type: 'text', required: true, width: 6 },
-    { name: 'studentName', label: 'Student Name', type: 'text', required: true, width: 6 },
-    { name: 'amount', label: 'Amount ($)', type: 'number', required: true, min: 0 },
-    { name: 'paymentMethod', label: 'Payment Method', type: 'select', required: true, options: [
-      { value: 'Credit Card', label: 'Credit Card' },
-      { value: 'Debit Card', label: 'Debit Card' },
-      { value: 'Bank Transfer', label: 'Bank Transfer' },
-      { value: 'Cash', label: 'Cash' },
-      { value: 'Check', label: 'Check' }
-    ]},
-    { name: 'paymentDate', label: 'Payment Date', type: 'date', required: true },
-    { name: 'description', label: 'Description', type: 'textarea', rows: 3 }
+  // Mock data
+  const mockPayments = [
+    {
+      id: 1,
+      paymentId: 'PAY-2024-001',
+      studentName: 'Alice Johnson',
+      studentId: 'STU001',
+      amount: 2500.00,
+      paymentDate: '2024-11-15',
+      status: 'completed',
+      method: 'Credit Card',
+      invoiceNumber: 'INV-2024-001',
+      description: 'Tuition Fee Payment'
+    },
+    {
+      id: 2,
+      paymentId: 'PAY-2024-002',
+      studentName: 'Bob Smith',
+      studentId: 'STU002',
+      amount: 1200.00,
+      paymentDate: '2024-11-14',
+      status: 'completed',
+      method: 'Bank Transfer',
+      invoiceNumber: 'INV-2024-002',
+      description: 'Lab Fee Payment'
+    },
+    {
+      id: 3,
+      paymentId: 'PAY-2024-003',
+      studentName: 'Carol Davis',
+      studentId: 'STU003',
+      amount: 800.00,
+      paymentDate: '2024-11-13',
+      status: 'pending',
+      method: 'Cash',
+      invoiceNumber: 'INV-2024-003',
+      description: 'Library Fee Payment'
+    }
   ];
+
+  useEffect(() => {
+    // Simulate API call
+    setTimeout(() => {
+      setPayments(mockPayments);
+      setLoading(false);
+    }, 1000);
+  }, []);
 
   const getStatusColor = (status) => {
     switch (status) {
       case 'completed': return 'success';
       case 'pending': return 'warning';
       case 'failed': return 'error';
-      case 'refunded': return 'info';
       default: return 'default';
     }
   };
 
-  const getPaymentMethodIcon = (method) => {
+  const getMethodIcon = (method) => {
     switch (method) {
-      case 'Credit Card':
-      case 'Debit Card':
-        return <CreditCardIcon fontSize="small" />;
-      case 'Bank Transfer':
-        return <BankIcon fontSize="small" />;
-      default:
-        return <PaymentIcon fontSize="small" />;
+      case 'Credit Card': return <CreditCardIcon />;
+      case 'Bank Transfer': return <PaymentIcon />;
+      case 'Cash': return <MoneyIcon />;
+      default: return <PaymentIcon />;
     }
   };
 
-  const handleMenuClick = (event, payment) => {
-    setAnchorEl(event.currentTarget);
-    setSelectedPayment(payment);
-  };
+  const filteredPayments = payments.filter(payment => 
+    payment.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    payment.paymentId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    payment.studentId.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-    setSelectedPayment(null);
-  };
-
-  const handleCreatePayment = async (data) => {
-    try {
-      await createItem({
-        ...data,
-        status: 'pending'
-      });
-      closeDialog('create');
-    } catch (error) {
-      logger.error('Error creating payment:', error);
-    }
-  };
-
-  const handleUpdatePayment = async (data) => {
-    try {
-      await updateItem(selectedItem.id, data);
-      closeDialog('edit');
-    } catch (error) {
-      logger.error('Error updating payment:', error);
-    }
-  };
-
-  const handleDeletePayment = async () => {
-    try {
-      await deleteItem(selectedItem.id);
-      closeDialog('delete');
-    } catch (error) {
-      logger.error('Error deleting payment:', error);
-    }
-  };
-
-  // Calculate summary statistics
-  const totalPayments = payments.reduce((sum, payment) => sum + payment.amount, 0);
-  const completedPayments = payments.filter(p => p.status === 'completed').length;
-  const pendingPayments = payments.filter(p => p.status === 'pending').length;
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
-    <Box>
+    <Box sx={{ p: 3 }}>
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" fontWeight="700">
+        <Typography variant="h4" fontWeight="700" sx={{ color: 'primary.main' }}>
           Payment Management
         </Typography>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
-          onClick={() => openDialog('create')}
           sx={{
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            borderRadius: 2,
+            '&:hover': {
+              background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
+            }
           }}
         >
-          Record Payment
+          Process Payment
         </Button>
       </Box>
 
-      {/* Summary Cards */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} md={3}>
-          <GlassCard>
-            <CardContent>
-              <Typography variant="h6" color="primary" gutterBottom>
-                Total Payments
-              </Typography>
-              <Typography variant="h4" fontWeight="700">
-                ${totalPayments.toFixed(2)}
-              </Typography>
-            </CardContent>
-          </GlassCard>
-        </Grid>
-        <Grid item xs={12} md={3}>
-          <GlassCard>
-            <CardContent>
-              <Typography variant="h6" color="success.main" gutterBottom>
-                Completed
-              </Typography>
-              <Typography variant="h4" fontWeight="700">
-                {completedPayments}
-              </Typography>
-            </CardContent>
-          </GlassCard>
-        </Grid>
-        <Grid item xs={12} md={3}>
-          <GlassCard>
-            <CardContent>
-              <Typography variant="h6" color="warning.main" gutterBottom>
-                Pending
-              </Typography>
-              <Typography variant="h4" fontWeight="700">
-                {pendingPayments}
-              </Typography>
-            </CardContent>
-          </GlassCard>
-        </Grid>
-        <Grid item xs={12} md={3}>
-          <GlassCard>
-            <CardContent>
-              <Typography variant="h6" color="text.secondary" gutterBottom>
-                Success Rate
-              </Typography>
-              <Typography variant="h4" fontWeight="700">
-                {payments.length > 0 ? Math.round((completedPayments / payments.length) * 100) : 0}%
-              </Typography>
-              <LinearProgress
-                variant="determinate"
-                value={payments.length > 0 ? (completedPayments / payments.length) * 100 : 0}
-                sx={{ mt: 1 }}
-              />
-            </CardContent>
-          </GlassCard>
-        </Grid>
-      </Grid>
-
-      {/* Search and Filters */}
+      {/* Search */}
       <GlassCard sx={{ mb: 3 }}>
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+        <Box sx={{ p: 2 }}>
           <TextField
+            fullWidth
             placeholder="Search payments..."
-            onChange={(e) => handleSearch(e.target.value)}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -273,17 +158,73 @@ const PaymentsPage = () => {
                 </InputAdornment>
               ),
             }}
-            sx={{ flexGrow: 1 }}
           />
-          <Button
-            variant="outlined"
-            startIcon={<FilterIcon />}
-            sx={{ minWidth: 120 }}
-          >
-            Filter
-          </Button>
         </Box>
       </GlassCard>
+
+      {/* Statistics Cards */}
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="h4" fontWeight="700">
+                    {filteredPayments.length}
+                  </Typography>
+                  <Typography variant="body2">Total Payments</Typography>
+                </Box>
+                <ReceiptIcon sx={{ fontSize: 40, opacity: 0.8 }} />
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', color: 'white' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="h4" fontWeight="700">
+                    ${filteredPayments.reduce((sum, payment) => sum + payment.amount, 0).toFixed(2)}
+                  </Typography>
+                  <Typography variant="body2">Total Amount</Typography>
+                </Box>
+                <MoneyIcon sx={{ fontSize: 40, opacity: 0.8 }} />
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', color: 'white' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="h4" fontWeight="700">
+                    {filteredPayments.filter(p => p.status === 'completed').length}
+                  </Typography>
+                  <Typography variant="body2">Completed</Typography>
+                </Box>
+                <PaymentIcon sx={{ fontSize: 40, opacity: 0.8 }} />
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', color: 'white' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="h4" fontWeight="700">
+                    {filteredPayments.filter(p => p.status === 'pending').length}
+                  </Typography>
+                  <Typography variant="body2">Pending</Typography>
+                </Box>
+                <CreditCardIcon sx={{ fontSize: 40, opacity: 0.8 }} />
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
       {/* Payments Table */}
       <GlassCard>
@@ -291,31 +232,26 @@ const PaymentsPage = () => {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Transaction ID</TableCell>
-                <TableCell>Student</TableCell>
-                <TableCell>Invoice</TableCell>
-                <TableCell>Amount</TableCell>
-                <TableCell>Method</TableCell>
-                <TableCell>Date</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell align="center">Actions</TableCell>
+                <TableCell><strong>Payment ID</strong></TableCell>
+                <TableCell><strong>Student</strong></TableCell>
+                <TableCell><strong>Amount</strong></TableCell>
+                <TableCell><strong>Method</strong></TableCell>
+                <TableCell><strong>Date</strong></TableCell>
+                <TableCell><strong>Status</strong></TableCell>
+                <TableCell align="right"><strong>Actions</strong></TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {payments.map((payment) => (
+              {filteredPayments.map((payment) => (
                 <TableRow key={payment.id} hover>
-                  <TableCell>
-                    <Typography variant="body2" fontWeight="600">
-                      {payment.transactionId}
-                    </Typography>
-                  </TableCell>
+                  <TableCell>{payment.paymentId}</TableCell>
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <Avatar sx={{ width: 32, height: 32, mr: 1, fontSize: '0.8rem' }}>
-                        {payment.studentName.split(' ').map(n => n[0]).join('')}
+                      <Avatar sx={{ mr: 2, bgcolor: 'primary.main' }}>
+                        {payment.studentName.charAt(0)}
                       </Avatar>
                       <Box>
-                        <Typography variant="body2" fontWeight="500">
+                        <Typography variant="body2" fontWeight="600">
                           {payment.studentName}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
@@ -324,32 +260,35 @@ const PaymentsPage = () => {
                       </Box>
                     </Box>
                   </TableCell>
-                  <TableCell>{payment.invoiceNumber}</TableCell>
                   <TableCell>
-                    <Typography variant="body2" fontWeight="600">
+                    <Typography variant="body2" fontWeight="600" color="primary.main">
                       ${payment.amount.toFixed(2)}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      {getPaymentMethodIcon(payment.paymentMethod)}
+                      {getMethodIcon(payment.method)}
                       <Typography variant="body2" sx={{ ml: 1 }}>
-                        {payment.paymentMethod}
+                        {payment.method}
                       </Typography>
                     </Box>
                   </TableCell>
-                  <TableCell>{payment.paymentDate}</TableCell>
+                  <TableCell>{new Date(payment.paymentDate).toLocaleDateString()}</TableCell>
                   <TableCell>
                     <Chip
-                      label={payment.status.toUpperCase()}
+                      label={payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
                       color={getStatusColor(payment.status)}
                       size="small"
+                      sx={{ fontWeight: 600 }}
                     />
                   </TableCell>
-                  <TableCell align="center">
+                  <TableCell align="right">
                     <IconButton
-                      size="small"
-                      onClick={(e) => handleMenuClick(e, payment)}
+                      onClick={(e) => {
+                        setAnchorEl(e.currentTarget);
+                        setSelectedPayment(payment);
+                      }}
+                      sx={{ color: 'primary.main' }}
                     >
                       <MoreVertIcon />
                     </IconButton>
@@ -365,68 +304,17 @@ const PaymentsPage = () => {
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
-        onClose={handleMenuClose}
+        onClose={() => setAnchorEl(null)}
       >
-        <MenuItem onClick={() => { openDialog('detail', selectedPayment); handleMenuClose(); }}>
-          <PaymentIcon sx={{ mr: 1 }} fontSize="small" />
-          View Details
+        <MenuItem onClick={() => setAnchorEl(null)}>
+          <ReceiptIcon sx={{ mr: 1 }} />
+          View Receipt
         </MenuItem>
-        <MenuItem onClick={() => { logger.debug('Download receipt:', selectedPayment); handleMenuClose(); }}>
-          <ReceiptIcon sx={{ mr: 1 }} fontSize="small" />
-          Download Receipt
+        <MenuItem onClick={() => setAnchorEl(null)}>
+          <PaymentIcon sx={{ mr: 1 }} />
+          Process Refund
         </MenuItem>
-        {selectedPayment?.status === 'completed' && (
-          <MenuItem onClick={() => { logger.debug('Process refund:', selectedPayment); handleMenuClose(); }}>
-            <RefundIcon sx={{ mr: 1 }} fontSize="small" />
-            Process Refund
-          </MenuItem>
-        )}
       </Menu>
-
-      {/* Dialogs */}
-      <FormDialog
-        open={dialogs.create}
-        onClose={() => closeDialog('create')}
-        title="Record New Payment"
-        fields={paymentFields}
-        onSave={handleCreatePayment}
-        loading={loading}
-      />
-
-      <DetailDialog
-        open={dialogs.detail}
-        onClose={() => closeDialog('detail')}
-        title="Payment Details"
-        data={selectedItem}
-        fields={[
-          { name: 'transactionId', label: 'Transaction ID' },
-          { name: 'invoiceNumber', label: 'Invoice Number' },
-          { name: 'studentName', label: 'Student Name' },
-          { name: 'studentId', label: 'Student ID' },
-          { name: 'amount', label: 'Amount', render: (value) => `$${value?.toFixed(2)}` },
-          { name: 'paymentMethod', label: 'Payment Method' },
-          { name: 'paymentDate', label: 'Payment Date' },
-          { name: 'status', label: 'Status', render: (value) => (
-            <Chip label={value?.toUpperCase()} color={getStatusColor(value)} size="small" />
-          )},
-          { name: 'description', label: 'Description', width: 12 }
-        ]}
-        actions={[
-          {
-            label: 'Download Receipt',
-            onClick: () => logger.debug('Download receipt:', selectedItem),
-            icon: <ReceiptIcon />,
-            variant: 'outlined'
-          },
-          ...(selectedItem?.status === 'completed' ? [{
-            label: 'Process Refund',
-            onClick: () => logger.debug('Process refund:', selectedItem),
-            icon: <RefundIcon />,
-            variant: 'contained',
-            color: 'warning'
-          }] : [])
-        ]}
-      />
     </Box>
   );
 };
