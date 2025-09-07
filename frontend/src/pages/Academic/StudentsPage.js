@@ -37,6 +37,7 @@ import {
   Download as DownloadIcon,
   TrendingUp as TrendingUpIcon} from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
+import FormDialog from '../../components/Common/FormDialog';
 import GlassCard, { FeatureCard, StatsCard } from '../../components/GlassCard';
 
 // Animation keyframes
@@ -74,6 +75,7 @@ const StudentsPage = () => {
   const [studentDialogOpen, setStudentDialogOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [tabValue, setTabValue] = useState(0);
+  const [showAddDialog, setShowAddDialog] = useState(false);
 
   // Mock data for demonstration
   const mockStudents = [
@@ -223,6 +225,40 @@ const StudentsPage = () => {
   const handleStudentClick = (student) => {
     setSelectedStudent(student);
     setStudentDialogOpen(true);
+  };
+
+  const handleAddStudent = (formData) => {
+    const newStudent = {
+      id: students.length + 1,
+      student_id: `STU2024${String(students.length + 1).padStart(3, '0')}`,
+      first_name: formData.firstName,
+      last_name: formData.lastName,
+      email: formData.email,
+      phone: formData.phone,
+      date_of_birth: formData.dateOfBirth,
+      gender: formData.gender,
+      enrollment_date: new Date().toISOString().split('T')[0],
+      program_name: formData.program,
+      degree_type: formData.degreeType,
+      year_level: parseInt(formData.yearLevel),
+      current_gpa: 0.0,
+      enrolled_courses: 0,
+      status: 'active',
+      address: {
+        street: formData.street || '',
+        city: formData.city || '',
+        state: formData.state || '',
+        zip: formData.zip || ''
+      },
+      emergency_contact: {
+        name: formData.emergencyName || '',
+        relationship: formData.emergencyRelation || '',
+        phone: formData.emergencyPhone || ''
+      }
+    };
+    
+    setStudents([...students, newStudent]);
+    setShowAddDialog(false);
   };
 
   const getStatusColor = (status) => {
@@ -470,6 +506,7 @@ const StudentsPage = () => {
             <Button
               variant="contained"
               startIcon={<AddIcon />}
+              onClick={() => setShowAddDialog(true)}
               sx={{
                 background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                 minWidth: 140}}
@@ -718,6 +755,44 @@ const StudentsPage = () => {
           </>
         )}
       </Dialog>
+
+      {/* Add Student Dialog */}
+      <FormDialog
+        open={showAddDialog}
+        onClose={() => setShowAddDialog(false)}
+        title="Add New Student"
+        fields={[
+          { name: 'firstName', label: 'First Name', type: 'text', required: true, width: 6 },
+          { name: 'lastName', label: 'Last Name', type: 'text', required: true, width: 6 },
+          { name: 'email', label: 'Email Address', type: 'email', required: true },
+          { name: 'phone', label: 'Phone Number', type: 'tel', required: true },
+          { name: 'dateOfBirth', label: 'Date of Birth', type: 'date', required: true, width: 6 },
+          { name: 'gender', label: 'Gender', type: 'select', required: true, width: 6, options: [
+            { value: 'male', label: 'Male' },
+            { value: 'female', label: 'Female' },
+            { value: 'other', label: 'Other' }
+          ]},
+          { name: 'program', label: 'Program', type: 'select', required: true, options: [
+            { value: 'Computer Science', label: 'Computer Science' },
+            { value: 'Mathematics', label: 'Mathematics' },
+            { value: 'Physics', label: 'Physics' },
+            { value: 'English Literature', label: 'English Literature' },
+            { value: 'Business Administration', label: 'Business Administration' }
+          ]},
+          { name: 'degreeType', label: 'Degree Type', type: 'select', required: true, options: [
+            { value: 'Bachelor', label: 'Bachelor' },
+            { value: 'Master', label: 'Master' },
+            { value: 'PhD', label: 'PhD' }
+          ]},
+          { name: 'yearLevel', label: 'Year Level', type: 'select', required: true, options: [
+            { value: '1', label: 'Year 1' },
+            { value: '2', label: 'Year 2' },
+            { value: '3', label: 'Year 3' },
+            { value: '4', label: 'Year 4' }
+          ]}
+        ]}
+        onSave={handleAddStudent}
+      />
     </Box>
   );
 };
