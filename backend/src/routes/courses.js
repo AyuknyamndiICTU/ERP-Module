@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { body, validationResult, param, query } = require('express-validator');
-const auth = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 const roleAuth = require('../middleware/roleAuth');
 const logger = require('../utils/logger');
 
@@ -127,7 +127,7 @@ const logger = require('../utils/logger');
  *                       type: integer
  */
 router.get('/', 
-  auth,
+  authenticateToken,
   [
     query('page').optional().isInt({ min: 1 }),
     query('limit').optional().isInt({ min: 1, max: 100 }),
@@ -276,7 +276,7 @@ router.get('/',
  *         description: Course not found
  */
 router.get('/:id',
-  auth,
+  authenticateToken,
   [param('id').isInt()],
   async (req, res) => {
     try {

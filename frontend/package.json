@@ -86,6 +86,25 @@
       "last 1 safari version"
     ]
   },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "setupFilesAfterEnv": ["<rootDir>/src/setupTests.js"],
+    "moduleNameMapper": {
+      "\\.(css|less|scss|sass)$": "identity-obj-proxy",
+      "^axios$": "<rootDir>/node_modules/axios/dist/node/axios.cjs"
+    },
+    "transformIgnorePatterns": [
+      "node_modules/(?!(axios|@mui|@emotion)/)"
+    ],
+    "transform": {
+      "^.+\\.(js|jsx|ts|tsx)$": ["babel-jest", {
+        "presets": [
+          ["@babel/preset-env", { "targets": { "node": "current" } }],
+          ["@babel/preset-react", { "runtime": "automatic" }]
+        ]
+      }]
+    }
+  },
   "proxy": "http://localhost:3001",
   "engines": {
     "node": ">=16.0.0",

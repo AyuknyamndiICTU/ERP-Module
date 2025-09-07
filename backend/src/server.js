@@ -13,10 +13,16 @@ const notFound = require('./middleware/notFound');
 
 // Import routes
 const authRoutes = require('./routes/auth');
-const userRoutes = require('./routes/users');
-const academicRoutes = require('./routes/academic');
+const profileRoutes = require('./routes/profile');
+const assignmentRoutes = require('./routes/assignments');
+const studentRoutes = require('./routes/students');
+const courseRoutes = require('./routes/courses');
+const gradeRoutes = require('./routes/grades');
+const attendanceRoutes = require('./routes/attendance');
 const financeRoutes = require('./routes/finance');
 const hrRoutes = require('./routes/hr');
+const userRoutes = require('./routes/users');
+const academicRoutes = require('./routes/academic');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -70,10 +76,16 @@ app.get('/health', (req, res) => {
 
 // API routes
 app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/academic', academicRoutes);
+app.use('/api/profile', profileRoutes);
+app.use('/api/assignments', assignmentRoutes);
+app.use('/api/students', studentRoutes);
+app.use('/api/courses', courseRoutes);
+app.use('/api/grades', gradeRoutes);
+app.use('/api/attendance', attendanceRoutes);
 app.use('/api/finance', financeRoutes);
 app.use('/api/hr', hrRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/academic', academicRoutes);
 
 // API documentation
 if (process.env.NODE_ENV !== 'production') {

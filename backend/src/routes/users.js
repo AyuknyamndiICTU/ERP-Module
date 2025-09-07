@@ -1,7 +1,8 @@
 const express = require('express');
 const { sequelize } = require('../config/database');
 const { logger } = require('../utils/logger');
-const { authenticateToken: auth } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
+const { body, param, query, validationResult } = require('express-validator');
 const router = express.Router();
 
 /**
@@ -70,7 +71,7 @@ router.get('/', (req, res) => {
  *       500:
  *         description: Server error
  */
-router.get('/profile', auth, async (req, res) => {
+router.get('/profile', authenticateToken, async (req, res) => {
   try {
     // Check if database is connected
     if (!sequelize) {
@@ -369,7 +370,7 @@ router.put('/change-password', (req, res) => {
  *       500:
  *         description: Server error
  */
-router.get('/dashboard/stats', auth, async (req, res) => {
+router.get('/dashboard/stats', authenticateToken, async (req, res) => {
   try {
     // Get basic statistics from the database
     const [userStats] = await sequelize.query(`

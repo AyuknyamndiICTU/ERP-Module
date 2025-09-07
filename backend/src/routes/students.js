@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { body, validationResult, param, query } = require('express-validator');
-const auth = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 const roleAuth = require('../middleware/roleAuth');
 const logger = require('../utils/logger');
 
@@ -141,7 +141,7 @@ const logger = require('../utils/logger');
  *                       type: integer
  */
 router.get('/', 
-  auth,
+  authenticateToken,
   roleAuth(['admin', 'academic_staff', 'finance_staff']),
   [
     query('page').optional().isInt({ min: 1 }),
@@ -284,7 +284,7 @@ router.get('/',
  *         description: Student not found
  */
 router.get('/:id',
-  auth,
+  authenticateToken,
   roleAuth(['admin', 'academic_staff', 'finance_staff']),
   [param('id').isInt()],
   async (req, res) => {

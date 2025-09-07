@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, CardContent, Box, keyframes } from '@mui/material';
+import { Card, CardContent, Box, keyframes, Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
 
 // Hover animation (unused)
@@ -27,7 +27,9 @@ const shimmer = keyframes`
   }
 `;
 
-const StyledGlassCard = styled(Card)(({ theme, variant = 'default', hover = true }) => ({
+const StyledGlassCard = styled(Card, {
+  shouldForwardProp: (prop) => !['variant', 'hover'].includes(prop),
+})(({ theme, variant = 'default', hover = true }) => ({
   background: variant === 'gradient' 
     ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))'
     : 'rgba(255, 255, 255, 0.95)',
@@ -157,27 +159,87 @@ export const GradientCard = ({ children, gradient, ...props }) => {
   );
 };
 
-export const StatsCard = ({ children, icon, color = 'primary', ...props }) => {
-  const IconWrapper = styled(Box)(({ theme }) => ({
+export const StatsCard = ({ 
+  title, 
+  value, 
+  subtitle, 
+  trend, 
+  trendLabel, 
+  icon, 
+  color = 'primary', 
+  onClick,
+  ...props 
+}) => {
+  // Filter out DOM props to prevent React warnings
+  const { title: _, value: __, subtitle: ___, trend: ____, trendLabel: _____, ...domProps } = props;
+  
+  const getColorValue = (colorName) => {
+    const colorMap = {
+      primary: { main: '#1976d2', light: '#42a5f5' },
+      secondary: { main: '#9c27b0', light: '#ba68c8' },
+      success: { main: '#2e7d32', light: '#66bb6a' },
+      warning: { main: '#ed6c02', light: '#ffb74d' },
+      error: { main: '#d32f2f', light: '#f44336' },
+      info: { main: '#0288d1', light: '#29b6f6' }
+    };
+    return colorMap[colorName] || colorMap.primary;
+  };
+
+  const colorValues = getColorValue(color);
+
+  const IconWrapper = styled(Box)(() => ({
     position: 'absolute',
     top: -10,
     right: -10,
     width: 60,
     height: 60,
     borderRadius: '50%',
-    background: `linear-gradient(135deg, ${theme.palette[color].main}, ${theme.palette[color].light})`,
+    background: `linear-gradient(135deg, ${colorValues.main}, ${colorValues.light})`,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     color: '#ffffff',
     fontSize: '1.5rem',
-    boxShadow: `0 4px 20px ${theme.palette[color].main}40`,
+    boxShadow: `0 4px 20px ${colorValues.main}40`,
   }));
 
   return (
-    <GlassCard variant={color} {...props}>
+    <GlassCard 
+      variant={color} 
+      onClick={onClick}
+      sx={{ position: 'relative', cursor: onClick ? 'pointer' : 'default' }}
+      {...domProps}
+    >
       {icon && <IconWrapper>{icon}</IconWrapper>}
-      {children}
+      <Box>
+        {title && (
+          <Box component="h3" sx={{ margin: 0, fontSize: '0.875rem', fontWeight: 500, mb: 1 }}>
+            {title}
+          </Box>
+        )}
+        {value && (
+          <Box component="div" sx={{ fontSize: '2rem', fontWeight: 'bold', mb: 1 }}>
+            {value}
+          </Box>
+        )}
+        {subtitle && (
+          <Box component="p" sx={{ margin: 0, fontSize: '0.75rem', opacity: 0.7 }}>
+            {subtitle}
+          </Box>
+        )}
+        {trend && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+            <Box component="span" sx={{ fontSize: '0.875rem', fontWeight: 'bold' }}>
+              {trend > 0 ? '+' : ''}{trend}%
+            </Box>
+            {trendLabel && (
+              <Box component="span" sx={{ fontSize: '0.75rem', opacity: 0.7 }}>
+                {trendLabel}
+              </Box>
+            )}
+          </Box>
+        )}
+      </Box>
     </GlassCard>
   );
 };

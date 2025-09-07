@@ -96,12 +96,76 @@ const router = express.Router();
  *       500:
  *         description: Server error
  */
-router.post('/register', (req, res) => {
-  // TODO: Implement user registration
-  res.status(501).json({
-    success: false,
-    message: 'Registration endpoint not implemented yet'
-  });
+router.post('/register', async (req, res) => {
+  try {
+    const { email, password, firstName, lastName, role = 'student' } = req.body;
+
+    // Validate input
+    if (!email || !password || !firstName || !lastName) {
+      return res.status(400).json({
+        success: false,
+        message: 'All fields are required'
+      });
+    }
+
+    // Check if user already exists
+    const existingUser = await sequelize.query(
+      'SELECT id FROM users WHERE email = :email',
+      {
+        replacements: { email },
+        type: sequelize.QueryTypes.SELECT
+      }
+    );
+
+    if (existingUser.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email already in use'
+      });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    // Create user
+    const [result] = await sequelize.query(
+      `INSERT INTO users (email, password, first_name, last_name, role, is_active, created_at, updated_at)
+       VALUES (:email, :password, :firstName, :lastName, :role, true, NOW(), NOW())
+       RETURNING id, email, first_name, last_name, role, created_at`,
+      {
+        replacements: {
+          email,
+          password: hashedPassword,
+          firstName,
+          lastName,
+          role
+        },
+        type: sequelize.QueryTypes.INSERT
+      }
+    );
+
+    const user = result[0];
+
+    res.status(201).json({
+      success: true,
+      message: 'User registered successfully',
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        role: user.role,
+        createdAt: user.created_at
+      }
+    });
+
+  } catch (error) {
+    logger.error('Registration error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during registration'
+    });
+  }
 });
 
 /**
@@ -169,7 +233,7 @@ router.post('/login', async (req, res) => {
 
     // Find user in database
     const users = await sequelize.query(
-      'SELECT id, email, password_hash, first_name, last_name, role, status FROM users WHERE email = :email',
+      'SELECT id, email, password, first_name, last_name, role, is_active FROM users WHERE email = :email',
       {
         replacements: { email },
         type: sequelize.QueryTypes.SELECT
@@ -186,7 +250,7 @@ router.post('/login', async (req, res) => {
     const user = users[0];
 
     // Check if user is active
-    if (user.status !== 'active') {
+    if (!user.is_active) {
       return res.status(401).json({
         success: false,
         error: 'Account is not active. Please contact administrator.'
@@ -194,7 +258,7 @@ router.post('/login', async (req, res) => {
     }
 
     // Verify password
-    const isValidPassword = await bcrypt.compare(password, user.password_hash);
+    const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
       return res.status(401).json({
         success: false,
@@ -265,11 +329,22 @@ router.post('/login', async (req, res) => {
  *         description: Unauthorized
  */
 router.post('/logout', (req, res) => {
-  // TODO: Implement user logout
-  res.status(501).json({
-    success: false,
-    message: 'Logout endpoint not implemented yet'
-  });
+  try {
+    // In a stateless JWT system, logout is handled client-side
+    // But we can track logout events for security
+    logger.info('User logout requested');
+    
+    res.status(200).json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+  } catch (error) {
+    logger.error('Logout error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during logout'
+    });
+  }
 });
 
 /**
@@ -298,12 +373,63 @@ router.post('/logout', (req, res) => {
  *       500:
  *         description: Server error
  */
-router.post('/forgot-password', (req, res) => {
-  // TODO: Implement password reset request
-  res.status(501).json({
-    success: false,
-    message: 'Forgot password endpoint not implemented yet'
-  });
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required'
+      });
+    }
+
+    // Check if user exists
+    const user = await sequelize.query(
+      'SELECT id, email FROM users WHERE email = :email AND is_active = true',
+      {
+        replacements: { email },
+        type: sequelize.QueryTypes.SELECT
+      }
+    );
+
+    if (user.length === 0) {
+      // Don't reveal if email exists for security
+      return res.status(200).json({
+        success: true,
+        message: 'If the email exists, a password reset link has been sent'
+      });
+    }
+
+    // Generate reset token
+    const resetToken = require('crypto').randomBytes(32).toString('hex');
+    const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour
+
+    // Update user with reset token
+    await sequelize.query(
+      'UPDATE users SET reset_token = :resetToken, reset_token_expiry = :resetTokenExpiry WHERE email = :email',
+      {
+        replacements: { resetToken, resetTokenExpiry, email },
+        type: sequelize.QueryTypes.UPDATE
+      }
+    );
+
+    // In production, send email here
+    logger.info(`Password reset requested for ${email}`);
+
+    res.status(200).json({
+      success: true,
+      message: 'If the email exists, a password reset link has been sent',
+      resetToken: process.env.NODE_ENV === 'development' ? resetToken : undefined
+    });
+
+  } catch (error) {
+    logger.error('Forgot password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during password reset request'
+    });
+  }
 });
 
 /**
@@ -335,12 +461,59 @@ router.post('/forgot-password', (req, res) => {
  *       500:
  *         description: Server error
  */
-router.post('/reset-password', (req, res) => {
-  // TODO: Implement password reset
-  res.status(501).json({
-    success: false,
-    message: 'Reset password endpoint not implemented yet'
-  });
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token and new password are required'
+      });
+    }
+
+    // Find user with valid reset token
+    const user = await sequelize.query(
+      'SELECT id, email FROM users WHERE reset_token = :token AND reset_token_expiry > NOW() AND is_active = true',
+      {
+        replacements: { token },
+        type: sequelize.QueryTypes.SELECT
+      }
+    );
+
+    if (user.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired reset token'
+      });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    // Update password and clear reset token
+    await sequelize.query(
+      'UPDATE users SET password = :password, reset_token = NULL, reset_token_expiry = NULL WHERE id = :id',
+      {
+        replacements: { password: hashedPassword, id: user[0].id },
+        type: sequelize.QueryTypes.UPDATE
+      }
+    );
+
+    logger.info(`Password reset completed for user ${user[0].email}`);
+
+    res.status(200).json({
+      success: true,
+      message: 'Password reset successfully'
+    });
+
+  } catch (error) {
+    logger.error('Reset password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during password reset'
+    });
+  }
 });
 
 /**
@@ -368,12 +541,66 @@ router.post('/reset-password', (req, res) => {
  *       500:
  *         description: Server error
  */
-router.post('/refresh', (req, res) => {
-  // TODO: Implement token refresh
-  res.status(501).json({
-    success: false,
-    message: 'Token refresh endpoint not implemented yet'
-  });
+router.post('/refresh', async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Refresh token is required'
+      });
+    }
+
+    // Verify refresh token
+    const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+    
+    // Get user data
+    const user = await sequelize.query(
+      'SELECT id, email, first_name, last_name, role FROM users WHERE id = :id AND is_active = true',
+      {
+        replacements: { id: decoded.id },
+        type: sequelize.QueryTypes.SELECT
+      }
+    );
+
+    if (user.length === 0) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid refresh token'
+      });
+    }
+
+    // Generate new access token
+    const newToken = jwt.sign(
+      { 
+        id: user[0].id, 
+        email: user[0].email, 
+        role: user[0].role 
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRE || '24h' }
+    );
+
+    res.status(200).json({
+      success: true,
+      token: newToken,
+      user: {
+        id: user[0].id,
+        email: user[0].email,
+        firstName: user[0].first_name,
+        lastName: user[0].last_name,
+        role: user[0].role
+      }
+    });
+
+  } catch (error) {
+    logger.error('Token refresh error:', error);
+    res.status(401).json({
+      success: false,
+      message: 'Invalid refresh token'
+    });
+  }
 });
 
 module.exports = router;

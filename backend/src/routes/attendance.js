@@ -1,9 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { body, validationResult, param, query } = require('express-validator');
-const auth = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 const roleAuth = require('../middleware/roleAuth');
-const logger = require('../utils/logger');
+const { checkPermission, canAccessStudentData } = require('../middleware/rolePermissions');
+const { sequelize } = require('../config/database');
+const { logger } = require('../utils/logger');
+const { body, param, query, validationResult } = require('express-validator');
 
 /**
  * @swagger
@@ -103,7 +105,7 @@ const logger = require('../utils/logger');
  *                   description: Attendance summary statistics
  */
 router.get('/course/:courseId',
-  auth,
+  authenticateToken,
   roleAuth(['admin', 'academic_staff']),
   [
     param('courseId').isInt(),
@@ -327,7 +329,7 @@ router.get('/course/:courseId',
  *         description: Access denied
  */
 router.post('/',
-  auth,
+  authenticateToken,
   roleAuth(['admin', 'academic_staff']),
   [
     body('course_id').isInt(),
