@@ -36,6 +36,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import GlassCard from '../../components/GlassCard';
+import FormDialog from '../../components/Common/FormDialog';
 
 const LeavePage = () => {
   const { user } = useAuth();
@@ -45,6 +46,7 @@ const LeavePage = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedLeave, setSelectedLeave] = useState(null);
   const [tabValue, setTabValue] = useState(0);
+  const [showAddDialog, setShowAddDialog] = useState(false);
 
   // Mock data
   const mockLeaves = [
@@ -133,6 +135,63 @@ const LeavePage = () => {
     }
   };
 
+  const handleAddLeave = (formData) => {
+    const newLeave = {
+      id: leaves.length + 1,
+      employeeId: user?.id || 'EMP999',
+      employeeName: user?.firstName + ' ' + user?.lastName || 'Current User',
+      department: user?.department || 'General',
+      leaveType: formData.leaveType,
+      startDate: formData.startDate,
+      endDate: formData.endDate,
+      days: Math.ceil((new Date(formData.endDate) - new Date(formData.startDate)) / (1000 * 60 * 60 * 24)) + 1,
+      reason: formData.reason,
+      status: 'pending',
+      appliedDate: new Date().toISOString().split('T')[0],
+      approvedBy: null
+    };
+    
+    setLeaves([...leaves, newLeave]);
+    setShowAddDialog(false);
+  };
+
+  const handleApprove = (leaveId) => {
+    setLeaves(leaves.map(leave => 
+      leave.id === leaveId 
+        ? { ...leave, status: 'approved', approvedBy: 'HR Manager' }
+        : leave
+    ));
+    setAnchorEl(null);
+  };
+
+  const handleReject = (leaveId) => {
+    setLeaves(leaves.map(leave => 
+      leave.id === leaveId 
+        ? { ...leave, status: 'rejected', approvedBy: 'HR Manager' }
+        : leave
+    ));
+    setAnchorEl(null);
+  };
+
+  const leaveFields = [
+    {
+      name: 'leaveType',
+      label: 'Leave Type',
+      type: 'select',
+      required: true,
+      options: [
+        { value: 'Annual Leave', label: 'Annual Leave' },
+        { value: 'Sick Leave', label: 'Sick Leave' },
+        { value: 'Personal Leave', label: 'Personal Leave' },
+        { value: 'Maternity Leave', label: 'Maternity Leave' },
+        { value: 'Emergency Leave', label: 'Emergency Leave' }
+      ]
+    },
+    { name: 'startDate', label: 'Start Date', type: 'date', required: true },
+    { name: 'endDate', label: 'End Date', type: 'date', required: true },
+    { name: 'reason', label: 'Reason', type: 'textarea', required: true }
+  ];
+
   const filteredLeaves = leaves.filter(leave => {
     const matchesSearch = leave.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          leave.employeeId.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -165,6 +224,7 @@ const LeavePage = () => {
         <Button
           variant="contained"
           startIcon={<AddIcon />}
+          onClick={() => setShowAddDialog(true)}
           sx={{
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             '&:hover': {
@@ -368,17 +428,26 @@ const LeavePage = () => {
         </MenuItem>
         {selectedLeave?.status === 'pending' && (
           <>
-            <MenuItem onClick={() => setAnchorEl(null)} sx={{ color: 'success.main' }}>
+            <MenuItem onClick={() => handleApprove(selectedLeave.id)} sx={{ color: 'success.main' }}>
               <ApproveIcon sx={{ mr: 1 }} />
               Approve
             </MenuItem>
-            <MenuItem onClick={() => setAnchorEl(null)} sx={{ color: 'error.main' }}>
+            <MenuItem onClick={() => handleReject(selectedLeave.id)} sx={{ color: 'error.main' }}>
               <RejectIcon sx={{ mr: 1 }} />
               Reject
             </MenuItem>
           </>
         )}
       </Menu>
+
+      {/* Add Leave Dialog */}
+      <FormDialog
+        open={showAddDialog}
+        onClose={() => setShowAddDialog(false)}
+        title="Apply for Leave"
+        fields={leaveFields}
+        onSave={handleAddLeave}
+      />
     </Box>
   );
 };

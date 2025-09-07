@@ -253,7 +253,7 @@ const InvoicesPage = () => {
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
                   <Typography variant="h4" fontWeight="700">
-                    ${filteredInvoices.reduce((sum, inv) => sum + inv.amount, 0).toFixed(2)}
+                    {filteredInvoices.reduce((sum, inv) => sum + inv.amount, 0).toFixed(2)} FCFA
                   </Typography>
                   <Typography variant="body2">Total Amount</Typography>
                 </Box>
@@ -330,7 +330,7 @@ const InvoicesPage = () => {
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" fontWeight="600" color="primary.main">
-                      ${invoice.amount.toFixed(2)}
+                      {invoice.amount.toFixed(2)} FCFA
                     </Typography>
                   </TableCell>
                   <TableCell>{invoice.feeType}</TableCell>

@@ -36,6 +36,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import GlassCard from '../../components/GlassCard';
+import FormDialog from '../../components/Common/FormDialog';
 
 const AssetsPage = () => {
   const { user } = useAuth();
@@ -44,6 +45,7 @@ const AssetsPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedAsset, setSelectedAsset] = useState(null);
+  const [showAddDialog, setShowAddDialog] = useState(false);
 
   // Mock data
   const mockAssets = [
@@ -143,6 +145,47 @@ const AssetsPage = () => {
     }
   };
 
+  const handleAddAsset = (formData) => {
+    const newAsset = {
+      id: assets.length + 1,
+      assetId: `AST${String(assets.length + 1).padStart(3, '0')}`,
+      name: formData.name,
+      category: formData.category,
+      serialNumber: formData.serialNumber,
+      purchaseDate: formData.purchaseDate,
+      purchasePrice: parseFloat(formData.purchasePrice),
+      currentValue: parseFloat(formData.currentValue || formData.purchasePrice),
+      status: 'available',
+      assignedTo: null,
+      location: formData.location,
+      condition: 'excellent'
+    };
+    
+    setAssets([...assets, newAsset]);
+    setShowAddDialog(false);
+  };
+
+  const assetFields = [
+    { name: 'name', label: 'Asset Name', type: 'text', required: true },
+    {
+      name: 'category',
+      label: 'Category',
+      type: 'select',
+      required: true,
+      options: [
+        { value: 'Computer', label: 'Computer' },
+        { value: 'Mobile Device', label: 'Mobile Device' },
+        { value: 'Furniture', label: 'Furniture' },
+        { value: 'Equipment', label: 'Equipment' }
+      ]
+    },
+    { name: 'serialNumber', label: 'Serial Number', type: 'text', required: true },
+    { name: 'purchaseDate', label: 'Purchase Date', type: 'date', required: true },
+    { name: 'purchasePrice', label: 'Purchase Price (FCFA)', type: 'number', required: true },
+    { name: 'currentValue', label: 'Current Value (FCFA)', type: 'number' },
+    { name: 'location', label: 'Location', type: 'text', required: true }
+  ];
+
   const filteredAssets = assets.filter(asset => 
     asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     asset.assetId.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -169,6 +212,7 @@ const AssetsPage = () => {
         <Button
           variant="contained"
           startIcon={<AddIcon />}
+          onClick={() => setShowAddDialog(true)}
           sx={{
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             '&:hover': {
@@ -252,7 +296,7 @@ const AssetsPage = () => {
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
                   <Typography variant="h4" fontWeight="700">
-                    ${(assets.reduce((sum, a) => sum + a.currentValue, 0) / 1000).toFixed(0)}K
+                    {(assets.reduce((sum, a) => sum + a.currentValue, 0) / 1000).toFixed(0)}K FCFA
                   </Typography>
                   <Typography variant="body2">Total Value</Typography>
                 </Box>
@@ -306,10 +350,10 @@ const AssetsPage = () => {
                   <TableCell>
                     <Box>
                       <Typography variant="body2" fontWeight="600" color="primary.main">
-                        ${asset.currentValue.toLocaleString()}
+                        {asset.currentValue.toLocaleString()} FCFA
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        Purchase: ${asset.purchasePrice.toLocaleString()}
+                        Purchase: {asset.purchasePrice.toLocaleString()} FCFA
                       </Typography>
                     </Box>
                   </TableCell>
@@ -377,6 +421,15 @@ const AssetsPage = () => {
           Assign/Unassign
         </MenuItem>
       </Menu>
+
+      {/* Add Asset Dialog */}
+      <FormDialog
+        open={showAddDialog}
+        onClose={() => setShowAddDialog(false)}
+        title="Add New Asset"
+        fields={assetFields}
+        onSave={handleAddAsset}
+      />
     </Box>
   );
 };

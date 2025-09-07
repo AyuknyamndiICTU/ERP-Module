@@ -32,6 +32,7 @@ import {
   Send as SendIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
+import FormDialog from '../../components/Common/FormDialog';
 import GlassCard from '../../components/GlassCard';
 
 const PayrollPage = () => {
@@ -41,6 +42,7 @@ const PayrollPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedPayroll, setSelectedPayroll] = useState(null);
+  const [showProcessDialog, setShowProcessDialog] = useState(false);
 
   // Mock data
   const mockPayrolls = [
@@ -96,6 +98,27 @@ const PayrollPage = () => {
     }, 1000);
   }, []);
 
+  const handleProcessPayroll = (formData) => {
+    // Process new payroll entry
+    const newPayroll = {
+      id: payrolls.length + 1,
+      employeeId: formData.employeeId,
+      employeeName: formData.employeeName,
+      department: formData.department,
+      position: formData.position,
+      baseSalary: parseFloat(formData.baseSalary),
+      allowances: parseFloat(formData.allowances || 0),
+      deductions: parseFloat(formData.deductions || 0),
+      netSalary: parseFloat(formData.baseSalary) + parseFloat(formData.allowances || 0) - parseFloat(formData.deductions || 0),
+      payPeriod: formData.payPeriod,
+      status: 'processed',
+      payDate: new Date().toISOString().split('T')[0]
+    };
+    
+    setPayrolls([...payrolls, newPayroll]);
+    setShowProcessDialog(false);
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'paid': return 'success';
@@ -130,6 +153,7 @@ const PayrollPage = () => {
         <Button
           variant="contained"
           startIcon={<AddIcon />}
+          onClick={() => setShowProcessDialog(true)}
           sx={{
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             '&:hover': {
@@ -183,7 +207,7 @@ const PayrollPage = () => {
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
                   <Typography variant="h4" fontWeight="700">
-                    ${(filteredPayrolls.reduce((sum, p) => sum + p.netSalary, 0) / 1000).toFixed(0)}K
+                    {(filteredPayrolls.reduce((sum, p) => sum + p.netSalary, 0) / 1000).toFixed(0)}K FCFA
                   </Typography>
                   <Typography variant="body2">Total Payroll</Typography>
                 </Box>
@@ -261,22 +285,22 @@ const PayrollPage = () => {
                   <TableCell>{payroll.department}</TableCell>
                   <TableCell>
                     <Typography variant="body2" fontWeight="600">
-                      ${payroll.baseSalary.toLocaleString()}
+                      {payroll.baseSalary.toLocaleString()} FCFA
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" color="success.main">
-                      +${payroll.allowances.toLocaleString()}
+                      +{payroll.allowances.toLocaleString()} FCFA
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" color="error.main">
-                      -${payroll.deductions.toLocaleString()}
+                      -{payroll.deductions.toLocaleString()} FCFA
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" fontWeight="700" color="primary.main">
-                      ${payroll.netSalary.toLocaleString()}
+                      {payroll.netSalary.toLocaleString()} FCFA
                     </Typography>
                   </TableCell>
                   <TableCell>
@@ -324,6 +348,30 @@ const PayrollPage = () => {
           Send to Employee
         </MenuItem>
       </Menu>
+
+      {/* Process Payroll Dialog */}
+      <FormDialog
+        open={showProcessDialog}
+        onClose={() => setShowProcessDialog(false)}
+        title="Process New Payroll"
+        fields={[
+          { name: 'employeeId', label: 'Employee ID', type: 'text', required: true },
+          { name: 'employeeName', label: 'Employee Name', type: 'text', required: true },
+          { name: 'department', label: 'Department', type: 'select', required: true, options: [
+            { value: 'Computer Science', label: 'Computer Science' },
+            { value: 'Mathematics', label: 'Mathematics' },
+            { value: 'Physics', label: 'Physics' },
+            { value: 'Administration', label: 'Administration' },
+            { value: 'Finance', label: 'Finance' }
+          ]},
+          { name: 'position', label: 'Position', type: 'text', required: true },
+          { name: 'baseSalary', label: 'Base Salary (FCFA)', type: 'number', required: true, min: 0 },
+          { name: 'allowances', label: 'Allowances (FCFA)', type: 'number', min: 0, width: 6 },
+          { name: 'deductions', label: 'Deductions (FCFA)', type: 'number', min: 0, width: 6 },
+          { name: 'payPeriod', label: 'Pay Period', type: 'text', required: true, placeholder: 'e.g., December 2024' }
+        ]}
+        onSave={handleProcessPayroll}
+      />
     </Box>
   );
 };

@@ -6,8 +6,7 @@ import {
   Avatar,
   Chip,
   Paper,
-  Button,
-  keyframes} from '@mui/material';
+  Button} from '@mui/material';
 import {
   School as SchoolIcon,
   People as PeopleIcon,
@@ -249,11 +248,12 @@ const DashboardPage = () => {
       case 'admin':
         return [
           { title: 'Total Students', value: stats.academic.totalStudents, icon: <SchoolIcon />, color: 'primary', subtitle: 'Active enrollments' },
-          { title: 'Total Revenue', value: `$${(stats.finance.totalRevenue / 1000000).toFixed(1)}M`, icon: <MoneyIcon />, color: 'success', subtitle: 'This academic year' },
+          { title: 'Total Revenue', value: `${(stats.finance.totalRevenue / 1000000).toFixed(1)}M FCFA`, icon: <MoneyIcon />, color: 'success', subtitle: 'This academic year' },
           { title: 'Total Employees', value: stats.hr.totalEmployees, icon: <PeopleIcon />, color: 'warning', subtitle: 'Active staff' },
           { title: 'Growth Rate', value: `${stats.finance.monthlyGrowth}%`, icon: <TrendingUpIcon />, color: 'secondary', subtitle: 'Monthly growth' },
         ];
       case 'academic_staff':
+      case 'lecturer':
         return [
           { title: 'My Courses', value: 8, icon: <SchoolIcon />, color: 'primary', subtitle: 'Active courses' },
           { title: 'Total Students', value: 245, icon: <PeopleIcon />, color: 'success', subtitle: 'Enrolled students' },
@@ -270,7 +270,7 @@ const DashboardPage = () => {
       case 'finance_staff':
         return [
           { title: 'Pending Invoices', value: 45, icon: <MoneyIcon />, color: 'primary', subtitle: 'Awaiting payment' },
-          { title: 'Monthly Revenue', value: '$125K', icon: <TrendingUpIcon />, color: 'success', subtitle: 'This month' },
+          { title: 'Monthly Revenue', value: '125K FCFA', icon: <TrendingUpIcon />, color: 'success', subtitle: 'This month' },
           { title: 'Active Campaigns', value: stats.finance.activeCampaigns, icon: <EventIcon />, color: 'warning', subtitle: 'Marketing campaigns' },
           { title: 'Budget Utilization', value: '78%', icon: <AssignmentIcon />, color: 'secondary', subtitle: 'Current fiscal year' },
         ];
@@ -420,7 +420,7 @@ const DashboardPage = () => {
                     </Button>
                   </>
                 )}
-                {(user?.role === 'academic_staff' || user?.role === 'admin') && (
+                {(user?.role === 'academic_staff' || user?.role === 'lecturer' || user?.role === 'admin') && (
                   <>
                     <Button
                       variant="contained"

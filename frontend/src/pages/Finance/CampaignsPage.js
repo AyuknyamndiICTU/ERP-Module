@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -7,120 +7,126 @@ import {
   Grid,
   Card,
   CardContent,
-  CardActions,
   Chip,
   IconButton,
   InputAdornment,
   Menu,
   MenuItem,
   Avatar,
-  LinearProgress} from '@mui/material';
+  LinearProgress,
+  CircularProgress
+} from '@mui/material';
 import {
   Add as AddIcon,
   Search as SearchIcon,
-  FilterList as FilterIcon,
   MoreVert as MoreVertIcon,
   Campaign as CampaignIcon,
   TrendingUp as TrendingUpIcon,
   Visibility as ViewIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  PlayArrow as PlayIcon,
-  Pause as PauseIcon,
-  Stop as StopIcon,
-  Analytics as AnalyticsIcon} from '@mui/icons-material';
-import { useApiData, useDialogState } from '../../hooks/useApiData';
-import { FormDialog, ConfirmDialog, DetailDialog } from '../../components/Common/DialogComponents';
+  Analytics as AnalyticsIcon
+} from '@mui/icons-material';
+import { useAuth } from '../../context/AuthContext';
+import FormDialog from '../../components/Common/FormDialog';
 import GlassCard from '../../components/GlassCard';
-import logger from '../../utils/logger';
 
 const CampaignsPage = () => {
+  const { user } = useAuth();
+  const [campaigns, setCampaigns] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedCampaign, setSelectedCampaign] = useState(null);
+  const [showAddDialog, setShowAddDialog] = useState(false);
 
-  // Mock API service for campaigns
-  const mockCampaignService = {
-    getAll: async () => ({
-      data: {
-        success: true,
-        data: [
-          {
-            id: 1,
-            name: 'Fall 2024 Enrollment Drive',
-            type: 'enrollment',
-            status: 'active',
-            budget: 5000,
-            spent: 3200,
-            startDate: '2024-08-01',
-            endDate: '2024-09-30',
-            targetAudience: 'High School Graduates',
-            leads: 245,
-            conversions: 89,
-            roi: 180,
-            description: 'Comprehensive enrollment campaign targeting high school graduates'
-          },
-          {
-            id: 2,
-            name: 'Online Learning Promotion',
-            type: 'promotion',
-            status: 'paused',
-            budget: 3000,
-            spent: 1800,
-            startDate: '2024-07-15',
-            endDate: '2024-08-31',
-            targetAudience: 'Working Professionals',
-            leads: 156,
-            conversions: 34,
-            roi: 95,
-            description: 'Promoting online courses for working professionals'
-          },
-          {
-            id: 3,
-            name: 'Summer Workshop Series',
-            type: 'event',
-            status: 'completed',
-            budget: 2500,
-            spent: 2400,
-            startDate: '2024-06-01',
-            endDate: '2024-07-31',
-            targetAudience: 'Students & Parents',
-            leads: 189,
-            conversions: 67,
-            roi: 145,
-            description: 'Summer workshop series for skill development'
-          }
-        ]
-      }
-    }),
-    create: async (data) => ({
-      data: {
-        success: true,
-        data: { id: Date.now(), ...data, leads: 0, conversions: 0, spent: 0 }
-      }
-    }),
-    update: async (id, data) => ({ data: { success: true, data: { id, ...data } } }),
-    delete: async (id) => ({ data: { success: true } }),
-    getById: async (id) => ({ data: { success: true, data: {} } })
-  };
-
-  const { data: campaigns, loading, createItem, updateItem, deleteItem, handleSearch } = useApiData(mockCampaignService);
-  const { dialogs, selectedItem, openDialog, closeDialog } = useDialogState();
-
-  const campaignFields = [
-    { name: 'name', label: 'Campaign Name', type: 'text', required: true },
-    { name: 'type', label: 'Campaign Type', type: 'select', required: true, options: [
-      { value: 'enrollment', label: 'Enrollment Drive' },
-      { value: 'promotion', label: 'Course Promotion' },
-      { value: 'event', label: 'Event Marketing' },
-      { value: 'retention', label: 'Student Retention' },
-      { value: 'brand', label: 'Brand Awareness' }
-    ]},
-    { name: 'targetAudience', label: 'Target Audience', type: 'text', required: true },
-    { name: 'budget', label: 'Budget ($)', type: 'number', required: true, min: 0 },
-    { name: 'startDate', label: 'Start Date', type: 'date', required: true, width: 6 },
-    { name: 'endDate', label: 'End Date', type: 'date', required: true, width: 6 },
-    { name: 'description', label: 'Description', type: 'textarea', rows: 3 }
+  // Mock data
+  const mockCampaigns = [
+    {
+      id: 1,
+      name: 'Fall 2024 Enrollment Drive',
+      type: 'enrollment',
+      status: 'active',
+      targetAudience: 'High School Graduates',
+      budget: 50000,
+      spent: 32000,
+      startDate: '2024-09-01',
+      endDate: '2024-11-30',
+      leads: 245,
+      conversions: 89,
+      roi: 156,
+      description: 'Comprehensive enrollment campaign targeting high school graduates'
+    },
+    {
+      id: 2,
+      name: 'Digital Marketing Q4',
+      type: 'promotion',
+      status: 'active',
+      targetAudience: 'Working Professionals',
+      budget: 30000,
+      spent: 18000,
+      startDate: '2024-10-01',
+      endDate: '2024-12-31',
+      leads: 156,
+      conversions: 45,
+      roi: 89,
+      description: 'Online course promotion for working professionals'
+    },
+    {
+      id: 3,
+      name: 'Alumni Networking Event',
+      type: 'event',
+      status: 'completed',
+      targetAudience: 'Alumni Network',
+      budget: 15000,
+      spent: 15000,
+      startDate: '2024-08-15',
+      endDate: '2024-08-15',
+      leads: 78,
+      conversions: 12,
+      roi: 45,
+      description: 'Annual alumni networking and recruitment event'
+    }
   ];
+
+  useEffect(() => {
+    // Simulate API call with timeout to prevent freezing
+    const loadCampaigns = async () => {
+      try {
+        setLoading(true);
+        // Simulate network delay
+        await new Promise(resolve => setTimeout(resolve, 800));
+        setCampaigns(mockCampaigns);
+      } catch (error) {
+        console.error('Error loading campaigns:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCampaigns();
+  }, []);
+
+  const handleAddCampaign = (formData) => {
+    const newCampaign = {
+      id: campaigns.length + 1,
+      name: formData.name,
+      type: formData.type,
+      status: 'active',
+      targetAudience: formData.targetAudience,
+      budget: parseFloat(formData.budget),
+      spent: 0,
+      startDate: formData.startDate,
+      endDate: formData.endDate,
+      leads: 0,
+      conversions: 0,
+      roi: 0,
+      description: formData.description
+    };
+    
+    setCampaigns([...campaigns, newCampaign]);
+    setShowAddDialog(false);
+  };
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -132,6 +138,28 @@ const CampaignsPage = () => {
     }
   };
 
+  const filteredCampaigns = campaigns.filter(campaign =>
+    campaign.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    campaign.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    campaign.targetAudience.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const campaignFields = [
+    { name: 'name', label: 'Campaign Name', type: 'text', required: true },
+    { name: 'type', label: 'Campaign Type', type: 'select', required: true, options: [
+      { value: 'enrollment', label: 'Enrollment Drive' },
+      { value: 'promotion', label: 'Course Promotion' },
+      { value: 'event', label: 'Event Marketing' },
+      { value: 'retention', label: 'Student Retention' },
+      { value: 'brand', label: 'Brand Awareness' }
+    ]},
+    { name: 'targetAudience', label: 'Target Audience', type: 'text', required: true },
+    { name: 'budget', label: 'Budget (FCFA)', type: 'number', required: true, min: 0 },
+    { name: 'startDate', label: 'Start Date', type: 'date', required: true, width: 6 },
+    { name: 'endDate', label: 'End Date', type: 'date', required: true, width: 6 },
+    { name: 'description', label: 'Description', type: 'textarea', rows: 3 }
+  ];
+
   const getTypeIcon = (type) => {
     switch (type) {
       case 'enrollment': return <CampaignIcon />;
@@ -141,76 +169,59 @@ const CampaignsPage = () => {
     }
   };
 
-  const handleMenuClick = (event, campaign) => {
-    setAnchorEl(event.currentTarget);
-    setSelectedCampaign(campaign);
-  };
+  const totalBudget = campaigns.reduce((sum, c) => sum + c.budget, 0);
+  const totalSpent = campaigns.reduce((sum, c) => sum + c.spent, 0);
+  const totalLeads = campaigns.reduce((sum, c) => sum + c.leads, 0);
+  const totalConversions = campaigns.reduce((sum, c) => sum + c.conversions, 0);
 
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-    setSelectedCampaign(null);
-  };
-
-  const handleCreateCampaign = async (data) => {
-    try {
-      await createItem({
-        ...data,
-        status: 'draft'
-      });
-      closeDialog('create');
-    } catch (error) {
-      logger.error('Error creating campaign:', error);
-    }
-  };
-
-  const handleUpdateCampaign = async (data) => {
-    try {
-      await updateItem(selectedItem.id, data);
-      closeDialog('edit');
-    } catch (error) {
-      logger.error('Error updating campaign:', error);
-    }
-  };
-
-  const handleDeleteCampaign = async () => {
-    try {
-      await deleteItem(selectedItem.id);
-      closeDialog('delete');
-    } catch (error) {
-      logger.error('Error deleting campaign:', error);
-    }
-  };
-
-  const handleStatusChange = (campaign, newStatus) => {
-    updateItem(campaign.id, { ...campaign, status: newStatus });
-    handleMenuClose();
-  };
-
-  // Calculate summary statistics
-  const totalBudget = campaigns.reduce((sum, campaign) => sum + campaign.budget, 0);
-  const totalSpent = campaigns.reduce((sum, campaign) => sum + campaign.spent, 0);
-  const totalLeads = campaigns.reduce((sum, campaign) => sum + campaign.leads, 0);
-  const totalConversions = campaigns.reduce((sum, campaign) => sum + campaign.conversions, 0);
-  const averageROI = campaigns.length > 0 ? campaigns.reduce((sum, campaign) => sum + campaign.roi, 0) / campaigns.length : 0;
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
-    <Box>
+    <Box sx={{ p: 3 }}>
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" fontWeight="700">
+        <Typography variant="h4" fontWeight="700" sx={{ color: 'primary.main' }}>
           Marketing Campaigns
         </Typography>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
-          onClick={() => openDialog('create')}
+          onClick={() => setShowAddDialog(true)}
           sx={{
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            borderRadius: 2}}
+            '&:hover': {
+              background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
+            }
+          }}
         >
           Create Campaign
         </Button>
       </Box>
+
+      {/* Search */}
+      <GlassCard sx={{ mb: 3 }}>
+        <Box sx={{ p: 2 }}>
+          <TextField
+            fullWidth
+            placeholder="Search campaigns..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+          />
+        </Box>
+      </GlassCard>
 
       {/* Summary Cards */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
@@ -221,7 +232,7 @@ const CampaignsPage = () => {
                 Total Budget
               </Typography>
               <Typography variant="h4" fontWeight="700">
-                ${totalBudget.toLocaleString()}
+                {totalBudget.toLocaleString()} FCFA
               </Typography>
             </CardContent>
           </GlassCard>
@@ -233,7 +244,7 @@ const CampaignsPage = () => {
                 Total Spent
               </Typography>
               <Typography variant="h4" fontWeight="700">
-                ${totalSpent.toLocaleString()}
+                {totalSpent.toLocaleString()} FCFA
               </Typography>
             </CardContent>
           </GlassCard>
@@ -265,71 +276,42 @@ const CampaignsPage = () => {
         <Grid item xs={12} md={2.4}>
           <GlassCard>
             <CardContent>
-              <Typography variant="h6" color="text.secondary" gutterBottom>
-                Avg ROI
+              <Typography variant="h6" color="secondary.main" gutterBottom>
+                Active Campaigns
               </Typography>
               <Typography variant="h4" fontWeight="700">
-                {averageROI.toFixed(0)}%
+                {campaigns.filter(c => c.status === 'active').length}
               </Typography>
             </CardContent>
           </GlassCard>
         </Grid>
       </Grid>
 
-      {/* Search and Filters */}
-      <GlassCard sx={{ mb: 3 }}>
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-          <TextField
-            placeholder="Search campaigns..."
-            onChange={(e) => handleSearch(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              )}}
-            sx={{ flexGrow: 1 }}
-          />
-          <Button
-            variant="outlined"
-            startIcon={<FilterIcon />}
-            sx={{ minWidth: 120 }}
-          >
-            Filter
-          </Button>
-        </Box>
-      </GlassCard>
-
-      {/* Campaigns Grid */}
+      {/* Campaign Cards */}
       <Grid container spacing={3}>
-        {campaigns.map((campaign) => (
+        {filteredCampaigns.map((campaign) => (
           <Grid item xs={12} md={6} lg={4} key={campaign.id}>
-            <GlassCard sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <CardContent sx={{ flexGrow: 1 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <Avatar sx={{
-                      bgcolor: 'primary.main',
-                      width: 40,
-                      height: 40,
-                      mr: 2
-                    }}>
-                      {getTypeIcon(campaign.type)}
-                    </Avatar>
-                    <Box>
-                      <Typography variant="h6" fontWeight="600" gutterBottom>
-                        {campaign.name}
-                      </Typography>
-                      <Chip
-                        label={campaign.status.toUpperCase()}
-                        color={getStatusColor(campaign.status)}
-                        size="small"
-                      />
-                    </Box>
+            <GlassCard>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                  <Avatar sx={{ mr: 2, bgcolor: 'primary.main' }}>
+                    {getTypeIcon(campaign.type)}
+                  </Avatar>
+                  <Box sx={{ flexGrow: 1 }}>
+                    <Typography variant="h6" fontWeight="600">
+                      {campaign.name}
+                    </Typography>
+                    <Chip
+                      label={campaign.status.toUpperCase()}
+                      color={getStatusColor(campaign.status)}
+                      size="small"
+                    />
                   </Box>
                   <IconButton
-                    size="small"
-                    onClick={(e) => handleMenuClick(e, campaign)}
+                    onClick={(e) => {
+                      setAnchorEl(e.currentTarget);
+                      setSelectedCampaign(campaign);
+                    }}
                   >
                     <MoreVertIcon />
                   </IconButton>
@@ -349,7 +331,7 @@ const CampaignsPage = () => {
                     sx={{ mb: 1 }}
                   />
                   <Typography variant="body2">
-                    ${campaign.spent.toLocaleString()} / ${campaign.budget.toLocaleString()}
+                    {campaign.spent.toLocaleString()} FCFA / {campaign.budget.toLocaleString()} FCFA
                   </Typography>
                 </Box>
 
@@ -370,41 +352,8 @@ const CampaignsPage = () => {
                       {campaign.conversions}
                     </Typography>
                   </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">
-                      ROI
-                    </Typography>
-                    <Typography variant="h6" fontWeight="600" color="success.main">
-                      {campaign.roi}%
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">
-                      Conv. Rate
-                    </Typography>
-                    <Typography variant="h6" fontWeight="600">
-                      {campaign.leads > 0 ? Math.round((campaign.conversions / campaign.leads) * 100) : 0}%
-                    </Typography>
-                  </Grid>
                 </Grid>
               </CardContent>
-
-              <CardActions>
-                <Button
-                  size="small"
-                  startIcon={<ViewIcon />}
-                  onClick={() => openDialog('detail', campaign)}
-                >
-                  View Details
-                </Button>
-                <Button
-                  size="small"
-                  startIcon={<AnalyticsIcon />}
-                  onClick={() => logger.debug('View analytics:', campaign)}
-                >
-                  Analytics
-                </Button>
-              </CardActions>
             </GlassCard>
           </Grid>
         ))}
@@ -414,110 +363,29 @@ const CampaignsPage = () => {
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
-        onClose={handleMenuClose}
+        onClose={() => setAnchorEl(null)}
       >
-        <MenuItem onClick={() => { openDialog('detail', selectedCampaign); handleMenuClose(); }}>
-          <ViewIcon sx={{ mr: 1 }} fontSize="small" />
+        <MenuItem onClick={() => setAnchorEl(null)}>
+          <ViewIcon sx={{ mr: 1 }} />
           View Details
         </MenuItem>
-        <MenuItem onClick={() => { openDialog('edit', selectedCampaign); handleMenuClose(); }}>
-          <EditIcon sx={{ mr: 1 }} fontSize="small" />
+        <MenuItem onClick={() => setAnchorEl(null)}>
+          <EditIcon sx={{ mr: 1 }} />
           Edit Campaign
         </MenuItem>
-        {selectedCampaign?.status === 'draft' && (
-          <MenuItem onClick={() => handleStatusChange(selectedCampaign, 'active')}>
-            <PlayIcon sx={{ mr: 1 }} fontSize="small" />
-            Start Campaign
-          </MenuItem>
-        )}
-        {selectedCampaign?.status === 'active' && (
-          <MenuItem onClick={() => handleStatusChange(selectedCampaign, 'paused')}>
-            <PauseIcon sx={{ mr: 1 }} fontSize="small" />
-            Pause Campaign
-          </MenuItem>
-        )}
-        {selectedCampaign?.status === 'paused' && (
-          <MenuItem onClick={() => handleStatusChange(selectedCampaign, 'active')}>
-            <PlayIcon sx={{ mr: 1 }} fontSize="small" />
-            Resume Campaign
-          </MenuItem>
-        )}
-        <MenuItem onClick={() => { logger.debug('View analytics:', selectedCampaign); handleMenuClose(); }}>
-          <AnalyticsIcon sx={{ mr: 1 }} fontSize="small" />
-          View Analytics
-        </MenuItem>
-        <MenuItem onClick={() => { openDialog('delete', selectedCampaign); handleMenuClose(); }} sx={{ color: 'error.main' }}>
-          <DeleteIcon sx={{ mr: 1 }} fontSize="small" />
+        <MenuItem onClick={() => setAnchorEl(null)} sx={{ color: 'error.main' }}>
+          <DeleteIcon sx={{ mr: 1 }} />
           Delete Campaign
         </MenuItem>
       </Menu>
 
-      {/* Dialogs */}
+      {/* Add Campaign Dialog */}
       <FormDialog
-        open={dialogs.create}
-        onClose={() => closeDialog('create')}
+        open={showAddDialog}
+        onClose={() => setShowAddDialog(false)}
         title="Create New Campaign"
         fields={campaignFields}
-        onSave={handleCreateCampaign}
-        loading={loading}
-      />
-
-      <FormDialog
-        open={dialogs.edit}
-        onClose={() => closeDialog('edit')}
-        title="Edit Campaign"
-        fields={campaignFields}
-        data={selectedItem}
-        onSave={handleUpdateCampaign}
-        loading={loading}
-      />
-
-      <DetailDialog
-        open={dialogs.detail}
-        onClose={() => closeDialog('detail')}
-        title="Campaign Details"
-        data={selectedItem}
-        fields={[
-          { name: 'name', label: 'Campaign Name' },
-          { name: 'type', label: 'Type' },
-          { name: 'status', label: 'Status', render: (value) => (
-            <Chip label={value?.toUpperCase()} color={getStatusColor(value)} size="small" />
-          )},
-          { name: 'targetAudience', label: 'Target Audience' },
-          { name: 'budget', label: 'Budget', render: (value) => `$${value?.toLocaleString()}` },
-          { name: 'spent', label: 'Spent', render: (value) => `$${value?.toLocaleString()}` },
-          { name: 'startDate', label: 'Start Date' },
-          { name: 'endDate', label: 'End Date' },
-          { name: 'leads', label: 'Leads Generated' },
-          { name: 'conversions', label: 'Conversions' },
-          { name: 'roi', label: 'ROI', render: (value) => `${value}%` },
-          { name: 'description', label: 'Description', width: 12 }
-        ]}
-        actions={[
-          {
-            label: 'Edit',
-            onClick: () => { closeDialog('detail'); openDialog('edit', selectedItem); },
-            icon: <EditIcon />,
-            variant: 'outlined'
-          },
-          {
-            label: 'View Analytics',
-            onClick: () => logger.debug('View analytics:', selectedItem),
-            icon: <AnalyticsIcon />,
-            variant: 'contained'
-          }
-        ]}
-      />
-
-      <ConfirmDialog
-        open={dialogs.delete}
-        onClose={() => closeDialog('delete')}
-        onConfirm={handleDeleteCampaign}
-        title="Delete Campaign"
-        message={`Are you sure you want to delete the campaign "${selectedItem?.name}"? This action cannot be undone.`}
-        confirmText="Delete"
-        severity="error"
-        loading={loading}
+        onSave={handleAddCampaign}
       />
     </Box>
   );

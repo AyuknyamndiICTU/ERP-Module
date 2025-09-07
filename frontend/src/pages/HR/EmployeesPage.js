@@ -32,6 +32,7 @@ import {
   Phone as PhoneIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
+import FormDialog from '../../components/Common/FormDialog';
 import GlassCard from '../../components/GlassCard';
 
 const EmployeesPage = () => {
@@ -41,6 +42,7 @@ const EmployeesPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [showAddDialog, setShowAddDialog] = useState(false);
 
   // Mock data
   const mockEmployees = [
@@ -106,6 +108,25 @@ const EmployeesPage = () => {
     }, 1000);
   }, []);
 
+  const handleAddEmployee = (formData) => {
+    const newEmployee = {
+      id: employees.length + 1,
+      employeeId: `EMP${String(employees.length + 1).padStart(3, '0')}`,
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      email: formData.email,
+      phone: formData.phone,
+      department: formData.department,
+      position: formData.position,
+      status: 'active',
+      hireDate: new Date().toISOString().split('T')[0],
+      salary: parseFloat(formData.salary)
+    };
+    
+    setEmployees([...employees, newEmployee]);
+    setShowAddDialog(false);
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'active': return 'success';
@@ -140,6 +161,7 @@ const EmployeesPage = () => {
         <Button
           variant="contained"
           startIcon={<AddIcon />}
+          onClick={() => setShowAddDialog(true)}
           sx={{
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             '&:hover': {
@@ -223,7 +245,7 @@ const EmployeesPage = () => {
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
                   <Typography variant="h4" fontWeight="700">
-                    ${(filteredEmployees.reduce((sum, emp) => sum + emp.salary, 0) / 1000).toFixed(0)}K
+                    {(filteredEmployees.reduce((sum, emp) => sum + emp.salary, 0) / 1000).toFixed(0)}K FCFA
                   </Typography>
                   <Typography variant="body2">Total Payroll</Typography>
                 </Box>
@@ -327,6 +349,30 @@ const EmployeesPage = () => {
           Send Message
         </MenuItem>
       </Menu>
+
+      {/* Add Employee Dialog */}
+      <FormDialog
+        open={showAddDialog}
+        onClose={() => setShowAddDialog(false)}
+        title="Add New Employee"
+        fields={[
+          { name: 'firstName', label: 'First Name', type: 'text', required: true, width: 6 },
+          { name: 'lastName', label: 'Last Name', type: 'text', required: true, width: 6 },
+          { name: 'email', label: 'Email Address', type: 'email', required: true },
+          { name: 'phone', label: 'Phone Number', type: 'tel', required: true },
+          { name: 'department', label: 'Department', type: 'select', required: true, options: [
+            { value: 'Computer Science', label: 'Computer Science' },
+            { value: 'Mathematics', label: 'Mathematics' },
+            { value: 'Physics', label: 'Physics' },
+            { value: 'Administration', label: 'Administration' },
+            { value: 'Finance', label: 'Finance' },
+            { value: 'Human Resources', label: 'Human Resources' }
+          ]},
+          { name: 'position', label: 'Position', type: 'text', required: true },
+          { name: 'salary', label: 'Annual Salary (FCFA)', type: 'number', required: true, min: 0 }
+        ]}
+        onSave={handleAddEmployee}
+      />
     </Box>
   );
 };

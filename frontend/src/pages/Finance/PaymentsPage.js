@@ -32,6 +32,7 @@ import {
   CreditCard as CreditCardIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
+import FormDialog from '../../components/Common/FormDialog';
 import GlassCard from '../../components/GlassCard';
 
 const PaymentsPage = () => {
@@ -41,6 +42,7 @@ const PaymentsPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedPayment, setSelectedPayment] = useState(null);
+  const [showProcessDialog, setShowProcessDialog] = useState(false);
 
   // Mock data
   const mockPayments = [
@@ -90,6 +92,24 @@ const PaymentsPage = () => {
     }, 1000);
   }, []);
 
+  const handleProcessPayment = (formData) => {
+    const newPayment = {
+      id: payments.length + 1,
+      paymentId: `PAY-2024-${String(payments.length + 1).padStart(3, '0')}`,
+      studentName: formData.studentName,
+      studentId: formData.studentId,
+      amount: parseFloat(formData.amount),
+      paymentDate: new Date().toISOString().split('T')[0],
+      status: 'completed',
+      method: formData.method,
+      invoiceNumber: formData.invoiceNumber,
+      description: formData.description
+    };
+    
+    setPayments([...payments, newPayment]);
+    setShowProcessDialog(false);
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'completed': return 'success';
@@ -132,6 +152,7 @@ const PaymentsPage = () => {
         <Button
           variant="contained"
           startIcon={<AddIcon />}
+          onClick={() => setShowProcessDialog(true)}
           sx={{
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             '&:hover': {
@@ -185,7 +206,7 @@ const PaymentsPage = () => {
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
                   <Typography variant="h4" fontWeight="700">
-                    ${filteredPayments.reduce((sum, payment) => sum + payment.amount, 0).toFixed(2)}
+                    {filteredPayments.reduce((sum, payment) => sum + payment.amount, 0).toFixed(2)} FCFA
                   </Typography>
                   <Typography variant="body2">Total Amount</Typography>
                 </Box>
@@ -262,7 +283,7 @@ const PaymentsPage = () => {
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" fontWeight="600" color="primary.main">
-                      ${payment.amount.toFixed(2)}
+                      {payment.amount.toFixed(2)} FCFA
                     </Typography>
                   </TableCell>
                   <TableCell>
@@ -315,6 +336,27 @@ const PaymentsPage = () => {
           Process Refund
         </MenuItem>
       </Menu>
+
+      {/* Process Payment Dialog */}
+      <FormDialog
+        open={showProcessDialog}
+        onClose={() => setShowProcessDialog(false)}
+        title="Process New Payment"
+        fields={[
+          { name: 'studentName', label: 'Student Name', type: 'text', required: true },
+          { name: 'studentId', label: 'Student ID', type: 'text', required: true },
+          { name: 'amount', label: 'Payment Amount (FCFA)', type: 'number', required: true, min: 0 },
+          { name: 'method', label: 'Payment Method', type: 'select', required: true, options: [
+            { value: 'Credit Card', label: 'Credit Card' },
+            { value: 'Bank Transfer', label: 'Bank Transfer' },
+            { value: 'Cash', label: 'Cash' },
+            { value: 'Mobile Money', label: 'Mobile Money' }
+          ]},
+          { name: 'invoiceNumber', label: 'Invoice Number', type: 'text', required: true },
+          { name: 'description', label: 'Payment Description', type: 'text', required: true, placeholder: 'e.g., Tuition Fee Payment' }
+        ]}
+        onSave={handleProcessPayment}
+      />
     </Box>
   );
 };
