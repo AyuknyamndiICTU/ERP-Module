@@ -201,7 +201,7 @@ const CoursesPage = () => {
   };
 
   const handleAddCourse = () => {
-    if (user?.role === 'admin' || user?.role === 'academic_staff') {
+    if (user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'lecturer' || user?.role === 'faculty_coordinator' || user?.role === 'major_coordinator') {
       setAddCourseDialog(true);
     } else {
       setRestrictionDialog(true);
@@ -617,7 +617,7 @@ const CoursesPage = () => {
               <Button onClick={() => setCourseDialogOpen(false)}>
                 Close
               </Button>
-              {(user?.role === 'admin' || user?.role === 'academic_staff') && (
+              {(user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'lecturer' || user?.role === 'faculty_coordinator' || user?.role === 'major_coordinator') && (
                 <Button variant="contained" startIcon={<EditIcon />}>
                   Edit Course
                 </Button>

@@ -7,15 +7,15 @@ const Student = sequelize.define('Student', {
     primaryKey: true,
     autoIncrement: true
   },
-  studentId: {
+  matricule: {
     type: DataTypes.STRING,
     allowNull: false,
     unique: true,
-    field: 'student_id'
+    field: 'matricule'
   },
   userId: {
     type: DataTypes.INTEGER,
-    allowNull: false,
+    allowNull: true,
     field: 'user_id',
     references: {
       model: 'users',
@@ -47,19 +47,65 @@ const Student = sequelize.define('Student', {
     type: DataTypes.DATEONLY,
     field: 'date_of_birth'
   },
+  regionOfOrigin: {
+    type: DataTypes.STRING,
+    field: 'region_of_origin'
+  },
+  placeOfOrigin: {
+    type: DataTypes.STRING,
+    field: 'place_of_origin'
+  },
   gender: {
     type: DataTypes.ENUM('male', 'female', 'other')
   },
-  address: {
-    type: DataTypes.JSONB
+  age: {
+    type: DataTypes.INTEGER
   },
-  programId: {
-    type: DataTypes.INTEGER,
-    field: 'program_id'
+  bloodGroup: {
+    type: DataTypes.ENUM('A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'),
+    field: 'blood_group'
   },
-  yearLevel: {
+  facultyId: {
     type: DataTypes.INTEGER,
-    field: 'year_level',
+    allowNull: false,
+    field: 'faculty_id',
+    references: {
+      model: 'faculties',
+      key: 'id'
+    }
+  },
+  departmentId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    field: 'department_id',
+    references: {
+      model: 'departments',
+      key: 'id'
+    }
+  },
+  majorId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    field: 'major_id',
+    references: {
+      model: 'majors',
+      key: 'id'
+    }
+  },
+  semester: {
+    type: DataTypes.INTEGER,
+    validate: {
+      min: 1,
+      max: 2
+    }
+  },
+  studentType: {
+    type: DataTypes.ENUM('regular', 'transfer'),
+    defaultValue: 'regular',
+    field: 'student_type'
+  },
+  level: {
+    type: DataTypes.INTEGER,
     validate: {
       min: 1,
       max: 4
@@ -69,9 +115,19 @@ const Student = sequelize.define('Student', {
     type: DataTypes.DATEONLY,
     field: 'enrollment_date'
   },
+  registrationYear: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    field: 'registration_year'
+  },
   status: {
-    type: DataTypes.ENUM('active', 'inactive', 'graduated', 'suspended'),
-    defaultValue: 'active'
+    type: DataTypes.ENUM('active', 'inactive', 'graduated', 'suspended', 'registered', 'pending'),
+    defaultValue: 'pending'
+  },
+  registrationLocked: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    field: 'registration_locked'
   },
   gpa: {
     type: DataTypes.DECIMAL(3, 2),

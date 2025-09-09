@@ -178,7 +178,7 @@ const AttendancePage = () => {
   }, []); // Mock data is static, no dependencies needed
 
   // Check if user has access to attendance management
-  const hasAttendanceAccess = user?.role === 'admin' || user?.role === 'academic_staff';
+  const hasAttendanceAccess = user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'lecturer' || user?.role === 'faculty_coordinator' || user?.role === 'major_coordinator';
 
   // If user doesn't have access, show restriction message
   if (!hasAttendanceAccess) {
@@ -437,7 +437,7 @@ const AttendancePage = () => {
             sx={{ flexGrow: 1, minWidth: 250 }}
           />
 
-          {(user?.role === 'admin' || user?.role === 'academic_staff') && (
+          {(user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'lecturer' || user?.role === 'faculty_coordinator' || user?.role === 'major_coordinator') && (
             <Button
               variant="contained"
               startIcon={<CalendarIcon />}

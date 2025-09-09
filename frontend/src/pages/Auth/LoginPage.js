@@ -211,11 +211,11 @@ const LoginPage = () => {
               Demo Credentials:
             </Typography>
             <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
-              <strong>Admin:</strong> admin@erp.local / password123<br />
-              <strong>Faculty:</strong> john.professor@erp.local / password123<br />
-              <strong>Student:</strong> alice.student@erp.local / password123<br />
+              <strong>Admin:</strong> admin@ictu.edu.cm / admin123<br />
+              <strong>Faculty:</strong> faculty@ictu.edu.cm / faculty123<br />
+              <strong>Student:</strong> student@ictu.edu.cm / student123<br />
               <strong>HR:</strong> hr.manager@erp.local / password123<br />
-              <strong>Finance:</strong> finance.manager@erp.local / password123
+              <strong>Finance:</strong> finance@ictu.edu.cm / finance123
             </Typography>
           </Box>
         </Paper>

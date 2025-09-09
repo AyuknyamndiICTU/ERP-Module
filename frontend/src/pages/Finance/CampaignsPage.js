@@ -14,7 +14,9 @@ import {
   MenuItem,
   Avatar,
   LinearProgress,
-  CircularProgress
+  CircularProgress,
+  Alert,
+  Snackbar
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -30,6 +32,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import FormDialog from '../../components/Common/FormDialog';
 import GlassCard from '../../components/GlassCard';
+import axios from 'axios';
 
 const CampaignsPage = () => {
   const { user } = useAuth();
@@ -39,6 +42,8 @@ const CampaignsPage = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedCampaign, setSelectedCampaign] = useState(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [error, setError] = useState(null);
 
   // Mock data
   const mockCampaigns = [
@@ -90,42 +95,131 @@ const CampaignsPage = () => {
   ];
 
   useEffect(() => {
-    // Simulate API call with timeout to prevent freezing
-    const loadCampaigns = async () => {
-      try {
-        setLoading(true);
-        // Simulate network delay
-        await new Promise(resolve => setTimeout(resolve, 800));
-        setCampaigns(mockCampaigns);
-      } catch (error) {
-        console.error('Error loading campaigns:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadCampaigns();
+    fetchCampaigns();
   }, []);
 
-  const handleAddCampaign = (formData) => {
-    const newCampaign = {
-      id: campaigns.length + 1,
-      name: formData.name,
-      type: formData.type,
-      status: 'active',
-      targetAudience: formData.targetAudience,
-      budget: parseFloat(formData.budget),
-      spent: 0,
-      startDate: formData.startDate,
-      endDate: formData.endDate,
-      leads: 0,
-      conversions: 0,
-      roi: 0,
-      description: formData.description
-    };
-    
-    setCampaigns([...campaigns, newCampaign]);
-    setShowAddDialog(false);
+  const fetchCampaigns = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const token = localStorage.getItem('token');
+      const response = await axios.get('/api/finance/campaigns', {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (response.data.campaigns) {
+        setCampaigns(response.data.campaigns);
+      } else {
+        // Fallback to mock data if API fails
+        setCampaigns(mockCampaigns);
+      }
+    } catch (error) {
+      console.error('Error fetching campaigns:', error);
+      setError('Failed to load campaigns. Using sample data.');
+      // Use mock data as fallback
+      setCampaigns(mockCampaigns);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddCampaign = async (formData) => {
+    try {
+      const campaignData = {
+        name: formData.name,
+        description: formData.description,
+        budget: parseFloat(formData.budget),
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        targetAudience: formData.targetAudience
+      };
+
+      const token = localStorage.getItem('token');
+      const response = await axios.post('/api/finance/campaigns', campaignData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.data.campaign) {
+        setSnackbar({
+          open: true,
+          message: 'Campaign created successfully!',
+          severity: 'success'
+        });
+        fetchCampaigns(); // Refresh the list
+      }
+    } catch (error) {
+      console.error('Error creating campaign:', error);
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.message || 'Failed to create campaign',
+        severity: 'error'
+      });
+    } finally {
+      setShowAddDialog(false);
+    }
+  };
+
+  const handleEditCampaign = async (campaignId, updateData) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.put(`/api/finance/campaigns/${campaignId}`, updateData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.data.campaign) {
+        setSnackbar({
+          open: true,
+          message: 'Campaign updated successfully!',
+          severity: 'success'
+        });
+        fetchCampaigns(); // Refresh the list
+      }
+    } catch (error) {
+      console.error('Error updating campaign:', error);
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.message || 'Failed to update campaign',
+        severity: 'error'
+      });
+    }
+  };
+
+  const handleDeleteCampaign = async (campaignId) => {
+    if (!window.confirm('Are you sure you want to delete this campaign?')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`/api/finance/campaigns/${campaignId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      setSnackbar({
+        open: true,
+        message: 'Campaign deleted successfully!',
+        severity: 'success'
+      });
+      fetchCampaigns(); // Refresh the list
+    } catch (error) {
+      console.error('Error deleting campaign:', error);
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.message || 'Failed to delete campaign',
+        severity: 'error'
+      });
+    }
   };
 
   const getStatusColor = (status) => {

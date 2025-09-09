@@ -36,7 +36,7 @@ import LeavePage from './pages/HR/LeavePage';
 import AssetsPage from './pages/HR/AssetsPage';
 
 // Protected Route Component
-const ProtectedRoute = ({ children, requiredRole = null }) => {
+const ProtectedRoute = ({ children, requiredRole = null, requiredRoles = null }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -47,8 +47,17 @@ const ProtectedRoute = ({ children, requiredRole = null }) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (requiredRole && user.role !== requiredRole && user.role !== 'admin') {
-    return <Navigate to="/dashboard" replace />;
+  // Check if user has required role(s)
+  if (requiredRoles) {
+    // Multiple roles allowed
+    if (!requiredRoles.includes(user.role)) {
+      return <Navigate to="/dashboard" replace />;
+    }
+  } else if (requiredRole) {
+    // Single role required (legacy support)
+    if (user.role !== requiredRole && user.role !== 'admin' && user.role !== 'system_admin') {
+      return <Navigate to="/dashboard" replace />;
+    }
   }
 
   return children;
@@ -113,7 +122,7 @@ function App() {
                     <Route 
                       path="/academic/courses" 
                       element={
-                        <ProtectedRoute requiredRole="academic_staff">
+                        <ProtectedRoute requiredRoles={["admin", "system_admin", "lecturer", "faculty_coordinator", "major_coordinator", "student"]}>
                           <CoursesPage />
                         </ProtectedRoute>
                       } 
@@ -121,7 +130,7 @@ function App() {
                     <Route 
                       path="/academic/students" 
                       element={
-                        <ProtectedRoute requiredRole="academic_staff">
+                        <ProtectedRoute requiredRoles={["admin", "system_admin", "lecturer", "faculty_coordinator", "major_coordinator", "student"]}>
                           <StudentsPage />
                         </ProtectedRoute>
                       } 
@@ -133,7 +142,7 @@ function App() {
                     <Route 
                       path="/finance/invoices" 
                       element={
-                        <ProtectedRoute requiredRole="finance_staff">
+                        <ProtectedRoute requiredRoles={["admin", "system_admin", "finance_staff"]}>
                           <InvoicesPage />
                         </ProtectedRoute>
                       } 
@@ -142,7 +151,7 @@ function App() {
                     <Route 
                       path="/finance/budgets" 
                       element={
-                        <ProtectedRoute requiredRole="finance_staff">
+                        <ProtectedRoute requiredRoles={["admin", "system_admin", "finance_staff"]}>
                           <BudgetsPage />
                         </ProtectedRoute>
                       } 
@@ -150,7 +159,7 @@ function App() {
                     <Route 
                       path="/finance/campaigns" 
                       element={
-                        <ProtectedRoute requiredRole="marketing_team">
+                        <ProtectedRoute requiredRoles={["admin", "system_admin", "marketing_staff"]}>
                           <CampaignsPage />
                         </ProtectedRoute>
                       } 
@@ -160,7 +169,7 @@ function App() {
                     <Route 
                       path="/hr/employees" 
                       element={
-                        <ProtectedRoute requiredRole="hr_personnel">
+                        <ProtectedRoute requiredRoles={["admin", "system_admin", "hr_staff"]}>
                           <EmployeesPage />
                         </ProtectedRoute>
                       } 
@@ -168,7 +177,7 @@ function App() {
                     <Route 
                       path="/hr/payroll" 
                       element={
-                        <ProtectedRoute requiredRole="hr_personnel">
+                        <ProtectedRoute requiredRoles={["admin", "system_admin", "hr_staff"]}>
                           <PayrollPage />
                         </ProtectedRoute>
                       } 
@@ -177,7 +186,7 @@ function App() {
                     <Route 
                       path="/hr/assets" 
                       element={
-                        <ProtectedRoute requiredRole="hr_personnel">
+                        <ProtectedRoute requiredRoles={["admin", "system_admin", "hr_staff"]}>
                           <AssetsPage />
                         </ProtectedRoute>
                       } 

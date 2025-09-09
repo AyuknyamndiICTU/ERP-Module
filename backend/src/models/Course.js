@@ -7,16 +7,14 @@ const Course = sequelize.define('Course', {
     primaryKey: true,
     autoIncrement: true
   },
-  courseCode: {
+  code: {
     type: DataTypes.STRING,
     allowNull: false,
-    unique: true,
-    field: 'course_code'
+    unique: true
   },
-  courseName: {
+  name: {
     type: DataTypes.STRING,
-    allowNull: false,
-    field: 'course_name'
+    allowNull: false
   },
   description: {
     type: DataTypes.TEXT
@@ -24,30 +22,50 @@ const Course = sequelize.define('Course', {
   credits: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    validate: {
-      min: 1,
-      max: 6
-    }
-  },
-  department: {
-    type: DataTypes.STRING,
-    allowNull: false
+    defaultValue: 3
   },
   semester: {
-    type: DataTypes.STRING
-  },
-  academicYear: {
-    type: DataTypes.STRING,
-    field: 'academic_year'
-  },
-  maxEnrollment: {
     type: DataTypes.INTEGER,
-    field: 'max_enrollment'
+    allowNull: false,
+    validate: {
+      min: 1,
+      max: 2
+    }
   },
-  currentEnrollment: {
+  year: {
     type: DataTypes.INTEGER,
-    defaultValue: 0,
-    field: 'current_enrollment'
+    allowNull: false,
+    validate: {
+      min: 1,
+      max: 4
+    }
+  },
+  departmentId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    field: 'department_id',
+    references: {
+      model: 'departments',
+      key: 'id'
+    }
+  },
+  majorId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    field: 'major_id',
+    references: {
+      model: 'majors',
+      key: 'id'
+    }
+  },
+  lecturerId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'lecturer_id',
+    references: {
+      model: 'users',
+      key: 'id'
+    }
   },
   prerequisites: {
     type: DataTypes.JSONB,
@@ -55,14 +73,6 @@ const Course = sequelize.define('Course', {
   },
   schedule: {
     type: DataTypes.JSONB
-  },
-  instructorId: {
-    type: DataTypes.INTEGER,
-    field: 'instructor_id',
-    references: {
-      model: 'users',
-      key: 'id'
-    }
   },
   status: {
     type: DataTypes.ENUM('active', 'inactive', 'completed'),

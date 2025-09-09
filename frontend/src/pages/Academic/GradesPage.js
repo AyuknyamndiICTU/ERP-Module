@@ -284,12 +284,8 @@ const GradesPage = () => {
           const filteredStudents = mockStudents.filter(student => student.student_id === currentStudentId);
           setStudents(filteredStudents);
 
-          // Filter assignments to show only the student's grades
-          const filteredAssignments = mockAssignments.map(assignment => ({
-            ...assignment,
-            grades: assignment.grades.filter(grade => grade.student_id === currentStudentId)
-          }));
-          setAssignments(filteredAssignments);
+          // Set assignments (no filtering needed as mockAssignments doesn't have grades property)
+          setAssignments(mockAssignments);
         } else {
           // Admin and faculty can see all data
           setStudents(mockStudents);
@@ -306,9 +302,9 @@ const GradesPage = () => {
   }, [user]);
 
   const filteredStudents = students.filter(student =>
-    student.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.student_number.toLowerCase().includes(searchTerm.toLowerCase())
+    student?.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    student?.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    student?.student_number?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getGradeColor = (grade) => {
@@ -333,7 +329,7 @@ const GradesPage = () => {
   };
 
   const handleAddGrade = () => {
-    if (user?.role === 'admin' || user?.role === 'academic_staff') {
+    if (user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'lecturer' || user?.role === 'faculty_coordinator' || user?.role === 'major_coordinator') {
       setEditingGrade({
         enrollment_id: '',
         assignment_type: 'assignment',
@@ -352,7 +348,7 @@ const GradesPage = () => {
   };
 
   const handleEditGrade = (grade) => {
-    if (user?.role === 'admin' || user?.role === 'academic_staff') {
+    if (user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'lecturer' || user?.role === 'faculty_coordinator' || user?.role === 'major_coordinator') {
       setEditingGrade(grade);
       setGradeDialogOpen(true);
     } else {
@@ -435,7 +431,7 @@ const GradesPage = () => {
             </Button>
           )}
 
-          {(user?.role === 'admin' || user?.role === 'academic_staff') && (
+          {(user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'lecturer' || user?.role === 'faculty_coordinator' || user?.role === 'major_coordinator') && (
             <Button
               variant="contained"
               startIcon={<AddIcon />}
@@ -498,7 +494,7 @@ const GradesPage = () => {
                   animation: `${fadeInUp} 0.6s ease-out 0.4s both`}}
               >
                 <Typography variant="h3" fontWeight="800" sx={{ mb: 1 }}>
-                  {(students.reduce((sum, s) => sum + s.current_grade, 0) / students.length).toFixed(2)}
+                  {students.length > 0 ? (students.reduce((sum, s) => sum + s.current_grade, 0) / students.length).toFixed(2) : '0.00'}
                 </Typography>
                 <Typography variant="body1" sx={{ opacity: 0.9 }}>
                   Class Average
@@ -714,7 +710,7 @@ const GradesPage = () => {
                       <Box sx={{ flexGrow: 1, mx: 2 }}>
                         <LinearProgress
                           variant="determinate"
-                          value={(grade.count / students.length) * 100}
+                          value={students.length > 0 ? (grade.count / students.length) * 100 : 0}
                           sx={{
                             height: 12,
                             borderRadius: 6,
@@ -725,7 +721,7 @@ const GradesPage = () => {
                         />
                       </Box>
                       <Typography variant="body2" fontWeight="600" sx={{ minWidth: 60 }}>
-                        {grade.count} ({((grade.count / students.length) * 100).toFixed(1)}%)
+                        {grade.count} ({students.length > 0 ? ((grade.count / students.length) * 100).toFixed(1) : '0.0'}%)
                       </Typography>
                     </Box>
                   ))}
@@ -739,16 +735,16 @@ const GradesPage = () => {
                       <strong>Total Students:</strong> {students.length}
                     </Typography>
                     <Typography variant="body2" paragraph>
-                      <strong>Class Average:</strong> {(students.reduce((sum, s) => sum + s.current_grade, 0) / students.length).toFixed(2)}
+                      <strong>Class Average:</strong> {students.length > 0 ? (students.reduce((sum, s) => sum + s.current_grade, 0) / students.length).toFixed(2) : '0.00'}
                     </Typography>
                     <Typography variant="body2" paragraph>
-                      <strong>Highest Grade:</strong> {Math.max(...students.map(s => s.current_grade)).toFixed(2)}
+                      <strong>Highest Grade:</strong> {students.length > 0 ? Math.max(...students.map(s => s.current_grade)).toFixed(2) : '0.00'}
                     </Typography>
                     <Typography variant="body2" paragraph>
-                      <strong>Lowest Grade:</strong> {Math.min(...students.map(s => s.current_grade)).toFixed(2)}
+                      <strong>Lowest Grade:</strong> {students.length > 0 ? Math.min(...students.map(s => s.current_grade)).toFixed(2) : '0.00'}
                     </Typography>
                     <Typography variant="body2">
-                      <strong>Pass Rate:</strong> {((students.filter(s => s.current_grade >= 2.0).length / students.length) * 100).toFixed(1)}%
+                      <strong>Pass Rate:</strong> {students.length > 0 ? ((students.filter(s => s.current_grade >= 2.0).length / students.length) * 100).toFixed(1) : '0.0'}%
                     </Typography>
                   </Box>
                 </Grid>

@@ -105,10 +105,15 @@ const ProfilePage = () => {
   const getRoleColor = (role) => {
     const colors = {
       admin: '#f44336',
-      academic_staff: '#2196f3',
+      system_admin: '#d32f2f',
+      lecturer: '#2196f3',
+      faculty_coordinator: '#1976d2',
+      major_coordinator: '#0d47a1',
       student: '#4caf50',
       finance_staff: '#ff9800',
-      hr_personnel: '#9c27b0',
+      hr_staff: '#9c27b0',
+      marketing_staff: '#e91e63',
+      employee: '#607d8b',
       marketing_staff: '#00bcd4'
     };
     return colors[role] || '#757575';
@@ -117,10 +122,15 @@ const ProfilePage = () => {
   const getRoleLabel = (role) => {
     const labels = {
       admin: 'Administrator',
-      academic_staff: 'Academic Staff',
+      system_admin: 'System Administrator',
+      lecturer: 'Lecturer',
+      faculty_coordinator: 'Faculty Coordinator',
+      major_coordinator: 'Major Coordinator',
       student: 'Student',
       finance_staff: 'Finance Staff',
-      hr_personnel: 'HR Personnel',
+      hr_staff: 'HR Staff',
+      marketing_staff: 'Marketing Staff',
+      employee: 'Employee',
       marketing_staff: 'Marketing Staff'
     };
     return labels[role] || role;

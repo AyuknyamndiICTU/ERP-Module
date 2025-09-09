@@ -20,7 +20,9 @@ import {
   Tabs,
   Tab,
   LinearProgress,
-  keyframes} from '@mui/material';
+  keyframes,
+  Alert,
+  Snackbar} from '@mui/material';
 import {
   Add as AddIcon,
   Search as SearchIcon,
@@ -39,6 +41,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import FormDialog from '../../components/Common/FormDialog';
 import GlassCard, { FeatureCard, StatsCard } from '../../components/GlassCard';
+import axios from 'axios';
 
 // Animation keyframes
 const fadeInUp = keyframes`
@@ -76,6 +79,8 @@ const StudentsPage = () => {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [tabValue, setTabValue] = useState(0);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [error, setError] = useState(null);
 
   // Mock data for demonstration
   const mockStudents = [
@@ -194,12 +199,44 @@ const StudentsPage = () => {
   ];
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
+    fetchStudents();
+  }, [searchTerm, selectedProgram, selectedYear, selectedStatus]);
+
+  const fetchStudents = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const params = {
+        status: selectedStatus,
+        ...(searchTerm && { search: searchTerm }),
+        ...(selectedProgram && { program_id: selectedProgram }),
+        ...(selectedYear && { year_level: selectedYear })
+      };
+
+      const token = localStorage.getItem('token');
+      const response = await axios.get('/api/students', {
+        params,
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (response.data.students) {
+        setStudents(response.data.students);
+      } else {
+        // Fallback to mock data if API fails
+        setStudents(mockStudents);
+      }
+    } catch (error) {
+      console.error('Error fetching students:', error);
+      setError('Failed to load students. Using sample data.');
+      // Use mock data as fallback
       setStudents(mockStudents);
+    } finally {
       setLoading(false);
-    }, 1000);
-  }, []);
+    }
+  };
 
   const filteredStudents = students.filter(student => {
     const matchesSearch = student.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -227,38 +264,115 @@ const StudentsPage = () => {
     setStudentDialogOpen(true);
   };
 
-  const handleAddStudent = (formData) => {
-    const newStudent = {
-      id: students.length + 1,
-      student_id: `STU2024${String(students.length + 1).padStart(3, '0')}`,
-      first_name: formData.firstName,
-      last_name: formData.lastName,
-      email: formData.email,
-      phone: formData.phone,
-      date_of_birth: formData.dateOfBirth,
-      gender: formData.gender,
-      enrollment_date: new Date().toISOString().split('T')[0],
-      program_name: formData.program,
-      degree_type: formData.degreeType,
-      year_level: parseInt(formData.yearLevel),
-      current_gpa: 0.0,
-      enrolled_courses: 0,
-      status: 'active',
-      address: {
-        street: formData.street || '',
-        city: formData.city || '',
-        state: formData.state || '',
-        zip: formData.zip || ''
-      },
-      emergency_contact: {
-        name: formData.emergencyName || '',
-        relationship: formData.emergencyRelation || '',
-        phone: formData.emergencyPhone || ''
+  const handleAddStudent = async (formData) => {
+    try {
+      const studentData = {
+        student_id: `STU2024${String(students.length + 1).padStart(3, '0')}`,
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        date_of_birth: formData.dateOfBirth,
+        gender: formData.gender,
+        enrollment_date: new Date().toISOString().split('T')[0],
+        program_id: 1, // Default program ID
+        year_level: parseInt(formData.yearLevel),
+        address: {
+          street: formData.street || '',
+          city: formData.city || '',
+          state: formData.state || '',
+          zip: formData.zip || ''
+        },
+        emergency_contact: {
+          name: formData.emergencyName || '',
+          relationship: formData.emergencyRelation || '',
+          phone: formData.emergencyPhone || ''
+        }
+      };
+
+      const token = localStorage.getItem('token');
+      const response = await axios.post('/api/students', studentData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.data.student) {
+        setSnackbar({
+          open: true,
+          message: 'Student created successfully!',
+          severity: 'success'
+        });
+        fetchStudents(); // Refresh the list
       }
-    };
-    
-    setStudents([...students, newStudent]);
-    setShowAddDialog(false);
+    } catch (error) {
+      console.error('Error creating student:', error);
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.message || 'Failed to create student',
+        severity: 'error'
+      });
+    } finally {
+      setShowAddDialog(false);
+    }
+  };
+
+  const handleEditStudent = async (studentId, updateData) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.put(`/api/students/${studentId}`, updateData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.data.student) {
+        setSnackbar({
+          open: true,
+          message: 'Student updated successfully!',
+          severity: 'success'
+        });
+        fetchStudents(); // Refresh the list
+      }
+    } catch (error) {
+      console.error('Error updating student:', error);
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.message || 'Failed to update student',
+        severity: 'error'
+      });
+    }
+  };
+
+  const handleDeleteStudent = async (studentId) => {
+    if (!window.confirm('Are you sure you want to delete this student?')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`/api/students/${studentId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      setSnackbar({
+        open: true,
+        message: 'Student deleted successfully!',
+        severity: 'success'
+      });
+      fetchStudents(); // Refresh the list
+    } catch (error) {
+      console.error('Error deleting student:', error);
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.message || 'Failed to delete student',
+        severity: 'error'
+      });
+    }
   };
 
   const getStatusColor = (status) => {
@@ -502,7 +616,7 @@ const StudentsPage = () => {
             Filters
           </Button>
 
-          {(user?.role === 'admin' || user?.role === 'academic_staff') && (
+          {(user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'lecturer' || user?.role === 'faculty_coordinator' || user?.role === 'major_coordinator') && (
             <Button
               variant="contained"
               startIcon={<AddIcon />}
@@ -746,7 +860,7 @@ const StudentsPage = () => {
               <Button variant="outlined" startIcon={<DownloadIcon />}>
                 Download Transcript
               </Button>
-              {(user?.role === 'admin' || user?.role === 'academic_staff') && (
+              {(user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'lecturer' || user?.role === 'faculty_coordinator' || user?.role === 'major_coordinator') && (
                 <Button variant="contained" startIcon={<EditIcon />}>
                   Edit Student
                 </Button>

@@ -111,7 +111,7 @@ const InvoicesPage = () => {
   }, []);
 
   const handleAddInvoice = () => {
-    if (user?.role === 'admin' || user?.role === 'finance_staff') {
+    if (user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'finance_staff') {
       setDialogOpen(true);
     } else {
       alert('Access Restricted: Only administrators and finance staff can add invoices.');

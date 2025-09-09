@@ -76,43 +76,51 @@ const Layout = ({ children }) => {
 
     const roleBasedItems = [];
 
-    // Academic module access
-    if (user?.role === 'admin' || user?.role === 'academic_staff' || user?.role === 'student') {
+    // Academic module access - Updated role names to match User model
+    if (user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'lecturer' || 
+        user?.role === 'faculty_coordinator' || user?.role === 'major_coordinator' || user?.role === 'student') {
       roleBasedItems.push(
         { text: 'Courses', icon: <School />, path: '/academic/courses' },
         { text: 'Grades', icon: <School />, path: '/academic/grades' },
         { text: 'Attendance', icon: <School />, path: '/academic/attendance' }
       );
       
-      if (user?.role === 'admin' || user?.role === 'academic_staff') {
+      // Only admin, system_admin, lecturers, and coordinators can manage students
+      if (user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'lecturer' || 
+          user?.role === 'faculty_coordinator' || user?.role === 'major_coordinator') {
         roleBasedItems.push(
           { text: 'Students', icon: <People />, path: '/academic/students' }
         );
       }
     }
 
-    // Finance module access
-    if (user?.role === 'admin' || user?.role === 'finance_staff' || user?.role === 'marketing_team' || user?.role === 'student') {
-      if (user?.role === 'admin' || user?.role === 'finance_staff') {
+    // Finance module access - Updated role names
+    if (user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'finance_staff' || 
+        user?.role === 'marketing_staff' || user?.role === 'student') {
+      
+      // Admin and finance staff can manage invoices and budgets
+      if (user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'finance_staff') {
         roleBasedItems.push(
           { text: 'Invoices', icon: <AttachMoney />, path: '/finance/invoices' },
           { text: 'Budgets', icon: <AttachMoney />, path: '/finance/budgets' }
         );
       }
       
+      // All finance-related roles can view payments
       roleBasedItems.push(
         { text: 'Payments', icon: <AttachMoney />, path: '/finance/payments' }
       );
 
-      if (user?.role === 'admin' || user?.role === 'marketing_team') {
+      // Admin and marketing staff can manage campaigns
+      if (user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'marketing_staff') {
         roleBasedItems.push(
           { text: 'Campaigns', icon: <AttachMoney />, path: '/finance/campaigns' }
         );
       }
     }
 
-    // HR module access
-    if (user?.role === 'admin' || user?.role === 'hr_personnel') {
+    // HR module access - Updated role names
+    if (user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'hr_staff') {
       roleBasedItems.push(
         { text: 'Employees', icon: <People />, path: '/hr/employees' },
         { text: 'Payroll', icon: <People />, path: '/hr/payroll' },
@@ -120,7 +128,7 @@ const Layout = ({ children }) => {
       );
     }
 
-    // Leave access for all employees
+    // Leave access for all employees (everyone except students)
     if (user?.role !== 'student') {
       roleBasedItems.push(
         { text: 'Leave', icon: <People />, path: '/hr/leave' }

@@ -38,7 +38,18 @@ const User = sequelize.define('User', {
     allowNull: true
   },
   role: {
-    type: DataTypes.ENUM('admin', 'student', 'teacher', 'finance_staff', 'hr_staff', 'marketing_staff', 'employee'),
+    type: DataTypes.ENUM(
+      'admin', 
+      'system_admin', 
+      'student', 
+      'lecturer', 
+      'faculty_coordinator', 
+      'major_coordinator', 
+      'finance_staff', 
+      'hr_staff', 
+      'marketing_staff', 
+      'employee'
+    ),
     allowNull: false,
     defaultValue: 'student'
   },
@@ -51,13 +62,15 @@ const User = sequelize.define('User', {
     type: DataTypes.DATE,
     field: 'last_login'
   },
-  resetToken: {
-    type: DataTypes.STRING,
-    field: 'reset_token'
+  coordinatorType: {
+    type: DataTypes.ENUM('faculty', 'major', 'department'),
+    allowNull: true,
+    field: 'coordinator_type'
   },
-  resetTokenExpiry: {
-    type: DataTypes.DATE,
-    field: 'reset_token_expiry'
+  coordinatorEntityId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'coordinator_entity_id'
   }
 }, {
   tableName: 'users',

@@ -252,8 +252,9 @@ const DashboardPage = () => {
           { title: 'Total Employees', value: stats.hr.totalEmployees, icon: <PeopleIcon />, color: 'warning', subtitle: 'Active staff' },
           { title: 'Growth Rate', value: `${stats.finance.monthlyGrowth}%`, icon: <TrendingUpIcon />, color: 'secondary', subtitle: 'Monthly growth' },
         ];
-      case 'academic_staff':
       case 'lecturer':
+      case 'faculty_coordinator':
+      case 'major_coordinator':
         return [
           { title: 'My Courses', value: 8, icon: <SchoolIcon />, color: 'primary', subtitle: 'Active courses' },
           { title: 'Total Students', value: 245, icon: <PeopleIcon />, color: 'success', subtitle: 'Enrolled students' },
@@ -420,7 +421,7 @@ const DashboardPage = () => {
                     </Button>
                   </>
                 )}
-                {(user?.role === 'academic_staff' || user?.role === 'lecturer' || user?.role === 'admin') && (
+                {(user?.role === 'lecturer' || user?.role === 'faculty_coordinator' || user?.role === 'major_coordinator' || user?.role === 'admin' || user?.role === 'system_admin') && (
                   <>
                     <Button
                       variant="contained"
@@ -466,7 +467,7 @@ const DashboardPage = () => {
                     </Button>
                   </>
                 )}
-                {(user?.role === 'finance_staff' || user?.role === 'admin') && (
+                {(user?.role === 'finance_staff' || user?.role === 'admin' || user?.role === 'system_admin') && (
                   <>
                     <Button
                       variant="contained"
@@ -498,7 +499,7 @@ const DashboardPage = () => {
                     </Button>
                   </>
                 )}
-                {(user?.role === 'hr_personnel' || user?.role === 'admin') && (
+                {(user?.role === 'hr_staff' || user?.role === 'admin' || user?.role === 'system_admin') && (
                   <>
                     <Button
                       variant="contained"
@@ -530,7 +531,7 @@ const DashboardPage = () => {
                     </Button>
                   </>
                 )}
-                {user?.role === 'admin' && (
+                {(user?.role === 'admin' || user?.role === 'system_admin') && (
                   <Button
                     variant="contained"
                     fullWidth
