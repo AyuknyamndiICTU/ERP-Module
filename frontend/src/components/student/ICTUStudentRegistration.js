@@ -23,6 +23,9 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import axios from 'axios';
 
+const mapLevelLabel = (lvl) =>
+  ({ undergraduate: 'Beginner', masters: 'Intermediate', phd: 'Advanced' }[String(lvl).toLowerCase()] || lvl);
+
 const ICTUStudentRegistration = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -423,7 +426,7 @@ const ICTUStudentRegistration = () => {
           >
             {levels.map(level => (
               <MenuItem key={level} value={level}>
-                {level.charAt(0).toUpperCase() + level.slice(1)}
+                {mapLevelLabel(level)}
               </MenuItem>
             ))}
           </Select>
@@ -620,7 +623,7 @@ const ICTUStudentRegistration = () => {
             <Typography><strong>Faculty:</strong> {selectedFaculty?.name}</Typography>
             <Typography><strong>Department:</strong> {selectedDepartment?.name}</Typography>
             <Typography><strong>Major:</strong> {selectedMajor?.name}</Typography>
-            <Typography><strong>Level:</strong> {formData.level}</Typography>
+            <Typography><strong>Level:</strong> {mapLevelLabel(formData.level)}</Typography>
             <Typography><strong>Semester:</strong> {formData.semester}</Typography>
             <Typography><strong>Type:</strong> {formData.studentType}</Typography>
           </Paper>

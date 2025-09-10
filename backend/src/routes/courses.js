@@ -1,69 +1,22 @@
 const express = require('express');
 const router = express.Router();
-const { body, validationResult, param, query } = require('express-validator');
 const { authenticateToken } = require('../middleware/auth');
 const roleAuth = require('../middleware/roleAuth');
-const logger = require('../utils/logger');
+const { logger } = require('../utils/logger');
+const { body, param, query, validationResult } = require('express-validator');
+const { Op } = require('sequelize');
+const Course = require('../models/Course');
 
 /**
  * @swagger
- * components:
- *   schemas:
- *     Course:
- *       type: object
- *       required:
- *         - code
- *         - name
- *         - credits
- *         - department_id
- *       properties:
- *         id:
- *           type: integer
- *           description: Auto-generated course ID
- *         code:
- *           type: string
- *           description: Unique course code (e.g., CS101)
- *         name:
- *           type: string
- *           description: Course name
- *         description:
- *           type: string
- *           description: Course description
- *         credits:
- *           type: integer
- *           description: Number of credits
- *         department_id:
- *           type: integer
- *           description: Department ID
- *         instructor_id:
- *           type: integer
- *           description: Primary instructor ID
- *         semester:
- *           type: string
- *           enum: [Fall, Spring, Summer]
- *         year:
- *           type: integer
- *           description: Academic year
- *         capacity:
- *           type: integer
- *           description: Maximum enrollment capacity
- *         schedule:
- *           type: object
- *           description: Class schedule information
- *         prerequisites:
- *           type: array
- *           items:
- *             type: integer
- *           description: Array of prerequisite course IDs
- *         status:
- *           type: string
- *           enum: [active, inactive, archived]
- *           default: active
+ * tags:
+ *   name: Courses
+ *   description: Course management endpoints
  */
 
 /**
  * @swagger
- * /api/courses:
+ * /api/academic/courses:
  *   get:
  *     summary: Get all courses with filtering and pagination
  *     tags: [Courses]
@@ -83,25 +36,21 @@ const logger = require('../utils/logger');
  *           default: 10
  *         description: Number of courses per page
  *       - in: query
- *         name: department_id
- *         schema:
- *           type: integer
- *         description: Filter by department
- *       - in: query
- *         name: semester
- *         schema:
- *           type: string
- *         description: Filter by semester
- *       - in: query
- *         name: year
- *         schema:
- *           type: integer
- *         description: Filter by year
- *       - in: query
  *         name: search
  *         schema:
  *           type: string
- *         description: Search in course code, name, or description
+ *         description: Search in course code or name
+ *       - in: query
+ *         name: department
+ *         schema:
+ *           type: string
+ *         description: Filter by department
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [active, inactive, completed]
+ *         description: Filter by status
  *     responses:
  *       200:
  *         description: List of courses
@@ -110,6 +59,8 @@ const logger = require('../utils/logger');
  *             schema:
  *               type: object
  *               properties:
+ *                 success:
+ *                   type: boolean
  *                 courses:
  *                   type: array
  *                   items:
@@ -126,133 +77,92 @@ const logger = require('../utils/logger');
  *                     pages:
  *                       type: integer
  */
-router.get('/', 
-  authenticateToken,
-  [
-    query('page').optional().isInt({ min: 1 }),
-    query('limit').optional().isInt({ min: 1, max: 100 }),
-    query('department_id').optional().isInt(),
-    query('year').optional().isInt(),
-    query('search').optional().isLength({ min: 1, max: 100 })
-  ],
-  async (req, res) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-      }
-
-      const {
-        page = 1,
-        limit = 10,
-        department_id,
-        semester,
-        year,
-        search,
-        status = 'active'
-      } = req.query;
-
-      // Build query conditions
-      let whereClause = 'WHERE c.status = $1';
-      let queryParams = [status];
-      let paramCount = 1;
-
-      if (department_id) {
-        whereClause += ` AND c.department_id = $${++paramCount}`;
-        queryParams.push(department_id);
-      }
-
-      if (semester) {
-        whereClause += ` AND c.semester = $${++paramCount}`;
-        queryParams.push(semester);
-      }
-
-      if (year) {
-        whereClause += ` AND c.year = $${++paramCount}`;
-        queryParams.push(year);
-      }
-
-      if (search) {
-        whereClause += ` AND (c.code ILIKE $${++paramCount} OR c.name ILIKE $${++paramCount} OR c.description ILIKE $${++paramCount})`;
-        const searchPattern = `%${search}%`;
-        queryParams.push(searchPattern, searchPattern, searchPattern);
-        paramCount += 2; // We added 3 params but only increment by 2 more
-      }
-
-      // Calculate offset
-      const offset = (page - 1) * limit;
-
-      // Get total count
-      const countQuery = `
-        SELECT COUNT(*) as total
-        FROM courses c
-        ${whereClause}
-      `;
-
-      const countResult = await req.db.query(countQuery, queryParams);
-      const total = parseInt(countResult.rows[0].total);
-
-      // Get courses with pagination
-      const coursesQuery = `
-        SELECT 
-          c.*,
-          d.name as department_name,
-          u.first_name || ' ' || u.last_name as instructor_name,
-          (SELECT COUNT(*) FROM enrollments e WHERE e.course_id = c.id AND e.status = 'enrolled') as enrolled_count
-        FROM courses c
-        LEFT JOIN departments d ON c.department_id = d.id
-        LEFT JOIN users u ON c.instructor_id = u.id
-        ${whereClause}
-        ORDER BY c.code, c.name
-        LIMIT $${++paramCount} OFFSET $${++paramCount}
-      `;
-
-      queryParams.push(limit, offset);
-
-      const result = await req.db.query(coursesQuery, queryParams);
-
-      // Get prerequisites for each course
-      for (let course of result.rows) {
-        const prereqQuery = `
-          SELECT 
-            c.id,
-            c.code,
-            c.name
-          FROM course_prerequisites cp
-          JOIN courses c ON cp.prerequisite_course_id = c.id
-          WHERE cp.course_id = $1
-        `;
-        const prereqResult = await req.db.query(prereqQuery, [course.id]);
-        course.prerequisites = prereqResult.rows;
-      }
-
-      const pagination = {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / limit)
-      };
-
-      logger.info(`Retrieved ${result.rows.length} courses for user ${req.user.id}`);
-
-      res.json({
-        courses: result.rows,
-        pagination
-      });
-
-    } catch (error) {
-      logger.error('Error fetching courses:', error);
-      res.status(500).json({ 
-        message: 'Error fetching courses',
-        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+router.get('/', authenticateToken, [
+  query('page').optional().isInt({ min: 1 }),
+  query('limit').optional().isInt({ min: 1, max: 100 }),
+  query('search').optional().isLength({ min: 1, max: 100 }),
+  query('department').optional().isLength({ min: 1, max: 100 }),
+  query('status').optional().isIn(['active', 'inactive', 'completed'])
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
       });
     }
+
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      department,
+      status = 'active'
+    } = req.query;
+
+    // Build WHERE conditions
+    const whereConditions = {};
+
+    if (search) {
+      whereConditions[Op.or] = [
+        { courseCode: { [Op.iLike]: `%${search}%` } },
+        { courseName: { [Op.iLike]: `%${search}%` } }
+      ];
+    }
+
+    if (department) {
+      whereConditions.department = { [Op.iLike]: `%${department}%` };
+    }
+
+    if (status) {
+      whereConditions.status = status;
+    }
+
+    // Calculate offset
+    const offset = (page - 1) * limit;
+
+    // Get total count
+    const total = await Course.count({ where: whereConditions });
+
+    // Get courses
+    const courses = await Course.findAll({
+      where: whereConditions,
+      limit: parseInt(limit),
+      offset: offset,
+      order: [['courseCode', 'ASC'], ['courseName', 'ASC']]
+    });
+
+    const pagination = {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      total,
+      pages: Math.ceil(total / limit)
+    };
+
+    logger.info(`Retrieved ${courses.length} courses for user ${req.user?.userId || 'unknown'}`);
+
+    res.json({
+      success: true,
+      courses,
+      pagination,
+      message: 'Courses retrieved successfully'
+    });
+
+  } catch (error) {
+    logger.error('Get courses error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error retrieving courses',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
   }
-);
+});
 
 /**
  * @swagger
- * /api/courses/{id}:
+ * /api/academic/courses/{id}:
  *   get:
  *     summary: Get course by ID
  *     tags: [Courses]
@@ -263,7 +173,7 @@ router.get('/',
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
  *         description: Course ID
  *     responses:
  *       200:
@@ -271,86 +181,378 @@ router.get('/',
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Course'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 course:
+ *                   $ref: '#/components/schemas/Course'
  *       404:
  *         description: Course not found
  */
-router.get('/:id',
-  authenticateToken,
-  [param('id').isInt()],
-  async (req, res) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-      }
-
-      const { id } = req.params;
-
-      const query = `
-        SELECT 
-          c.*,
-          d.name as department_name,
-          u.first_name || ' ' || u.last_name as instructor_name,
-          (SELECT COUNT(*) FROM enrollments e WHERE e.course_id = c.id AND e.status = 'enrolled') as enrolled_count
-        FROM courses c
-        LEFT JOIN departments d ON c.department_id = d.id
-        LEFT JOIN users u ON c.instructor_id = u.id
-        WHERE c.id = $1
-      `;
-
-      const result = await req.db.query(query, [id]);
-
-      if (result.rows.length === 0) {
-        return res.status(404).json({ message: 'Course not found' });
-      }
-
-      const course = result.rows[0];
-
-      // Get prerequisites
-      const prereqQuery = `
-        SELECT 
-          c.id,
-          c.code,
-          c.name
-        FROM course_prerequisites cp
-        JOIN courses c ON cp.prerequisite_course_id = c.id
-        WHERE cp.course_id = $1
-      `;
-      const prereqResult = await req.db.query(prereqQuery, [id]);
-      course.prerequisites = prereqResult.rows;
-
-      // Get enrolled students (if user has permission)
-      if (req.user.role === 'admin' || req.user.role === 'academic_staff' || req.user.id === course.instructor_id) {
-        const studentsQuery = `
-          SELECT 
-            u.id,
-            u.first_name,
-            u.last_name,
-            u.email,
-            e.enrollment_date,
-            e.status
-          FROM enrollments e
-          JOIN users u ON e.student_id = u.id
-          WHERE e.course_id = $1
-          ORDER BY u.last_name, u.first_name
-        `;
-        const studentsResult = await req.db.query(studentsQuery, [id]);
-        course.enrolled_students = studentsResult.rows;
-      }
-
-      logger.info(`Retrieved course ${id} for user ${req.user.id}`);
-
-      res.json(course);
-
-    } catch (error) {
-      logger.error('Error fetching course:', error);
-      res.status(500).json({ 
-        message: 'Error fetching course',
-        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+router.get('/:id', authenticateToken, [
+  param('id').isUUID()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
       });
     }
+
+    const { id } = req.params;
+
+    const course = await Course.findByPk(id);
+
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: 'Course not found'
+      });
+    }
+
+    logger.info(`Course ${id} retrieved by user ${req.user?.userId || 'unknown'}`);
+
+    res.json({
+      success: true,
+      course,
+      message: 'Course retrieved successfully'
+    });
+
+  } catch (error) {
+    logger.error('Get course by ID error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error retrieving course',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
   }
-);
+});
+
+/**
+ * @swagger
+ * /api/academic/courses:
+ *   post:
+ *     summary: Create a new course
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - courseCode
+ *               - courseName
+ *               - department
+ *               - credits
+ *             properties:
+ *               courseCode:
+ *                 type: string
+ *                 description: Unique course code
+ *               courseName:
+ *                 type: string
+ *                 description: Course name
+ *               description:
+ *                 type: string
+ *                 description: Course description
+ *               credits:
+ *                 type: integer
+ *                 description: Course credits
+ *               department:
+ *                 type: string
+ *                 description: Department offering the course
+ *               semester:
+ *                 type: integer
+ *                 description: Semester (1 or 2)
+ *               academicYear:
+ *                 type: integer
+ *                 description: Academic year
+ *               maxEnrollment:
+ *                 type: integer
+ *                 description: Maximum enrollment capacity
+ *               prerequisites:
+ *                 type: array
+ *                 description: Course prerequisites
+ *               schedule:
+ *                 type: object
+ *                 description: Course schedule
+ *     responses:
+ *       201:
+ *         description: Course created successfully
+ *       400:
+ *         description: Validation error
+ *       409:
+ *         description: Course code already exists
+ */
+router.post('/', authenticateToken, roleAuth(['admin', 'lecturer', 'faculty_coordinator']), [
+  body('courseCode').notEmpty().isLength({ min: 3, max: 20 }).matches(/^[A-Z0-9]+$/).withMessage('Course code must be alphanumeric uppercase'),
+  body('courseName').notEmpty().isLength({ min: 5, max: 255 }).trim(),
+  body('description').optional().isLength({ max: 1000 }).trim(),
+  body('credits').isInt({ min: 1, max: 6 }).withMessage('Credits must be between 1 and 6'),
+  body('department').notEmpty().isLength({ min: 2, max: 100 }).trim(),
+  body('semester').optional().isInt({ min: 1, max: 2 }).withMessage('Semester must be 1 or 2'),
+  body('academicYear').optional().isInt({ min: 2020, max: 2030 }).withMessage('Academic year must be between 2020 and 2030'),
+  body('maxEnrollment').optional().isInt({ min: 1, max: 500 }).withMessage('Max enrollment must be between 1 and 500'),
+  body('prerequisites').optional().isArray(),
+  body('schedule').optional().isObject()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+
+    const {
+      courseCode,
+      courseName,
+      description,
+      credits,
+      department,
+      semester,
+      academicYear,
+      maxEnrollment = 30,
+      prerequisites = [],
+      schedule
+    } = req.body;
+
+    // Check if course code already exists
+    const existingCourse = await Course.findOne({ where: { courseCode } });
+    if (existingCourse) {
+      return res.status(409).json({
+        success: false,
+        message: 'Course code already exists'
+      });
+    }
+
+    // Create course
+    const newCourse = await Course.create({
+      courseCode,
+      courseName,
+      description,
+      credits,
+      department,
+      semester,
+      academicYear,
+      maxEnrollment,
+      prerequisites,
+      schedule,
+      status: 'active'
+    });
+
+    logger.info(`Course ${courseCode} created by user ${req.user?.userId || 'unknown'}`);
+
+    res.status(201).json({
+      success: true,
+      course: newCourse,
+      message: 'Course created successfully'
+    });
+
+  } catch (error) {
+    logger.error('Create course error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error creating course',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/academic/courses/{id}:
+ *   put:
+ *     summary: Update course
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Course ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               courseCode:
+ *                 type: string
+ *               courseName:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               credits:
+ *                 type: integer
+ *               department:
+ *                 type: string
+ *               semester:
+ *                 type: integer
+ *               academicYear:
+ *                 type: integer
+ *               maxEnrollment:
+ *                 type: integer
+ *               status:
+ *                 type: string
+ *                 enum: [active, inactive, completed]
+ *               prerequisites:
+ *                 type: array
+ *               schedule:
+ *                 type: object
+ *     responses:
+ *       200:
+ *         description: Course updated successfully
+ *       404:
+ *         description: Course not found
+ *       409:
+ *         description: Course code already exists
+ */
+router.put('/:id', authenticateToken, roleAuth(['admin', 'lecturer', 'faculty_coordinator']), [
+  param('id').isUUID(),
+  body('courseCode').optional().isLength({ min: 3, max: 20 }).matches(/^[A-Z0-9]+$/).withMessage('Course code must be alphanumeric uppercase'),
+  body('courseName').optional().isLength({ min: 5, max: 255 }).trim(),
+  body('description').optional().isLength({ max: 1000 }).trim(),
+  body('credits').optional().isInt({ min: 1, max: 6 }).withMessage('Credits must be between 1 and 6'),
+  body('department').optional().isLength({ min: 2, max: 100 }).trim(),
+  body('semester').optional().isInt({ min: 1, max: 2 }).withMessage('Semester must be 1 or 2'),
+  body('academicYear').optional().isInt({ min: 2020, max: 2030 }).withMessage('Academic year must be between 2020 and 2030'),
+  body('maxEnrollment').optional().isInt({ min: 1, max: 500 }).withMessage('Max enrollment must be between 1 and 500'),
+  body('status').optional().isIn(['active', 'inactive', 'completed']),
+  body('prerequisites').optional().isArray(),
+  body('schedule').optional().isObject()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+
+    const { id } = req.params;
+    const updateData = req.body;
+
+    // Find course
+    const course = await Course.findByPk(id);
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: 'Course not found'
+      });
+    }
+
+    // Check if updating course code and if it conflicts
+    if (updateData.courseCode && updateData.courseCode !== course.courseCode) {
+      const existingCourse = await Course.findOne({
+        where: { courseCode: updateData.courseCode, id: { [Op.ne]: id } }
+      });
+      if (existingCourse) {
+        return res.status(409).json({
+          success: false,
+          message: 'Course code already exists'
+        });
+      }
+    }
+
+    // Update course
+    await course.update(updateData);
+
+    logger.info(`Course ${id} updated by user ${req.user?.userId || 'unknown'}`);
+
+    res.json({
+      success: true,
+      course,
+      message: 'Course updated successfully'
+    });
+
+  } catch (error) {
+    logger.error('Update course error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error updating course',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/academic/courses/{id}:
+ *   delete:
+ *     summary: Delete course
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Course ID
+ *     responses:
+ *       200:
+ *         description: Course deleted successfully
+ *       404:
+ *         description: Course not found
+ */
+router.delete('/:id', authenticateToken, roleAuth(['admin']), [
+  param('id').isUUID()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+
+    const { id } = req.params;
+
+    // Find course
+    const course = await Course.findByPk(id);
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: 'Course not found'
+      });
+    }
+
+    // Delete course
+    await course.destroy();
+
+    logger.info(`Course ${id} deleted by user ${req.user?.userId || 'unknown'}`);
+
+    res.json({
+      success: true,
+      message: 'Course deleted successfully'
+    });
+
+  } catch (error) {
+    logger.error('Delete course error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error deleting course',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
 
 module.exports = router;

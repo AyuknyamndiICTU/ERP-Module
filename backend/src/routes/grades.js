@@ -1,11 +1,16 @@
 const express = require('express');
 const router = express.Router();
+const { body, validationResult, param, query } = require('express-validator');
 const { authenticateToken } = require('../middleware/auth');
 const roleAuth = require('../middleware/roleAuth');
-const { checkPermission, canAccessStudentData } = require('../middleware/rolePermissions');
-const { sequelize } = require('../config/database');
 const { logger } = require('../utils/logger');
-const { body, param, query, validationResult } = require('express-validator');
+const Grade = require('../models/Grade');
+const Student = require('../models/Student');
+const Course = require('../models/Course');
+const User = require('../models/User');
+const Faculty = require('../models/Faculty');
+const Department = require('../models/Department');
+const { Op } = require('sequelize');
 
 /**
  * @swagger
@@ -14,311 +19,120 @@ const { body, param, query, validationResult } = require('express-validator');
  *     Grade:
  *       type: object
  *       required:
- *         - enrollment_id
- *         - assignment_type
- *         - assignment_name
- *         - points_earned
- *         - points_possible
+ *         - studentId
+ *         - courseId
+ *         - lecturerId
+ *         - semester
+ *         - academicYear
  *       properties:
  *         id:
+ *           type: string
+ *           format: uuid
+ *         studentId:
+ *           type: string
+ *           format: uuid
+ *         courseId:
+ *           type: string
+ *           format: uuid
+ *         lecturerId:
+ *           type: string
+ *           format: uuid
+ *         semester:
  *           type: integer
- *           description: Auto-generated grade ID
- *         enrollment_id:
- *           type: integer
- *           description: Student enrollment ID
- *         assignment_type:
+ *           enum: [1, 2]
+ *         academicYear:
  *           type: string
- *           enum: [exam, quiz, assignment, project, participation, final]
- *           description: Type of assignment
- *         assignment_name:
- *           type: string
- *           description: Name of the assignment
- *         points_earned:
+ *         caMarks:
  *           type: number
  *           format: float
- *           description: Points earned by student
- *         points_possible:
+ *           minimum: 0
+ *           maximum: 30
+ *         examMarks:
  *           type: number
  *           format: float
- *           description: Maximum points possible
- *         percentage:
+ *           minimum: 0
+ *           maximum: 70
+ *         totalMarks:
  *           type: number
  *           format: float
- *           description: Calculated percentage (points_earned/points_possible * 100)
- *         letter_grade:
+ *           minimum: 0
+ *           maximum: 100
+ *         letterGrade:
  *           type: string
- *           description: Letter grade (A, B, C, D, F)
- *         grade_points:
+ *         gradePoints:
  *           type: number
  *           format: float
- *           description: Grade points for GPA calculation (4.0 scale)
- *         weight:
- *           type: number
- *           format: float
- *           description: Weight of assignment in final grade
- *         due_date:
- *           type: string
- *           format: date
- *           description: Assignment due date
- *         graded_date:
- *           type: string
- *           format: date-time
- *           description: Date when grade was entered
- *         comments:
- *           type: string
- *           description: Instructor comments
  *         status:
  *           type: string
- *           enum: [draft, published, late, excused]
- *           default: draft
+ *           enum: [draft, published, locked]
+ *         publishedAt:
+ *           type: string
+ *           format: date-time
+ *         publishedBy:
+ *           type: string
+ *           format: uuid
  */
 
 /**
  * @swagger
- * /api/grades/course/{courseId}:
+ * /api/grades:
  *   get:
- *     summary: Get all grades for a specific course
+ *     summary: Get grades with filtering
  *     tags: [Grades]
  *     security:
  *       - bearerAuth: []
  *     parameters:
- *       - in: path
- *         name: courseId
- *         required: true
- *         schema:
- *           type: integer
- *         description: Course ID
  *       - in: query
- *         name: assignment_type
+ *         name: courseId
  *         schema:
  *           type: string
- *         description: Filter by assignment type
+ *           format: uuid
  *       - in: query
- *         name: student_id
+ *         name: studentId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *       - in: query
+ *         name: lecturerId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *       - in: query
+ *         name: semester
  *         schema:
  *           type: integer
- *         description: Filter by specific student
+ *           enum: [1, 2]
+ *       - in: query
+ *         name: academicYear
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [draft, published, locked]
  *     responses:
  *       200:
- *         description: Course grades with student information
+ *         description: List of grades
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 course:
- *                   type: object
- *                   description: Course information
- *                 students:
+ *                 grades:
  *                   type: array
- *                   description: Students with their grades
- *                 assignments:
- *                   type: array
- *                   description: All assignments for the course
- *                 grade_distribution:
- *                   type: object
- *                   description: Grade distribution statistics
+ *                   items:
+ *                     $ref: '#/components/schemas/Grade'
  */
-router.get('/course/:courseId',
+router.get('/',
   authenticateToken,
-  roleAuth(['admin', 'academic_staff']),
-  [param('courseId').isInt()],
-  async (req, res) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-      }
-
-      const { courseId } = req.params;
-      const { assignment_type, student_id } = req.query;
-
-      // Verify instructor has access to this course
-      if (req.user.role === 'academic_staff') {
-        const courseCheck = await req.db.query(
-          'SELECT instructor_id FROM courses WHERE id = $1',
-          [courseId]
-        );
-        
-        if (courseCheck.rows.length === 0) {
-          return res.status(404).json({ message: 'Course not found' });
-        }
-        
-        if (courseCheck.rows[0].instructor_id !== req.user.id) {
-          return res.status(403).json({ message: 'Access denied to this course' });
-        }
-      }
-
-      // Get course information
-      const courseQuery = `
-        SELECT 
-          c.*,
-          u.first_name || ' ' || u.last_name as instructor_name
-        FROM courses c
-        LEFT JOIN users u ON c.instructor_id = u.id
-        WHERE c.id = $1
-      `;
-      const courseResult = await req.db.query(courseQuery, [courseId]);
-      const course = courseResult.rows[0];
-
-      // Build grade query conditions
-      let whereClause = 'WHERE e.course_id = $1';
-      let queryParams = [courseId];
-      let paramCount = 1;
-
-      if (assignment_type) {
-        whereClause += ` AND g.assignment_type = $${++paramCount}`;
-        queryParams.push(assignment_type);
-      }
-
-      if (student_id) {
-        whereClause += ` AND e.student_id = $${++paramCount}`;
-        queryParams.push(student_id);
-      }
-
-      // Get students with their grades
-      const studentsQuery = `
-        SELECT DISTINCT
-          s.id as student_id,
-          s.student_id as student_number,
-          s.first_name,
-          s.last_name,
-          s.email,
-          e.id as enrollment_id,
-          e.enrollment_date,
-          (
-            SELECT AVG(g.grade_points) 
-            FROM grades g 
-            WHERE g.enrollment_id = e.id AND g.grade_points IS NOT NULL
-          ) as current_grade
-        FROM students s
-        JOIN enrollments e ON s.id = e.student_id
-        ${whereClause}
-        ORDER BY s.last_name, s.first_name
-      `;
-
-      const studentsResult = await req.db.query(studentsQuery, queryParams);
-
-      // Get all assignments for this course
-      const assignmentsQuery = `
-        SELECT DISTINCT
-          g.assignment_type,
-          g.assignment_name,
-          g.points_possible,
-          g.weight,
-          g.due_date,
-          COUNT(*) as submission_count,
-          AVG(g.percentage) as average_score
-        FROM grades g
-        JOIN enrollments e ON g.enrollment_id = e.id
-        WHERE e.course_id = $1
-        GROUP BY g.assignment_type, g.assignment_name, g.points_possible, g.weight, g.due_date
-        ORDER BY g.due_date DESC, g.assignment_name
-      `;
-
-      const assignmentsResult = await req.db.query(assignmentsQuery, [courseId]);
-
-      // Get detailed grades for each student
-      for (let student of studentsResult.rows) {
-        const gradesQuery = `
-          SELECT 
-            g.*,
-            g.points_earned::float / g.points_possible::float * 100 as calculated_percentage
-          FROM grades g
-          WHERE g.enrollment_id = $1
-          ORDER BY g.due_date DESC, g.assignment_name
-        `;
-        
-        const gradesResult = await req.db.query(gradesQuery, [student.enrollment_id]);
-        student.grades = gradesResult.rows;
-      }
-
-      // Calculate grade distribution
-      const distributionQuery = `
-        SELECT 
-          CASE 
-            WHEN AVG(g.grade_points) >= 3.7 THEN 'A'
-            WHEN AVG(g.grade_points) >= 3.0 THEN 'B'
-            WHEN AVG(g.grade_points) >= 2.0 THEN 'C'
-            WHEN AVG(g.grade_points) >= 1.0 THEN 'D'
-            ELSE 'F'
-          END as letter_grade,
-          COUNT(*) as count
-        FROM (
-          SELECT 
-            e.student_id,
-            AVG(g.grade_points) as avg_grade
-          FROM grades g
-          JOIN enrollments e ON g.enrollment_id = e.id
-          WHERE e.course_id = $1 AND g.grade_points IS NOT NULL
-          GROUP BY e.student_id
-        ) student_averages
-        GROUP BY 
-          CASE 
-            WHEN AVG(g.grade_points) >= 3.7 THEN 'A'
-            WHEN AVG(g.grade_points) >= 3.0 THEN 'B'
-            WHEN AVG(g.grade_points) >= 2.0 THEN 'C'
-            WHEN AVG(g.grade_points) >= 1.0 THEN 'D'
-            ELSE 'F'
-          END
-        ORDER BY letter_grade
-      `;
-
-      const distributionResult = await req.db.query(distributionQuery, [courseId]);
-
-      logger.info(`Retrieved grades for course ${courseId} by user ${req.user.id}`);
-
-      res.json({
-        course,
-        students: studentsResult.rows,
-        assignments: assignmentsResult.rows,
-        grade_distribution: distributionResult.rows
-      });
-
-    } catch (error) {
-      logger.error('Error fetching course grades:', error);
-      res.status(500).json({ 
-        message: 'Error fetching course grades',
-        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-      });
-    }
-  }
-);
-
-/**
- * @swagger
- * /api/grades:
- *   post:
- *     summary: Create or update a grade
- *     tags: [Grades]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/Grade'
- *     responses:
- *       201:
- *         description: Grade created successfully
- *       400:
- *         description: Validation error
- *       403:
- *         description: Access denied
- */
-router.post('/',
-  authenticateToken,
-  roleAuth(['admin', 'academic_staff']),
   [
-    body('enrollment_id').isInt(),
-    body('assignment_type').isIn(['exam', 'quiz', 'assignment', 'project', 'participation', 'final']),
-    body('assignment_name').isLength({ min: 1, max: 255 }),
-    body('points_earned').isFloat({ min: 0 }),
-    body('points_possible').isFloat({ min: 0.1 }),
-    body('weight').optional().isFloat({ min: 0, max: 1 }),
-    body('due_date').optional().isISO8601(),
-    body('comments').optional().isLength({ max: 1000 })
+    query('courseId').optional().isUUID(),
+    query('studentId').optional().isUUID(),
+    query('lecturerId').optional().isUUID(),
+    query('semester').optional().isInt({ min: 1, max: 2 }),
+    query('academicYear').optional().isString(),
+    query('status').optional().isIn(['draft', 'published', 'locked'])
   ],
   async (req, res) => {
     try {
@@ -328,113 +142,590 @@ router.post('/',
       }
 
       const {
-        enrollment_id,
-        assignment_type,
-        assignment_name,
-        points_earned,
-        points_possible,
-        weight = 1.0,
-        due_date,
-        comments,
-        status = 'published'
-      } = req.body;
+        courseId,
+        studentId,
+        lecturerId,
+        semester,
+        academicYear = new Date().getFullYear().toString(),
+        status
+      } = req.query;
 
-      // Verify instructor has access to this enrollment's course
-      if (req.user.role === 'academic_staff') {
-        const enrollmentCheck = await req.db.query(`
-          SELECT c.instructor_id 
-          FROM enrollments e 
-          JOIN courses c ON e.course_id = c.id 
-          WHERE e.id = $1
-        `, [enrollment_id]);
-        
-        if (enrollmentCheck.rows.length === 0) {
-          return res.status(404).json({ message: 'Enrollment not found' });
-        }
-        
-        if (enrollmentCheck.rows[0].instructor_id !== req.user.id) {
-          return res.status(403).json({ message: 'Access denied to this course' });
-        }
+      // Build WHERE conditions
+      const whereConditions = { academicYear };
+
+      if (courseId) whereConditions.courseId = courseId;
+      if (studentId) whereConditions.studentId = studentId;
+      if (lecturerId) whereConditions.lecturerId = lecturerId;
+      if (semester) whereConditions.semester = semester;
+      if (status) whereConditions.status = status;
+
+      // Role-based access control
+      const userRole = req.user.role;
+      if (userRole === 'student') {
+        whereConditions.studentId = req.user.id;
+      } else if (userRole === 'lecturer') {
+        whereConditions.lecturerId = req.user.id;
       }
 
-      // Calculate percentage and grade points
-      const percentage = (points_earned / points_possible) * 100;
-      let letter_grade, grade_points;
+      // Get grades with related data
+      const grades = await Grade.findAll({
+        where: whereConditions,
+        include: [
+          {
+            model: Student,
+            as: 'student',
+            attributes: ['matricule', 'firstName', 'lastName', 'email']
+          },
+          {
+            model: Course,
+            as: 'course',
+            attributes: ['courseCode', 'courseName', 'credits']
+          },
+          {
+            model: User,
+            as: 'lecturer',
+            attributes: ['firstName', 'lastName', 'email']
+          }
+        ],
+        order: [
+          ['courseId', 'ASC'],
+          ['studentId', 'ASC']
+        ]
+      });
 
-      if (percentage >= 97) { letter_grade = 'A+'; grade_points = 4.0; }
-      else if (percentage >= 93) { letter_grade = 'A'; grade_points = 4.0; }
-      else if (percentage >= 90) { letter_grade = 'A-'; grade_points = 3.7; }
-      else if (percentage >= 87) { letter_grade = 'B+'; grade_points = 3.3; }
-      else if (percentage >= 83) { letter_grade = 'B'; grade_points = 3.0; }
-      else if (percentage >= 80) { letter_grade = 'B-'; grade_points = 2.7; }
-      else if (percentage >= 77) { letter_grade = 'C+'; grade_points = 2.3; }
-      else if (percentage >= 73) { letter_grade = 'C'; grade_points = 2.0; }
-      else if (percentage >= 70) { letter_grade = 'C-'; grade_points = 1.7; }
-      else if (percentage >= 67) { letter_grade = 'D+'; grade_points = 1.3; }
-      else if (percentage >= 65) { letter_grade = 'D'; grade_points = 1.0; }
-      else { letter_grade = 'F'; grade_points = 0.0; }
+      logger.info(`Retrieved ${grades.length} grades for user ${req.user.id}`);
 
-      // Check if grade already exists for this assignment
-      const existingGrade = await req.db.query(`
-        SELECT id FROM grades 
-        WHERE enrollment_id = $1 AND assignment_name = $2
-      `, [enrollment_id, assignment_name]);
-
-      let result;
-      if (existingGrade.rows.length > 0) {
-        // Update existing grade
-        const updateQuery = `
-          UPDATE grades SET
-            assignment_type = $1,
-            points_earned = $2,
-            points_possible = $3,
-            percentage = $4,
-            letter_grade = $5,
-            grade_points = $6,
-            weight = $7,
-            due_date = $8,
-            comments = $9,
-            status = $10,
-            graded_date = CURRENT_TIMESTAMP,
-            updated_at = CURRENT_TIMESTAMP
-          WHERE id = $11
-          RETURNING *
-        `;
-
-        result = await req.db.query(updateQuery, [
-          assignment_type, points_earned, points_possible, percentage,
-          letter_grade, grade_points, weight, due_date, comments, status,
-          existingGrade.rows[0].id
-        ]);
-      } else {
-        // Create new grade
-        const insertQuery = `
-          INSERT INTO grades (
-            enrollment_id, assignment_type, assignment_name, points_earned,
-            points_possible, percentage, letter_grade, grade_points, weight,
-            due_date, comments, status, graded_date
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CURRENT_TIMESTAMP)
-          RETURNING *
-        `;
-
-        result = await req.db.query(insertQuery, [
-          enrollment_id, assignment_type, assignment_name, points_earned,
-          points_possible, percentage, letter_grade, grade_points, weight,
-          due_date, comments, status
-        ]);
-      }
-
-      logger.info(`Grade ${existingGrade.rows.length > 0 ? 'updated' : 'created'} for enrollment ${enrollment_id} by user ${req.user.id}`);
-
-      res.status(existingGrade.rows.length > 0 ? 200 : 201).json({
-        message: `Grade ${existingGrade.rows.length > 0 ? 'updated' : 'created'} successfully`,
-        grade: result.rows[0]
+      res.json({
+        grades,
+        filters: {
+          courseId,
+          studentId,
+          lecturerId,
+          semester,
+          academicYear,
+          status
+        }
       });
 
     } catch (error) {
-      logger.error('Error creating/updating grade:', error);
-      res.status(500).json({ 
-        message: 'Error processing grade',
+      logger.error('Error fetching grades:', error);
+      res.status(500).json({
+        message: 'Error fetching grades',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/grades/bulk:
+ *   post:
+ *     summary: Bulk create/update grades for a course (Lecturer only)
+ *     tags: [Grades]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - courseId
+ *               - semester
+ *               - academicYear
+ *               - grades
+ *             properties:
+ *               courseId:
+ *                 type: string
+ *                 format: uuid
+ *               semester:
+ *                 type: integer
+ *                 enum: [1, 2]
+ *               academicYear:
+ *                 type: string
+ *               grades:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - studentId
+ *                     - caMarks
+ *                     - examMarks
+ *                   properties:
+ *                     studentId:
+ *                       type: string
+ *                       format: uuid
+ *                     caMarks:
+ *                       type: number
+ *                       format: float
+ *                       minimum: 0
+ *                       maximum: 30
+ *                     examMarks:
+ *                       type: number
+ *                       format: float
+ *                       minimum: 0
+ *                       maximum: 70
+ *     responses:
+ *       201:
+ *         description: Grades created/updated successfully
+ *       400:
+ *         description: Validation error
+ *       403:
+ *         description: Not authorized to manage grades for this course
+ */
+router.post('/bulk',
+  authenticateToken,
+  roleAuth(['lecturer', 'faculty_coordinator', 'major_coordinator']),
+  [
+    body('courseId').isUUID().withMessage('Valid course ID is required'),
+    body('semester').isInt({ min: 1, max: 2 }).withMessage('Semester must be 1 or 2'),
+    body('academicYear').notEmpty().withMessage('Academic year is required'),
+    body('grades').isArray().withMessage('Grades array is required'),
+    body('grades.*.studentId').isUUID().withMessage('Valid student ID is required'),
+    body('grades.*.caMarks').isFloat({ min: 0, max: 30 }).withMessage('CA marks must be between 0 and 30'),
+    body('grades.*.examMarks').isFloat({ min: 0, max: 70 }).withMessage('Exam marks must be between 0 and 70')
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const lecturerId = req.user.id;
+      const { courseId, semester, academicYear, grades } = req.body;
+
+      // Check if lecturer is assigned to this course
+      const course = await Course.findByPk(courseId);
+      if (!course) {
+        return res.status(404).json({ message: 'Course not found' });
+      }
+
+      // For lecturers, check if they are assigned to the course
+      if (req.user.role === 'lecturer' && course.instructorId !== lecturerId) {
+        return res.status(403).json({
+          message: 'You are not authorized to manage grades for this course'
+        });
+      }
+
+      // Get all students enrolled in the course
+      const enrolledStudents = await Student.findAll({
+        where: {
+          facultyId: course.facultyId,
+          departmentId: course.departmentId,
+          semester: semester
+        },
+        attributes: ['id', 'matricule', 'firstName', 'lastName', 'email']
+      });
+
+      const enrolledStudentIds = enrolledStudents.map(s => s.id);
+
+      // Process grades
+      const processedGrades = [];
+      const validationErrors = [];
+
+      for (const gradeData of grades) {
+        const { studentId, caMarks, examMarks } = gradeData;
+
+        // Check if student is enrolled in the course
+        if (!enrolledStudentIds.includes(studentId)) {
+          validationErrors.push(`Student ${studentId} is not enrolled in this course`);
+          continue;
+        }
+
+        // Find or create grade record
+        const [grade, created] = await Grade.findOrCreate({
+          where: {
+            studentId,
+            courseId,
+            semester,
+            academicYear
+          },
+          defaults: {
+            lecturerId,
+            caMarks,
+            examMarks,
+            status: 'draft'
+          }
+        });
+
+        if (!created) {
+          // Update existing grade
+          await grade.update({
+            caMarks,
+            examMarks,
+            lecturerId
+          });
+        }
+
+        processedGrades.push(grade);
+      }
+
+      logger.info(`Bulk grades processed for course ${courseId} by lecturer ${lecturerId}`);
+
+      res.status(201).json({
+        message: 'Grades processed successfully',
+        processed: processedGrades.length,
+        errors: validationErrors.length > 0 ? validationErrors : undefined,
+        grades: processedGrades
+      });
+
+    } catch (error) {
+      logger.error('Error processing bulk grades:', error);
+      res.status(500).json({
+        message: 'Error processing grades',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/grades/{id}:
+ *   put:
+ *     summary: Update grade (Lecturer/Coordinator only)
+ *     tags: [Grades]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               caMarks:
+ *                 type: number
+ *                 format: float
+ *                 minimum: 0
+ *                 maximum: 30
+ *               examMarks:
+ *                 type: number
+ *                 format: float
+ *                 minimum: 0
+ *                 maximum: 70
+ *               status:
+ *                 type: string
+ *                 enum: [draft, published, locked]
+ *     responses:
+ *       200:
+ *         description: Grade updated successfully
+ *       403:
+ *         description: Not authorized to update this grade
+ *       404:
+ *         description: Grade not found
+ */
+router.put('/:id',
+  authenticateToken,
+  roleAuth(['lecturer', 'faculty_coordinator', 'major_coordinator']),
+  [
+    param('id').isUUID(),
+    body('caMarks').optional().isFloat({ min: 0, max: 30 }),
+    body('examMarks').optional().isFloat({ min: 0, max: 70 }),
+    body('status').optional().isIn(['draft', 'published', 'locked'])
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { id } = req.params;
+      const userId = req.user.id;
+      const updateData = req.body;
+
+      // Find grade
+      const grade = await Grade.findByPk(id);
+      if (!grade) {
+        return res.status(404).json({ message: 'Grade not found' });
+      }
+
+      // Check permissions
+      if (req.user.role === 'lecturer' && grade.lecturerId !== userId) {
+        return res.status(403).json({
+          message: 'You are not authorized to update this grade'
+        });
+      }
+
+      // For coordinators, check if they have permission for the course's faculty
+      if (req.user.role.includes('coordinator')) {
+        const course = await Course.findByPk(grade.courseId);
+        if (course) {
+          const faculty = await Faculty.findByPk(course.facultyId);
+          if (!faculty || faculty.coordinatorId !== userId) {
+            return res.status(403).json({
+              message: 'You are not authorized to update grades for this faculty'
+            });
+          }
+        }
+      }
+
+      // Update grade
+      await grade.update(updateData);
+
+      // Set published info if status is published
+      if (updateData.status === 'published') {
+        await grade.update({
+          publishedAt: new Date(),
+          publishedBy: userId
+        });
+      }
+
+      logger.info(`Grade ${id} updated by user ${userId}`);
+
+      res.json({
+        message: 'Grade updated successfully',
+        grade
+      });
+
+    } catch (error) {
+      logger.error('Error updating grade:', error);
+      res.status(500).json({
+        message: 'Error updating grade',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/grades/publish:
+ *   post:
+ *     summary: Publish grades for a course (Lecturer/Coordinator only)
+ *     tags: [Grades]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - courseId
+ *               - semester
+ *               - academicYear
+ *             properties:
+ *               courseId:
+ *                 type: string
+ *                 format: uuid
+ *               semester:
+ *                 type: integer
+ *                 enum: [1, 2]
+ *               academicYear:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Grades published successfully
+ *       403:
+ *         description: Not authorized to publish grades for this course
+ */
+router.post('/publish',
+  authenticateToken,
+  roleAuth(['lecturer', 'faculty_coordinator', 'major_coordinator']),
+  [
+    body('courseId').isUUID().withMessage('Valid course ID is required'),
+    body('semester').isInt({ min: 1, max: 2 }).withMessage('Semester must be 1 or 2'),
+    body('academicYear').notEmpty().withMessage('Academic year is required')
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const userId = req.user.id;
+      const { courseId, semester, academicYear } = req.body;
+
+      // Check permissions
+      const course = await Course.findByPk(courseId);
+      if (!course) {
+        return res.status(404).json({ message: 'Course not found' });
+      }
+
+      if (req.user.role === 'lecturer' && course.instructorId !== userId) {
+        return res.status(403).json({
+          message: 'You are not authorized to publish grades for this course'
+        });
+      }
+
+      // For coordinators, check faculty permission
+      if (req.user.role.includes('coordinator')) {
+        const faculty = await Faculty.findByPk(course.facultyId);
+        if (!faculty || faculty.coordinatorId !== userId) {
+          return res.status(403).json({
+            message: 'You are not authorized to publish grades for this faculty'
+          });
+        }
+      }
+
+      // Publish all grades for the course
+      const [affectedRows] = await Grade.update(
+        {
+          status: 'published',
+          publishedAt: new Date(),
+          publishedBy: userId
+        },
+        {
+          where: {
+            courseId,
+            semester,
+            academicYear,
+            status: 'draft'
+          }
+        }
+      );
+
+      logger.info(`${affectedRows} grades published for course ${courseId} by user ${userId}`);
+
+      res.json({
+        message: 'Grades published successfully',
+        published: affectedRows
+      });
+
+    } catch (error) {
+      logger.error('Error publishing grades:', error);
+      res.status(500).json({
+        message: 'Error publishing grades',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/grades/export:
+ *   get:
+ *     summary: Export grades for a course (Lecturer/Coordinator only)
+ *     tags: [Grades]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: courseId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *       - in: query
+ *         name: semester
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           enum: [1, 2]
+ *       - in: query
+ *         name: academicYear
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: format
+ *         schema:
+ *           type: string
+ *           enum: [excel, pdf]
+ *           default: excel
+ *     responses:
+ *       200:
+ *         description: Grades exported successfully
+ *       403:
+ *         description: Not authorized to export grades for this course
+ */
+router.get('/export',
+  authenticateToken,
+  roleAuth(['lecturer', 'faculty_coordinator', 'major_coordinator']),
+  [
+    query('courseId').isUUID().withMessage('Valid course ID is required'),
+    query('semester').isInt({ min: 1, max: 2 }).withMessage('Semester must be 1 or 2'),
+    query('academicYear').notEmpty().withMessage('Academic year is required'),
+    query('format').optional().isIn(['excel', 'pdf'])
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const userId = req.user.id;
+      const { courseId, semester, academicYear, format = 'excel' } = req.query;
+
+      // Check permissions
+      const course = await Course.findByPk(courseId);
+      if (!course) {
+        return res.status(404).json({ message: 'Course not found' });
+      }
+
+      if (req.user.role === 'lecturer' && course.instructorId !== userId) {
+        return res.status(403).json({
+          message: 'You are not authorized to export grades for this course'
+        });
+      }
+
+      // Get grades for export
+      const grades = await Grade.findAll({
+        where: {
+          courseId,
+          semester,
+          academicYear
+        },
+        include: [
+          {
+            model: Student,
+            as: 'student',
+            attributes: ['matricule', 'firstName', 'lastName', 'email']
+          }
+        ],
+        order: [['studentId', 'ASC']]
+      });
+
+      // Format data for export
+      const exportData = grades.map(grade => ({
+        Matricule: grade.student.matricule,
+        'First Name': grade.student.firstName,
+        'Last Name': grade.student.lastName,
+        Email: grade.student.email,
+        'CA Marks': grade.caMarks || 0,
+        'Exam Marks': grade.examMarks || 0,
+        'Total Marks': grade.totalMarks || 0,
+        'Letter Grade': grade.letterGrade || '',
+        'Grade Points': grade.gradePoints || 0,
+        Status: grade.status
+      }));
+
+      // TODO: Implement actual Excel/PDF export
+      // For now, return JSON data
+      logger.info(`Grades exported for course ${courseId} by user ${userId}`);
+
+      res.json({
+        message: 'Grades export data retrieved successfully',
+        course: {
+          code: course.courseCode,
+          name: course.courseName
+        },
+        semester,
+        academicYear,
+        format,
+        data: exportData
+      });
+
+    } catch (error) {
+      logger.error('Error exporting grades:', error);
+      res.status(500).json({
+        message: 'Error exporting grades',
         error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
       });
     }

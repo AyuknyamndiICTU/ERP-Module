@@ -208,14 +208,15 @@ const LoginPage = () => {
           {/* Demo Credentials */}
           <Box sx={{ mt: 2, p: 2, backgroundColor: 'grey.50', borderRadius: 1, width: '100%' }}>
             <Typography variant="subtitle2" gutterBottom>
-              Demo Credentials:
+              Demo Credentials (ICTU System):
             </Typography>
             <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
-              <strong>Admin:</strong> admin@ictu.edu.cm / admin123<br />
-              <strong>Faculty:</strong> faculty@ictu.edu.cm / faculty123<br />
-              <strong>Student:</strong> student@ictu.edu.cm / student123<br />
-              <strong>HR:</strong> hr.manager@erp.local / password123<br />
-              <strong>Finance:</strong> finance@ictu.edu.cm / finance123
+              <strong>ICT Faculty Coordinator:</strong> ict.coordinator@ictu.edu.cm / password123<br />
+              <strong>BMS Faculty Coordinator:</strong> bms.coordinator@ictu.edu.cm / password123<br />
+              <strong>CS Department Head:</strong> cs.head@ictu.edu.cm / password123<br />
+              <strong>IT Department Head:</strong> it.head@ictu.edu.cm / password123<br />
+              <strong>Management Head:</strong> mgmt.head@ictu.edu.cm / password123<br />
+              <strong>Marketing Head:</strong> marketing.head@ictu.edu.cm / password123
             </Typography>
           </Box>
         </Paper>

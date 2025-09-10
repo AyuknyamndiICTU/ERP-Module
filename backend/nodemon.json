@@ -1,0 +1,29 @@
+{
+  "watch": ["src/**/*", ".env"],
+  "ignore": [
+    "src/**/*.test.js",
+    "src/**/*.spec.js",
+    "node_modules",
+    "logs",
+    "database/migrations",
+    "database/seeds",
+    ".git"
+  ],
+  "exec": "node src/server.js",
+  "ext": "js,json,env",
+  "delay": 500,
+  "legacyWatch": true,
+  "restartable": "rs",
+  "colours": true,
+  "env": {
+    "NODE_ENV": "development",
+    "PORT": 3001
+  },
+  "verbose": false,
+  "events": {
+    "start": "echo '\u001b[32m🔄 Backend server starting...\u001b[0m'",
+    "crash": "echo '\u001b[31m💥 Backend server crashed!\u001b[0m'",
+    "restart": "echo '\u001b[33m🔄 Backend server restarted due to file changes\u001b[0m'",
+    "quit": "echo '\u001b[34m👋 Backend server stopped\u001b[0m'"
+  }
+}

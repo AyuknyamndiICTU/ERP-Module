@@ -3,12 +3,12 @@ const { sequelize } = require('../config/database');
 
 const Timetable = sequelize.define('Timetable', {
   id: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     primaryKey: true,
-    autoIncrement: true
+    defaultValue: DataTypes.UUIDV4
   },
   courseId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: false,
     field: 'course_id',
     references: {
@@ -17,7 +17,7 @@ const Timetable = sequelize.define('Timetable', {
     }
   },
   facultyId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: false,
     field: 'faculty_id',
     references: {
@@ -26,7 +26,7 @@ const Timetable = sequelize.define('Timetable', {
     }
   },
   majorId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: false,
     field: 'major_id',
     references: {
@@ -63,7 +63,7 @@ const Timetable = sequelize.define('Timetable', {
     field: 'end_time'
   },
   lecturerId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: false,
     field: 'lecturer_id',
     references: {

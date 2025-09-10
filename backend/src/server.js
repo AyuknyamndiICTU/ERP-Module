@@ -106,7 +106,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/students', studentRoutes);
-app.use('/api/courses', courseRoutes);
+app.use('/api/academic/courses', courseRoutes);
 app.use('/api/grades', gradeRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/finance', financeRoutes);

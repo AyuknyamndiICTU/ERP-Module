@@ -3,9 +3,9 @@ const { sequelize } = require('../config/database');
 
 const Student = sequelize.define('Student', {
   id: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     primaryKey: true,
-    autoIncrement: true
+    defaultValue: DataTypes.UUIDV4
   },
   matricule: {
     type: DataTypes.STRING,
@@ -14,7 +14,7 @@ const Student = sequelize.define('Student', {
     field: 'matricule'
   },
   userId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: true,
     field: 'user_id',
     references: {
@@ -66,7 +66,7 @@ const Student = sequelize.define('Student', {
     field: 'blood_group'
   },
   facultyId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: false,
     field: 'faculty_id',
     references: {
@@ -75,7 +75,7 @@ const Student = sequelize.define('Student', {
     }
   },
   departmentId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: false,
     field: 'department_id',
     references: {
@@ -84,7 +84,7 @@ const Student = sequelize.define('Student', {
     }
   },
   majorId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: false,
     field: 'major_id',
     references: {

@@ -42,6 +42,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import GlassCard, { StatsCard } from '../../components/GlassCard';
 import TranscriptGenerator from '../../components/Transcript/TranscriptGenerator';
+import { academicAPI } from '../../services/api';
 import logger from '../../utils/logger';
 
 // Animation keyframes
@@ -70,236 +71,187 @@ const slideIn = keyframes`
 const GradesPage = () => {
   const { user } = useAuth();
   const [courses, setCourses] = useState([]);
-  const [selectedCourse, setSelectedCourse] = useState(null);
-  const [students, setStudents] = useState([]);
   const [assignments, setAssignments] = useState([]);
-  const [gradeDistribution, setGradeDistribution] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
   const [tabValue, setTabValue] = useState(0);
   const [gradeDialogOpen, setGradeDialogOpen] = useState(false);
   const [editingGrade, setEditingGrade] = useState(null);
   const [transcriptOpen, setTranscriptOpen] = useState(false);
-  const [gradeComponents, setGradeComponents] = useState([]);
-
-  // Mock data for demonstration
-  const mockCourses = [
-    {
-      id: 1,
-      code: 'CS101',
-      name: 'Introduction to Computer Science',
-      semester: 'Fall',
-      year: 2024,
-      enrolled_count: 45
-    },
-    {
-      id: 2,
-      code: 'MATH201',
-      name: 'Calculus II',
-      semester: 'Fall',
-      year: 2024,
-      enrolled_count: 38
-    }
-  ];
-
-  const mockStudents = [
-    {
-      student_id: 1,
-      student_number: 'STU2024001',
-      first_name: 'Alice',
-      last_name: 'Johnson',
-      email: 'alice.johnson@university.edu',
-      enrollment_id: 1,
-      current_grade: 3.75,
-      grades: [
-        {
-          id: 1,
-          assignment_type: 'exam',
-          assignment_name: 'Midterm Exam',
-          points_earned: 85,
-          points_possible: 100,
-          percentage: 85,
-          letter_grade: 'B',
-          grade_points: 3.0,
-          weight: 0.3,
-          due_date: '2024-10-15',
-          status: 'published'
-        },
-        {
-          id: 2,
-          assignment_type: 'assignment',
-          assignment_name: 'Programming Project 1',
-          points_earned: 95,
-          points_possible: 100,
-          percentage: 95,
-          letter_grade: 'A',
-          grade_points: 4.0,
-          weight: 0.2,
-          due_date: '2024-09-30',
-          status: 'published'
-        }
-      ]
-    },
-    {
-      student_id: 2,
-      student_number: 'STU2024002',
-      first_name: 'Bob',
-      last_name: 'Smith',
-      email: 'bob.smith@university.edu',
-      enrollment_id: 2,
-      current_grade: 3.92,
-      grades: [
-        {
-          id: 3,
-          assignment_type: 'exam',
-          assignment_name: 'Midterm Exam',
-          points_earned: 92,
-          points_possible: 100,
-          percentage: 92,
-          letter_grade: 'A-',
-          grade_points: 3.7,
-          weight: 0.3,
-          due_date: '2024-10-15',
-          status: 'published'
-        },
-        {
-          id: 4,
-          assignment_type: 'assignment',
-          assignment_name: 'Programming Project 1',
-          points_earned: 98,
-          points_possible: 100,
-          percentage: 98,
-          letter_grade: 'A+',
-          grade_points: 4.0,
-          weight: 0.2,
-          due_date: '2024-09-30',
-          status: 'published'
-        }
-      ]
-    }
-  ];
-
-  // Restructured grading system with CA and Exam components
-  const mockGradeComponents = [
-    {
-      component_type: 'CA', // Continuous Assessment
-      component_name: 'Continuous Assessment',
-      weight: 0.4, // 40% of total grade
-      max_score: 100,
-      assessments: [
-        {
-          id: 1,
-          name: 'Assignment 1',
-          type: 'assignment',
-          max_points: 25,
-          weight: 0.25, // 25% of CA
-          due_date: '2024-02-15',
-          submission_count: 45,
-          average_score: 88.0
-        },
-        {
-          id: 2,
-          name: 'Quiz 1',
-          type: 'quiz',
-          max_points: 15,
-          weight: 0.15, // 15% of CA
-          due_date: '2024-02-28',
-          submission_count: 45,
-          average_score: 86.7
-        },
-        {
-          id: 3,
-          name: 'Lab Work',
-          type: 'lab',
-          max_points: 30,
-          weight: 0.30, // 30% of CA
-          due_date: '2024-03-10',
-          submission_count: 45,
-          average_score: 91.3
-        },
-        {
-          id: 4,
-          name: 'Participation',
-          type: 'participation',
-          max_points: 30,
-          weight: 0.30, // 30% of CA
-          due_date: '2024-04-30',
-          submission_count: 45,
-          average_score: 89.5
-        }
-      ]
-    },
-    {
-      component_type: 'EXAM', // Final Examination
-      component_name: 'Final Examination',
-      weight: 0.6, // 60% of total grade
-      max_score: 100,
-      assessments: [
-        {
-          id: 5,
-          name: 'Final Exam',
-          type: 'final_exam',
-          max_points: 100,
-          weight: 1.0, // 100% of exam component
-          due_date: '2024-05-15',
-          submission_count: 45,
-          average_score: 82.4
-        }
-      ]
-    }
-  ];
-
-  // Keep legacy assignments for backward compatibility
-  const mockAssignments = mockGradeComponents.flatMap(component =>
-    component.assessments.map(assessment => ({
-      assignment_type: assessment.type,
-      assignment_name: assessment.name,
-      points_possible: assessment.max_points,
-      weight: component.weight * assessment.weight,
-      due_date: assessment.due_date,
-      submission_count: assessment.submission_count,
-      average_score: assessment.average_score
-    }))
-  );
-
-  const mockGradeDistribution = [
-    { letter_grade: 'A', count: 15 },
-    { letter_grade: 'B', count: 18 },
-    { letter_grade: 'C', count: 8 },
-    { letter_grade: 'D', count: 3 },
-    { letter_grade: 'F', count: 1 }
-  ];
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setCourses(mockCourses);
-      if (mockCourses.length > 0) {
-        setSelectedCourse(mockCourses[0]);
+    const fetchInitialData = async () => {
+      try {
+        setLoading(true);
 
-        // Filter data based on user role for privacy
-        if (user?.role === 'student') {
-          // Students can only see their own grades
-          const currentStudentId = user?.id || 1; // In real app, get from user context
-          const filteredStudents = mockStudents.filter(student => student.student_id === currentStudentId);
-          setStudents(filteredStudents);
-
-          // Set assignments (no filtering needed as mockAssignments doesn't have grades property)
-          setAssignments(mockAssignments);
-        } else {
-          // Admin and faculty can see all data
-          setStudents(mockStudents);
-          setAssignments(mockAssignments);
+        // Fetch courses - filter based on user role
+        let coursesParams = {};
+        if (user?.role === 'lecturer') {
+          coursesParams.instructorId = user.id;
+        } else if (user?.role === 'faculty_coordinator' || user?.role === 'major_coordinator') {
+          // Coordinators see courses in their faculty/major
+          coursesParams.facultyId = user.facultyId || user.faculty_id;
         }
 
-        setGradeDistribution(mockGradeDistribution);
+        logger.debug('Fetching courses with params:', coursesParams);
+        const coursesResponse = await academicAPI.getCourses(coursesParams);
 
-        // Set grade components for the new system
-        setGradeComponents(mockGradeComponents);
+        let courses = [];
+        if (coursesResponse.data?.courses) {
+          courses = coursesResponse.data.courses;
+        } else if (Array.isArray(coursesResponse.data)) {
+          courses = coursesResponse.data;
+        }
+
+        setCourses(courses);
+
+        if (courses.length > 0) {
+          setSelectedCourse(courses[0]);
+          await fetchCourseData(courses[0].id);
+        }
+
+        // If student, fetch their own grade data
+        if (user?.role === 'student') {
+          await fetchStudentGrades();
+        }
+
+      } catch (error) {
+        logger.error('Error fetching initial data:', error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    }, 1000);
+    };
+
+    if (user) {
+      fetchInitialData();
+    }
   }, [user]);
+
+  const fetchCourseData = async (courseId) => {
+    try {
+      logger.debug('Fetching data for course:', courseId);
+
+      // Fetch grades for the course
+      const gradesParams = { courseId };
+      if (user?.role === 'student') {
+        gradesParams.studentId = user.id;
+      }
+
+      const gradesResponse = await academicAPI.getGrades(gradesParams);
+      const grades = gradesResponse.data?.grades || [];
+
+      logger.debug('Fetched grades:', grades.length);
+
+      // Process grades to create student list
+      const studentMap = new Map();
+
+      grades.forEach(grade => {
+        const studentId = grade.student?.id || grade.studentId;
+        const student = grade.student || {
+          id: grade.studentId,
+          // These fields from student table
+          matricule: grade.matricule || grade.studentNumber,
+          firstName: grade.firstName,
+          lastName: grade.lastName,
+          email: grade.email
+        };
+
+        if (!studentMap.has(studentId)) {
+          studentMap.set(studentId, {
+            student_id: studentId,
+            student_number: student.matricule || `STU${studentId}`,
+            first_name: student.firstName || 'Unknown',
+            last_name: student.lastName || 'Student',
+            email: student.email || '',
+            grades: []
+          });
+        }
+
+        studentMap.get(studentId).grades.push({
+          id: grade.id,
+          assignment_type: grade.componentType || 'exam',
+          assignment_name: grade.componentName || 'Final Exam',
+          points_earned: grade.caMarks || grade.totalMarks || 0,
+          points_possible: 100,
+          percentage: grade.caMarks || grade.totalMarks || 0,
+          letter_grade: grade.letterGrade || 'F',
+          grade_points: grade.gradePoints || 0,
+          weight: 1.0,
+          due_date: grade.createdAt || new Date().toISOString(),
+          status: grade.status || 'published'
+        });
+      });
+
+      // Calculate GPA and create student list
+      const studentsWithGPA = Array.from(studentMap.values()).map(student => {
+        let totalGradePoints = 0;
+        let totalCredits = 0;
+
+        student.grades.forEach(grade => {
+          const credits = 3; // Assuming 3 credits per grade component
+          totalGradePoints += grade.grade_points * credits;
+          totalCredits += credits;
+        });
+
+        const gpa = totalCredits > 0 ? totalGradePoints / totalCredits : 0;
+
+        return {
+          ...student,
+          current_grade: gpa,
+          enrollment_id: student.student_id
+        };
+      });
+
+      // Filter data based on user role
+      let finalStudents = studentsWithGPA;
+      if (user?.role === 'student') {
+        finalStudents = studentsWithGPA.filter(student => student.student_id === user.id);
+      }
+
+      setStudents(finalStudents);
+
+    } catch (error) {
+      logger.error('Error fetching course data:', error);
+    }
+  };
+
+  const fetchStudentGrades = async () => {
+    try {
+      // Fetch grades for current student
+      const gradesResponse = await academicAPI.getGrades();
+      const grades = gradesResponse.data?.grades || [];
+
+      // Transform grades to student format
+      const studentGrades = grades.map(grade => ({
+        id: grade.id,
+        assignment_type: grade.componentType || 'exam',
+        assignment_name: grade.componentName || 'Final Exam',
+        points_earned: grade.caMarks || grade.totalMarks || 0,
+        points_possible: 100,
+        percentage: grade.caMarks || grade.totalMarks || 0,
+        letter_grade: grade.letterGrade || 'F',
+        grade_points: grade.gradePoints || 0,
+        weight: 1.0,
+        due_date: grade.createdAt || new Date().toISOString(),
+        status: grade.status || 'published'
+      }));
+
+      const mockStudentData = [{
+        student_id: user.id,
+        student_number: user.matricule || `STU${user.id}`,
+        first_name: user.firstName || 'Student',
+        last_name: user.lastName || '',
+        email: user.email || '',
+        enrollment_id: user.id,
+        current_grade: grades.length > 0 ? (grades[0].gradePoints || 0) : 0.0,
+        grades: studentGrades
+      }];
+
+      setStudents(mockStudentData);
+
+    } catch (error) {
+      logger.error('Error fetching student grades:', error);
+    }
+  };
 
   const filteredStudents = students.filter(student =>
     student?.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -322,23 +274,26 @@ const GradesPage = () => {
     return '#6b7280';
   };
 
-  const handleCourseChange = (courseId) => {
+  const handleCourseChange = async (courseId) => {
     const course = courses.find(c => c.id === courseId);
     setSelectedCourse(course);
-    // In real app, fetch students and grades for this course
+
+    // Fetch students and grades for this course
+    await fetchCourseData(courseId);
   };
 
   const handleAddGrade = () => {
     if (user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'lecturer' || user?.role === 'faculty_coordinator' || user?.role === 'major_coordinator') {
       setEditingGrade({
         enrollment_id: '',
+        courseId: selectedCourse?.id || '',
+        studentId: '',
         assignment_type: 'assignment',
         assignment_name: '',
-        points_earned: '',
-        points_possible: 100,
-        weight: 1.0,
-        due_date: '',
-        comments: ''
+        caMarks: '',
+        examMarks: '',
+        totalMarks: '',
+        status: 'draft'
       });
       setGradeDialogOpen(true);
     } else {
@@ -349,18 +304,64 @@ const GradesPage = () => {
 
   const handleEditGrade = (grade) => {
     if (user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'lecturer' || user?.role === 'faculty_coordinator' || user?.role === 'major_coordinator') {
-      setEditingGrade(grade);
+      setEditingGrade({
+        id: grade.id,
+        courseId: selectedCourse?.id || grade.courseId,
+        studentId: grade.studentId || grade.student_id,
+        assignment_type: grade.assignment_type,
+        assignment_name: grade.assignment_name,
+        caMarks: grade.caMarks || grade.points_earned,
+        examMarks: grade.examMarks || '',
+        totalMarks: grade.totalMarks || grade.points_possible,
+        status: grade.status || 'draft'
+      });
       setGradeDialogOpen(true);
     } else {
       alert('Access Restricted: Only administrators and academic staff can edit grades.');
     }
   };
 
-  const handleSaveGrade = () => {
-    // In real app, save grade to API
-    logger.debug('Saving grade:', editingGrade);
-    setGradeDialogOpen(false);
-    setEditingGrade(null);
+  const handleSaveGrade = async () => {
+    try {
+      logger.debug('Saving grade:', editingGrade);
+
+      if (editingGrade.id) {
+        // Update existing grade
+        const updateData = {
+          caMarks: editingGrade.caMarks,
+          examMarks: editingGrade.examMarks,
+          totalMarks: editingGrade.caMarks + editingGrade.examMarks,
+          status: editingGrade.status
+        };
+        await academicAPI.updateGrade(editingGrade.id, updateData);
+      } else {
+        // Create new grade
+        const gradeData = {
+          courseId: editingGrade.courseId,
+          studentId: editingGrade.studentId,
+          caMarks: parseFloat(editingGrade.caMarks) || 0,
+          examMarks: parseFloat(editingGrade.examMarks) || 0,
+          status: editingGrade.status
+        };
+        gradeData.totalMarks = gradeData.caMarks + gradeData.examMarks;
+        await academicAPI.createGrade(gradeData);
+      }
+
+      // Refresh course data
+      if (selectedCourse) {
+        await fetchCourseData(selectedCourse.id);
+      }
+
+      setGradeDialogOpen(false);
+      setEditingGrade(null);
+
+      logger.info('Grade saved successfully');
+
+    } catch (error) {
+      logger.error('Error saving grade:', error);
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Failed to save grade';
+      alert(`Error: ${errorMessage}`);
+    }
   };
 
   return (
@@ -381,7 +382,7 @@ const GradesPage = () => {
           Grade Management
         </Typography>
         <Typography variant="h6" color="text.secondary">
-          Manage student grades, assignments, and academic performance
+          Manage trainee grades, assignments, and academic performance
         </Typography>
       </Box>
 
@@ -404,7 +405,7 @@ const GradesPage = () => {
           </FormControl>
 
           <TextField
-            placeholder="Search students..."
+            placeholder="Search trainees..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             InputProps={{
@@ -463,7 +464,7 @@ const GradesPage = () => {
                   {students.length}
                 </Typography>
                 <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                  Enrolled Students
+                  Enrolled Trainees
                 </Typography>
               </StatsCard>
             </Grid>
@@ -497,7 +498,7 @@ const GradesPage = () => {
                   {students.length > 0 ? (students.reduce((sum, s) => sum + s.current_grade, 0) / students.length).toFixed(2) : '0.00'}
                 </Typography>
                 <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                  Class Average
+                  Course Average
                 </Typography>
               </StatsCard>
             </Grid>
@@ -514,7 +515,7 @@ const GradesPage = () => {
                   {gradeDistribution.find(g => g.letter_grade === 'A')?.count || 0}
                 </Typography>
                 <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                  A Students
+                  A Trainees
                 </Typography>
               </StatsCard>
             </Grid>
@@ -523,7 +524,7 @@ const GradesPage = () => {
           {/* Main Content */}
           <GlassCard sx={{ animation: `${fadeInUp} 0.8s ease-out 0.6s both` }}>
             <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)} sx={{ mb: 3 }}>
-              <Tab label="Student Grades" />
+              <Tab label="Trainee Grades" />
               <Tab label="Assignments" />
               <Tab label="Grade Distribution" />
             </Tabs>
@@ -533,8 +534,8 @@ const GradesPage = () => {
                 <Table>
                   <TableHead>
                     <TableRow>
-                      <TableCell>Student</TableCell>
-                      <TableCell>Student ID</TableCell>
+                      <TableCell>Trainee</TableCell>
+                      <TableCell>Trainee ID</TableCell>
                       <TableCell align="center">Current Grade</TableCell>
                       <TableCell align="center">GPA</TableCell>
                       <TableCell align="center">Progress</TableCell>
@@ -728,14 +729,14 @@ const GradesPage = () => {
                 </Grid>
                 <Grid item xs={12} md={6}>
                   <Typography variant="h6" fontWeight="700" gutterBottom>
-                    Class Statistics
+                    Course Statistics
                   </Typography>
                   <Box sx={{ p: 2, background: 'rgba(102, 126, 234, 0.05)', borderRadius: 2 }}>
                     <Typography variant="body2" paragraph>
-                      <strong>Total Students:</strong> {students.length}
+                      <strong>Total Trainees:</strong> {students.length}
                     </Typography>
                     <Typography variant="body2" paragraph>
-                      <strong>Class Average:</strong> {students.length > 0 ? (students.reduce((sum, s) => sum + s.current_grade, 0) / students.length).toFixed(2) : '0.00'}
+                      <strong>Course Average:</strong> {students.length > 0 ? (students.reduce((sum, s) => sum + s.current_grade, 0) / students.length).toFixed(2) : '0.00'}
                     </Typography>
                     <Typography variant="body2" paragraph>
                       <strong>Highest Grade:</strong> {students.length > 0 ? Math.max(...students.map(s => s.current_grade)).toFixed(2) : '0.00'}

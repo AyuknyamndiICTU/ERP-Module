@@ -10,19 +10,25 @@ const config = {
   username: process.env.DB_USER || 'erp_user',
   password: process.env.DB_PASSWORD || 'erp_password',
   dialect: process.env.DB_DIALECT || 'postgres',
-  
-  logging: process.env.NODE_ENV === 'development' ? 
+
+  logging: process.env.NODE_ENV === 'development' ?
     (msg) => logger.debug(msg) : false,
   pool: {
-    max: 10,
+    max: 5, // Reduced from 10 to prevent connection pool exhaustion
     min: 0,
-    acquire: 30000,
-    idle: 10000
+    acquire: 60000, // Increased timeout to 60 seconds
+    idle: 20000 // Increased idle time
   },
   define: {
     timestamps: true,
     underscored: true,
     freezeTableName: true
+  },
+  // Add retry configuration
+  retry: {
+    max: 3,
+    backoffBase: 100,
+    backoffExponent: 1.5
   }
 };
 
@@ -33,7 +39,8 @@ const sequelize = new Sequelize(config.database, config.username, config.passwor
   dialect: config.dialect,
   logging: config.logging,
   pool: config.pool,
-  define: config.define
+  define: config.define,
+  retry: config.retry
 });
 
 // Test database connection
@@ -42,10 +49,11 @@ const connectDB = async () => {
     await sequelize.authenticate();
     logger.info('Database connection established successfully');
 
-    // Sync models in development
+    // Sync models in development (disabled to prevent connection issues)
     if (process.env.NODE_ENV === 'development') {
-      await sequelize.sync({ alter: true });
-      logger.info('Database models synchronized');
+      // Temporarily disable auto-sync to prevent connection issues
+      // await sequelize.sync({ alter: true });
+      logger.info('Database models sync disabled (schema already exists)');
     }
 
     return sequelize;

@@ -3,9 +3,9 @@ const { sequelize } = require('../config/database');
 
 const Major = sequelize.define('Major', {
   id: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     primaryKey: true,
-    autoIncrement: true
+    defaultValue: DataTypes.UUIDV4
   },
   name: {
     type: DataTypes.STRING,
@@ -24,7 +24,7 @@ const Major = sequelize.define('Major', {
     type: DataTypes.TEXT
   },
   coordinatorId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: true,
     field: 'coordinator_id',
     references: {

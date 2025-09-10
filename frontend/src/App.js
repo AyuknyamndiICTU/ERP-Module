@@ -18,7 +18,7 @@ import DashboardPage from './pages/Dashboard/DashboardPage';
 import ProfilePage from './pages/Profile/ProfilePage';
 
 // Academic Pages
-import CoursesPage from './pages/Academic/CoursesPage';
+import ICTUCoursesPage from './pages/Academic/ICTUCoursesPage';
 import StudentsPage from './pages/Academic/StudentsPage';
 import GradesPage from './pages/Academic/GradesPage';
 import AttendancePage from './pages/Academic/AttendancePage';
@@ -123,7 +123,7 @@ function App() {
                       path="/academic/courses" 
                       element={
                         <ProtectedRoute requiredRoles={["admin", "system_admin", "lecturer", "faculty_coordinator", "major_coordinator", "student"]}>
-                          <CoursesPage />
+                          <ICTUCoursesPage />
                         </ProtectedRoute>
                       } 
                     />

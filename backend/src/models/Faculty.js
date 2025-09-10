@@ -3,9 +3,9 @@ const { sequelize } = require('../config/database');
 
 const Faculty = sequelize.define('Faculty', {
   id: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     primaryKey: true,
-    autoIncrement: true
+    defaultValue: DataTypes.UUIDV4
   },
   name: {
     type: DataTypes.STRING,
@@ -21,7 +21,7 @@ const Faculty = sequelize.define('Faculty', {
     type: DataTypes.TEXT
   },
   coordinatorId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: true,
     field: 'coordinator_id',
     references: {

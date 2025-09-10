@@ -1,246 +1,375 @@
 const express = require('express');
 const router = express.Router();
-const { FeeStructure, FeeInstallment, StudentFinance, Student, Notification } = require('../models');
+const { body, validationResult, param, query } = require('express-validator');
 const { authenticateToken } = require('../middleware/auth');
 const roleAuth = require('../middleware/roleAuth');
-const { body, validationResult } = require('express-validator');
 const { logger } = require('../utils/logger');
+const FeeInstallment = require('../models/FeeInstallment');
+const Student = require('../models/Student');
+const User = require('../models/User');
+const Notification = require('../models/Notification');
 const { Op } = require('sequelize');
 
 /**
  * @swagger
- * tags:
- *   name: Finance
- *   description: Finance module endpoints for fee management, payments, budgets, and financial reporting
+ * components:
+ *   schemas:
+ *     FeeInstallment:
+ *       type: object
+ *       required:
+ *         - studentId
+ *         - academicYear
+ *         - semester
+ *         - installmentNumber
+ *         - totalInstallments
+ *         - amount
+ *         - dueDate
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         studentId:
+ *           type: string
+ *           format: uuid
+ *         academicYear:
+ *           type: string
+ *         semester:
+ *           type: integer
+ *           enum: [1, 2]
+ *         installmentNumber:
+ *           type: integer
+ *         totalInstallments:
+ *           type: integer
+ *         amount:
+ *           type: number
+ *           format: float
+ *         dueDate:
+ *           type: string
+ *           format: date
+ *         paidAmount:
+ *           type: number
+ *           format: float
+ *           default: 0
+ *         paidDate:
+ *           type: string
+ *           format: date
+ *         status:
+ *           type: string
+ *           enum: [pending, partial, paid, overdue, waived]
+ *         paymentMethod:
+ *           type: string
+ *           enum: [cash, bank_transfer, mobile_money, card, cheque]
+ *         transactionReference:
+ *           type: string
+ *         notes:
+ *           type: string
  */
 
-// Invoice Management Routes
 /**
  * @swagger
- * /api/finance/invoices:
+ * /api/finance/installments:
  *   get:
- *     summary: Get all invoices
+ *     summary: Get fee installments with filtering
  *     tags: [Finance]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: studentId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *       - in: query
+ *         name: academicYear
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: semester
+ *         schema:
+ *           type: integer
+ *           enum: [1, 2]
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, partial, paid, overdue, waived]
+ *       - in: query
+ *         name: overdue
+ *         schema:
+ *           type: boolean
  *     responses:
  *       200:
- *         description: Invoices retrieved successfully
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Server error
+ *         description: List of fee installments
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 installments:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/FeeInstallment'
  */
-// ICTU Finance Management - Installment-based Fee System
-
-/**
- * @swagger
- * /api/finance/student/{studentId}/installments:
- *   get:
- *     summary: Get student fee installments
- *     tags: [Finance]
- *     security:
- *       - bearerAuth: []
- */
-router.get('/student/:studentId/installments', authenticateToken, roleAuth(['admin', 'finance_staff', 'student']), async (req, res) => {
-  try {
-    const { studentId } = req.params;
-    const { academicYear, semester } = req.query;
-    
-    // Students can only view their own installments
-    if (req.user.role === 'student' && req.user.studentId !== parseInt(studentId)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied'
-      });
-    }
-
-    const whereClause = { studentId };
-    if (academicYear) whereClause.academicYear = academicYear;
-    if (semester) whereClause.semester = semester;
-
-    const installments = await FeeInstallment.findAll({
-      where: whereClause,
-      include: [{
-        model: Student,
-        as: 'student',
-        attributes: ['matricule', 'firstName', 'lastName', 'email']
-      }],
-      order: [['dueDate', 'ASC']]
-    });
-
-    res.status(200).json({
-      success: true,
-      installments,
-      message: 'Installments retrieved successfully'
-    });
-  } catch (error) {
-    logger.error('Get installments error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error retrieving installments'
-    });
-  }
-});
-
-/**
- * @swagger
- * /api/finance/student/{studentId}/finance-status:
- *   get:
- *     summary: Get student finance status
- */
-router.get('/student/:studentId/finance-status', authenticateToken, roleAuth(['admin', 'finance_staff', 'student']), async (req, res) => {
-  try {
-    const { studentId } = req.params;
-    
-    // Students can only view their own status
-    if (req.user.role === 'student' && req.user.studentId !== parseInt(studentId)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied'
-      });
-    }
-
-    const financeStatus = await StudentFinance.findOne({
-      where: { studentId },
-      include: [{
-        model: Student,
-        as: 'student',
-        attributes: ['matricule', 'firstName', 'lastName', 'email', 'facultyId', 'majorId']
-      }, {
-        model: FeeInstallment,
-        as: 'installments',
-        where: { status: { [Op.in]: ['pending', 'partial', 'overdue'] } },
-        required: false,
-        order: [['dueDate', 'ASC']]
-      }]
-    });
-
-    if (!financeStatus) {
-      return res.status(404).json({
-        success: false,
-        message: 'Finance record not found'
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      financeStatus,
-      message: 'Finance status retrieved successfully'
-    });
-  } catch (error) {
-    logger.error('Get finance status error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error retrieving finance status'
-    });
-  }
-});
-
-/**
- * @swagger
- * /api/finance/installments/create:
- *   post:
- *     summary: Create installment plan for student
- */
-router.post('/installments/create', 
-  authenticateToken, 
-  roleAuth(['admin', 'finance_staff']),
+router.get('/installments',
+  authenticateToken,
   [
-    body('studentId').isInt().withMessage('Valid student ID required'),
-    body('totalAmount').isFloat({ min: 0 }).withMessage('Valid total amount required'),
-    body('installmentCount').isInt({ min: 1, max: 12 }).withMessage('Installment count must be 1-12'),
-    body('academicYear').notEmpty().withMessage('Academic year required'),
-    body('semester').isInt({ min: 1, max: 8 }).withMessage('Valid semester required')
+    query('studentId').optional().isUUID(),
+    query('academicYear').optional().isString(),
+    query('semester').optional().isInt({ min: 1, max: 2 }),
+    query('status').optional().isIn(['pending', 'partial', 'paid', 'overdue', 'waived']),
+    query('overdue').optional().isBoolean()
   ],
   async (req, res) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        return res.status(400).json({
-          success: false,
-          message: 'Validation failed',
-          errors: errors.array()
-        });
+        return res.status(400).json({ errors: errors.array() });
       }
 
-      const { studentId, totalAmount, installmentCount, academicYear, semester, firstDueDate } = req.body;
-      
-      // Check if student exists
-      const student = await Student.findByPk(studentId);
-      if (!student) {
-        return res.status(404).json({
-          success: false,
-          message: 'Student not found'
-        });
+      const {
+        studentId,
+        academicYear = new Date().getFullYear().toString(),
+        semester,
+        status,
+        overdue
+      } = req.query;
+
+      const userId = req.user.id;
+      const userRole = req.user.role;
+
+      // Build WHERE conditions
+      const whereConditions = { academicYear };
+
+      if (studentId) whereConditions.studentId = studentId;
+      if (semester) whereConditions.semester = semester;
+      if (status) whereConditions.status = status;
+
+      // Role-based access control
+      if (userRole === 'student') {
+        whereConditions.studentId = userId;
       }
 
-      // Create or update student finance record
-      const [studentFinance] = await StudentFinance.findOrCreate({
-        where: { studentId },
-        defaults: {
+      // Filter overdue installments
+      if (overdue === 'true') {
+        whereConditions.dueDate = { [Op.lt]: new Date() };
+        whereConditions.status = { [Op.in]: ['pending', 'partial'] };
+      }
+
+      // Get installments with related data
+      const installments = await FeeInstallment.findAll({
+        where: whereConditions,
+        include: [
+          {
+            model: Student,
+            as: 'student',
+            attributes: ['matricule', 'firstName', 'lastName', 'email']
+          },
+          {
+            model: User,
+            as: 'creator',
+            attributes: ['firstName', 'lastName'],
+            required: false
+          }
+        ],
+        order: [
+          ['studentId', 'ASC'],
+          ['installmentNumber', 'ASC']
+        ]
+      });
+
+      logger.info(`Retrieved ${installments.length} fee installments for user ${userId}`);
+
+      res.json({
+        installments,
+        filters: {
           studentId,
-          totalFeeAmount: totalAmount,
           academicYear,
           semester,
-          installmentPlan: {
-            totalInstallments: installmentCount,
-            installmentAmount: totalAmount / installmentCount,
-            frequency: 'monthly'
-          }
+          status,
+          overdue
         }
       });
 
+    } catch (error) {
+      logger.error('Error fetching fee installments:', error);
+      res.status(500).json({
+        message: 'Error fetching fee installments',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/finance/installments:
+ *   post:
+ *     summary: Create fee installments for a student (Finance/Admin only)
+ *     tags: [Finance]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - studentId
+ *               - academicYear
+ *               - semester
+ *               - totalAmount
+ *               - numberOfInstallments
+ *               - firstDueDate
+ *             properties:
+ *               studentId:
+ *                 type: string
+ *                 format: uuid
+ *               academicYear:
+ *                 type: string
+ *               semester:
+ *                 type: integer
+ *                 enum: [1, 2]
+ *               totalAmount:
+ *                 type: number
+ *                 format: float
+ *               numberOfInstallments:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 12
+ *               firstDueDate:
+ *                 type: string
+ *                 format: date
+ *               intervalDays:
+ *                 type: integer
+ *                 default: 30
+ *                 description: Days between installments
+ *     responses:
+ *       201:
+ *         description: Fee installments created successfully
+ *       400:
+ *         description: Validation error
+ *       403:
+ *         description: Not authorized to create fee installments
+ */
+router.post('/installments',
+  authenticateToken,
+  roleAuth(['admin', 'system_admin', 'finance_staff']),
+  [
+    body('studentId').isUUID().withMessage('Valid student ID is required'),
+    body('academicYear').notEmpty().withMessage('Academic year is required'),
+    body('semester').isInt({ min: 1, max: 2 }).withMessage('Semester must be 1 or 2'),
+    body('totalAmount').isFloat({ min: 0 }).withMessage('Total amount must be positive'),
+    body('numberOfInstallments').isInt({ min: 1, max: 12 }).withMessage('Number of installments must be between 1 and 12'),
+    body('firstDueDate').isDate().withMessage('Valid first due date is required'),
+    body('intervalDays').optional().isInt({ min: 1, max: 365 }).withMessage('Interval days must be between 1 and 365')
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const userId = req.user.id;
+      const {
+        studentId,
+        academicYear,
+        semester,
+        totalAmount,
+        numberOfInstallments,
+        firstDueDate,
+        intervalDays = 30
+      } = req.body;
+
+      // Verify student exists
+      const student = await Student.findByPk(studentId);
+      if (!student) {
+        return res.status(404).json({ message: 'Student not found' });
+      }
+
+      // Check if installments already exist for this student/year/semester
+      const existingInstallments = await FeeInstallment.count({
+        where: {
+          studentId,
+          academicYear,
+          semester
+        }
+      });
+
+      if (existingInstallments > 0) {
+        return res.status(400).json({
+          message: 'Fee installments already exist for this student in the specified academic year and semester'
+        });
+      }
+
+      // Calculate installment amount
+      const installmentAmount = totalAmount / numberOfInstallments;
+
       // Create installments
-      const installmentAmount = totalAmount / installmentCount;
       const installments = [];
-      const startDate = new Date(firstDueDate || new Date());
+      let currentDueDate = new Date(firstDueDate);
 
-      for (let i = 1; i <= installmentCount; i++) {
-        const dueDate = new Date(startDate);
-        dueDate.setMonth(startDate.getMonth() + (i - 1));
-
+      for (let i = 1; i <= numberOfInstallments; i++) {
         const installment = await FeeInstallment.create({
           studentId,
           academicYear,
           semester,
           installmentNumber: i,
-          totalInstallments: installmentCount,
+          totalInstallments: numberOfInstallments,
           amount: installmentAmount,
-          dueDate,
-          createdBy: req.user.id
+          dueDate: new Date(currentDueDate),
+          createdBy: userId
         });
-        installments.push(installment);
-      }
 
-      // Update next due date
-      await studentFinance.update({
-        nextDueDate: installments[0].dueDate
-      });
+        installments.push(installment);
+
+        // Add interval days for next installment
+        currentDueDate.setDate(currentDueDate.getDate() + intervalDays);
+      }
 
       // Create notification for student
       await Notification.create({
-        recipientId: student.userId,
-        senderId: req.user.id,
+        recipientId: studentId,
+        senderId: userId,
         title: 'Fee Installment Plan Created',
-        message: `Your fee installment plan has been created with ${installmentCount} installments of ${installmentAmount} each.`,
+        message: `Your fee installment plan has been created for ${academicYear} Semester ${semester}. Total: $${totalAmount.toFixed(2)} in ${numberOfInstallments} installments.`,
         type: 'info',
         category: 'finance',
         isPopup: true,
-        priority: 'medium'
+        priority: 'medium',
+        metadata: {
+          academicYear,
+          semester,
+          totalAmount,
+          numberOfInstallments
+        }
       });
 
+      logger.info(`${numberOfInstallments} fee installments created for student ${studentId} by user ${userId}`);
+
       res.status(201).json({
-        success: true,
-        installments,
-        studentFinance,
-        message: 'Installment plan created successfully'
+        message: 'Fee installments created successfully',
+        installments: installments.map(i => ({
+          id: i.id,
+          installmentNumber: i.installmentNumber,
+          amount: i.amount,
+          dueDate: i.dueDate,
+          status: i.status
+        })),
+        summary: {
+          totalAmount,
+          numberOfInstallments,
+          installmentAmount,
+          firstDueDate
+        }
       });
+
     } catch (error) {
-      logger.error('Create installments error:', error);
+      logger.error('Error creating fee installments:', error);
       res.status(500).json({
-        success: false,
-        message: 'Server error creating installments'
+        message: 'Error creating fee installments',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
       });
     }
   }
@@ -248,90 +377,161 @@ router.post('/installments/create',
 
 /**
  * @swagger
- * /api/finance/payment/record:
+ * /api/finance/installments/{id}/pay:
  *   post:
- *     summary: Record payment for installment
+ *     summary: Record payment for a fee installment (Finance/Admin only)
+ *     tags: [Finance]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - amount
+ *             properties:
+ *               amount:
+ *                 type: number
+ *                 format: float
+ *                 minimum: 0
+ *               paymentMethod:
+ *                 type: string
+ *                 enum: [cash, bank_transfer, mobile_money, card, cheque]
+ *               transactionReference:
+ *                 type: string
+ *               notes:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Payment recorded successfully
+ *       400:
+ *         description: Validation error or invalid payment amount
+ *       403:
+ *         description: Not authorized to record payments
+ *       404:
+ *         description: Installment not found
  */
-router.post('/payment/record',
+router.post('/installments/:id/pay',
   authenticateToken,
-  roleAuth(['admin', 'finance_staff']),
+  roleAuth(['admin', 'system_admin', 'finance_staff']),
   [
-    body('installmentId').isInt().withMessage('Valid installment ID required'),
-    body('amount').isFloat({ min: 0 }).withMessage('Valid payment amount required'),
-    body('paymentMethod').isIn(['cash', 'bank_transfer', 'mobile_money', 'card', 'cheque']).withMessage('Valid payment method required')
+    param('id').isUUID(),
+    body('amount').isFloat({ min: 0 }).withMessage('Payment amount must be positive'),
+    body('paymentMethod').optional().isIn(['cash', 'bank_transfer', 'mobile_money', 'card', 'cheque']),
+    body('transactionReference').optional().isString(),
+    body('notes').optional().isString()
   ],
   async (req, res) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        return res.status(400).json({
-          success: false,
-          message: 'Validation failed',
-          errors: errors.array()
-        });
+        return res.status(400).json({ errors: errors.array() });
       }
 
-      const { installmentId, amount, paymentMethod, transactionReference, notes } = req.body;
+      const { id } = req.params;
+      const userId = req.user.id;
+      const {
+        amount,
+        paymentMethod,
+        transactionReference,
+        notes
+      } = req.body;
 
-      const installment = await FeeInstallment.findByPk(installmentId, {
+      // Find installment
+      const installment = await FeeInstallment.findByPk(id, {
         include: [{
           model: Student,
-          as: 'student'
+          as: 'student',
+          attributes: ['matricule', 'firstName', 'lastName', 'email']
         }]
       });
 
       if (!installment) {
-        return res.status(404).json({
-          success: false,
-          message: 'Installment not found'
+        return res.status(404).json({ message: 'Fee installment not found' });
+      }
+
+      // Calculate remaining amount
+      const remainingAmount = installment.amount - installment.paidAmount;
+
+      if (amount > remainingAmount) {
+        return res.status(400).json({
+          message: `Payment amount (${amount}) exceeds remaining amount (${remainingAmount})`
         });
       }
 
-      // Update installment payment
-      await installment.update({
-        paidAmount: installment.paidAmount + parseFloat(amount),
-        paymentMethod,
-        transactionReference,
-        notes,
-        updatedBy: req.user.id
-      });
+      // Update installment
+      const newPaidAmount = installment.paidAmount + amount;
+      const updateData = {
+        paidAmount: newPaidAmount,
+        updatedBy: userId
+      };
 
-      // Update student finance totals
-      const studentFinance = await StudentFinance.findOne({
-        where: { studentId: installment.studentId }
-      });
-
-      if (studentFinance) {
-        await studentFinance.update({
-          totalPaidAmount: studentFinance.totalPaidAmount + parseFloat(amount),
-          lastPaymentDate: new Date()
-        });
+      if (newPaidAmount >= installment.amount) {
+        updateData.status = 'paid';
+        updateData.paidDate = new Date();
+      } else if (newPaidAmount > 0) {
+        updateData.status = 'partial';
       }
+
+      if (paymentMethod) updateData.paymentMethod = paymentMethod;
+      if (transactionReference) updateData.transactionReference = transactionReference;
+      if (notes) updateData.notes = notes;
+
+      await installment.update(updateData);
 
       // Create notification for student
-      if (installment.student.userId) {
-        await Notification.create({
-          recipientId: installment.student.userId,
-          senderId: req.user.id,
-          title: 'Payment Recorded',
-          message: `Payment of ${amount} has been recorded for your installment. Transaction: ${transactionReference || 'N/A'}`,
-          type: 'success',
-          category: 'finance',
-          isPopup: true,
-          priority: 'medium'
-        });
-      }
-
-      res.status(200).json({
-        success: true,
-        installment: await FeeInstallment.findByPk(installmentId),
-        message: 'Payment recorded successfully'
+      await Notification.create({
+        recipientId: installment.studentId,
+        senderId: userId,
+        title: 'Fee Payment Recorded',
+        message: `A payment of $${amount.toFixed(2)} has been recorded for Installment ${installment.installmentNumber}/${installment.totalInstallments}. ${newPaidAmount >= installment.amount ? 'Installment fully paid!' : `Remaining: $${(installment.amount - newPaidAmount).toFixed(2)}`}`,
+        type: newPaidAmount >= installment.amount ? 'success' : 'info',
+        category: 'finance',
+        isPopup: true,
+        priority: 'medium',
+        metadata: {
+          installmentId: installment.id,
+          installmentNumber: installment.installmentNumber,
+          amountPaid: amount,
+          totalPaid: newPaidAmount,
+          remaining: installment.amount - newPaidAmount
+        }
       });
+
+      logger.info(`Payment of $${amount} recorded for installment ${id} by user ${userId}`);
+
+      res.json({
+        message: 'Payment recorded successfully',
+        installment: {
+          id: installment.id,
+          installmentNumber: installment.installmentNumber,
+          amount: installment.amount,
+          paidAmount: installment.paidAmount,
+          status: installment.status,
+          paymentMethod: installment.paymentMethod,
+          transactionReference: installment.transactionReference
+        },
+        payment: {
+          amount,
+          method: paymentMethod,
+          reference: transactionReference
+        }
+      });
+
     } catch (error) {
-      logger.error('Record payment error:', error);
+      logger.error('Error recording payment:', error);
       res.status(500).json({
-        success: false,
-        message: 'Server error recording payment'
+        message: 'Error recording payment',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
       });
     }
   }
@@ -339,76 +539,90 @@ router.post('/payment/record',
 
 /**
  * @swagger
- * /api/finance/student/{studentId}/block:
- *   post:
- *     summary: Block student access due to unpaid fees
+ * /api/finance/installments/{id}:
+ *   put:
+ *     summary: Update fee installment (Finance/Admin only)
+ *     tags: [Finance]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               amount:
+ *                 type: number
+ *                 format: float
+ *               dueDate:
+ *                 type: string
+ *                 format: date
+ *               status:
+ *                 type: string
+ *                 enum: [pending, partial, paid, overdue, waived]
+ *               notes:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Fee installment updated successfully
+ *       403:
+ *         description: Not authorized to update installment
+ *       404:
+ *         description: Installment not found
  */
-router.post('/student/:studentId/block',
+router.put('/installments/:id',
   authenticateToken,
-  roleAuth(['admin', 'finance_staff']),
+  roleAuth(['admin', 'system_admin', 'finance_staff']),
   [
-    body('reason').notEmpty().withMessage('Block reason required')
+    param('id').isUUID(),
+    body('amount').optional().isFloat({ min: 0 }),
+    body('dueDate').optional().isDate(),
+    body('status').optional().isIn(['pending', 'partial', 'paid', 'overdue', 'waived']),
+    body('notes').optional().isString()
   ],
   async (req, res) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        return res.status(400).json({
-          success: false,
-          message: 'Validation failed',
-          errors: errors.array()
-        });
+        return res.status(400).json({ errors: errors.array() });
       }
 
-      const { studentId } = req.params;
-      const { reason } = req.body;
+      const { id } = req.params;
+      const userId = req.user.id;
+      const updateData = req.body;
 
-      const studentFinance = await StudentFinance.findOne({
-        where: { studentId },
-        include: [{
-          model: Student,
-          as: 'student'
-        }]
-      });
-
-      if (!studentFinance) {
-        return res.status(404).json({
-          success: false,
-          message: 'Student finance record not found'
-        });
+      // Find installment
+      const installment = await FeeInstallment.findByPk(id);
+      if (!installment) {
+        return res.status(404).json({ message: 'Fee installment not found' });
       }
 
-      await studentFinance.update({
-        isBlocked: true,
-        blockReason: reason,
-        blockedDate: new Date(),
-        blockedBy: req.user.id,
-        paymentStatus: 'blocked'
+      // Add updatedBy field
+      updateData.updatedBy = userId;
+
+      // Update installment
+      await installment.update(updateData);
+
+      logger.info(`Fee installment ${id} updated by user ${userId}`);
+
+      res.json({
+        message: 'Fee installment updated successfully',
+        installment
       });
 
-      // Create notification for student
-      if (studentFinance.student.userId) {
-        await Notification.create({
-          recipientId: studentFinance.student.userId,
-          senderId: req.user.id,
-          title: 'Account Blocked - Payment Required',
-          message: `Your account has been blocked due to: ${reason}. Please contact the finance office.`,
-          type: 'error',
-          category: 'finance',
-          isPopup: true,
-          priority: 'urgent'
-        });
-      }
-
-      res.status(200).json({
-        success: true,
-        message: 'Student blocked successfully'
-      });
     } catch (error) {
-      logger.error('Block student error:', error);
+      logger.error('Error updating fee installment:', error);
       res.status(500).json({
-        success: false,
-        message: 'Server error blocking student'
+        message: 'Error updating fee installment',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
       });
     }
   }
@@ -416,62 +630,143 @@ router.post('/student/:studentId/block',
 
 /**
  * @swagger
- * /api/finance/student/{studentId}/unblock:
- *   post:
- *     summary: Unblock student access
+ * /api/finance/student/{studentId}/summary:
+ *   get:
+ *     summary: Get fee payment summary for a student
+ *     tags: [Finance]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *       - in: query
+ *         name: academicYear
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Fee payment summary
+ *       403:
+ *         description: Not authorized to view this student's fees
+ *       404:
+ *         description: Student not found
  */
-router.post('/student/:studentId/unblock',
+router.get('/student/:studentId/summary',
   authenticateToken,
-  roleAuth(['admin', 'finance_staff']),
+  [
+    param('studentId').isUUID(),
+    query('academicYear').optional().isString()
+  ],
   async (req, res) => {
     try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
       const { studentId } = req.params;
+      const { academicYear = new Date().getFullYear().toString() } = req.query;
+      const userId = req.user.id;
+      const userRole = req.user.role;
 
-      const studentFinance = await StudentFinance.findOne({
-        where: { studentId },
-        include: [{
-          model: Student,
-          as: 'student'
-        }]
-      });
-
-      if (!studentFinance) {
-        return res.status(404).json({
-          success: false,
-          message: 'Student finance record not found'
+      // Check permissions
+      if (userRole === 'student' && studentId !== userId) {
+        return res.status(403).json({
+          message: 'You can only view your own fee summary'
         });
       }
 
-      await studentFinance.update({
-        isBlocked: false,
-        blockReason: null,
-        blockedDate: null,
-        blockedBy: null
-      });
-
-      // Create notification for student
-      if (studentFinance.student.userId) {
-        await Notification.create({
-          recipientId: studentFinance.student.userId,
-          senderId: req.user.id,
-          title: 'Account Unblocked',
-          message: 'Your account has been unblocked. You can now access all system features.',
-          type: 'success',
-          category: 'finance',
-          isPopup: true,
-          priority: 'medium'
-        });
+      // Verify student exists
+      const student = await Student.findByPk(studentId);
+      if (!student) {
+        return res.status(404).json({ message: 'Student not found' });
       }
 
-      res.status(200).json({
-        success: true,
-        message: 'Student unblocked successfully'
+      // Get all installments for the student
+      const installments = await FeeInstallment.findAll({
+        where: {
+          studentId,
+          academicYear
+        },
+        order: [['semester', 'ASC'], ['installmentNumber', 'ASC']]
       });
+
+      // Calculate summary
+      const summary = {
+        student: {
+          matricule: student.matricule,
+          firstName: student.firstName,
+          lastName: student.lastName
+        },
+        academicYear,
+        totalInstallments: installments.length,
+        totalAmount: installments.reduce((sum, inst) => sum + parseFloat(inst.amount), 0),
+        totalPaid: installments.reduce((sum, inst) => sum + parseFloat(inst.paidAmount), 0),
+        totalPending: 0,
+        totalOverdue: 0,
+        semesters: {}
+      };
+
+      // Group by semester
+      installments.forEach(installment => {
+        const semesterKey = `semester_${installment.semester}`;
+        if (!summary.semesters[semesterKey]) {
+          summary.semesters[semesterKey] = {
+            semester: installment.semester,
+            totalAmount: 0,
+            totalPaid: 0,
+            pendingCount: 0,
+            overdueCount: 0,
+            installments: []
+          };
+        }
+
+        const semester = summary.semesters[semesterKey];
+        semester.totalAmount += parseFloat(installment.amount);
+        semester.totalPaid += parseFloat(installment.paidAmount);
+        semester.installments.push({
+          id: installment.id,
+          number: installment.installmentNumber,
+          amount: installment.amount,
+          paidAmount: installment.paidAmount,
+          dueDate: installment.dueDate,
+          status: installment.status,
+          paymentMethod: installment.paymentMethod
+        });
+
+        if (installment.status === 'pending' || installment.status === 'partial') {
+          semester.pendingCount++;
+          summary.totalPending += (parseFloat(installment.amount) - parseFloat(installment.paidAmount));
+        }
+
+        if (installment.status === 'overdue') {
+          semester.overdueCount++;
+          summary.totalOverdue += (parseFloat(installment.amount) - parseFloat(installment.paidAmount));
+        }
+      });
+
+      // Check if student should be blocked due to unpaid fees
+      const shouldBlockAccess = summary.totalOverdue > 0 || summary.totalPending > 100; // Block if overdue or pending > $100
+
+      logger.info(`Fee summary retrieved for student ${studentId} by user ${userId}`);
+
+      res.json({
+        summary,
+        accessControl: {
+          shouldBlockAccess,
+          reason: shouldBlockAccess ? 'Outstanding fees detected' : null
+        }
+      });
+
     } catch (error) {
-      logger.error('Unblock student error:', error);
+      logger.error('Error fetching fee summary:', error);
       res.status(500).json({
-        success: false,
-        message: 'Server error unblocking student'
+        message: 'Error fetching fee summary',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
       });
     }
   }
@@ -481,898 +776,143 @@ router.post('/student/:studentId/unblock',
  * @swagger
  * /api/finance/overdue-notifications:
  *   post:
- *     summary: Send overdue payment notifications
+ *     summary: Send overdue payment notifications (Finance/Admin only)
+ *     tags: [Finance]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               academicYear:
+ *                 type: string
+ *               semester:
+ *                 type: integer
+ *                 enum: [1, 2]
+ *               daysOverdue:
+ *                 type: integer
+ *                 default: 7
+ *                 description: Send notifications for installments overdue by at least this many days
+ *     responses:
+ *       200:
+ *         description: Overdue notifications sent successfully
+ *       403:
+ *         description: Not authorized to send notifications
  */
 router.post('/overdue-notifications',
   authenticateToken,
-  roleAuth(['admin', 'finance_staff']),
+  roleAuth(['admin', 'system_admin', 'finance_staff']),
+  [
+    body('academicYear').optional().isString(),
+    body('semester').optional().isInt({ min: 1, max: 2 }),
+    body('daysOverdue').optional().isInt({ min: 1, max: 365 })
+  ],
   async (req, res) => {
     try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const userId = req.user.id;
+      const {
+        academicYear = new Date().getFullYear().toString(),
+        semester,
+        daysOverdue = 7
+      } = req.body;
+
+      // Calculate cutoff date
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - daysOverdue);
+
+      // Build WHERE conditions
+      const whereConditions = {
+        academicYear,
+        dueDate: { [Op.lt]: cutoffDate },
+        status: { [Op.in]: ['pending', 'partial'] },
+        paidAmount: { [Op.lt]: sequelize.col('amount') }
+      };
+
+      if (semester) whereConditions.semester = semester;
+
+      // Get overdue installments
       const overdueInstallments = await FeeInstallment.findAll({
-        where: {
-          status: 'overdue',
-          dueDate: {
-            [Op.lt]: new Date()
-          }
-        },
+        where: whereConditions,
         include: [{
           model: Student,
           as: 'student',
-          where: {
-            userId: {
-              [Op.ne]: null
-            }
-          }
+          attributes: ['matricule', 'firstName', 'lastName', 'email']
         }]
       });
 
-      const notifications = [];
-      for (const installment of overdueInstallments) {
-        const daysPastDue = Math.floor((new Date() - installment.dueDate) / (1000 * 60 * 60 * 24));
-        
-        const notification = await Notification.create({
-          recipientId: installment.student.userId,
-          senderId: req.user.id,
-          title: 'Overdue Payment Reminder',
-          message: `Your installment payment of ${installment.amount} is ${daysPastDue} days overdue. Please make payment to avoid account suspension.`,
+      // Group by student and send notifications
+      const studentNotifications = {};
+      overdueInstallments.forEach(installment => {
+        const studentId = installment.studentId;
+        if (!studentNotifications[studentId]) {
+          studentNotifications[studentId] = {
+            student: installment.student,
+            installments: []
+          };
+        }
+        studentNotifications[studentId].installments.push(installment);
+      });
+
+      // Send notifications
+      const notificationsSent = [];
+      for (const [studentId, data] of Object.entries(studentNotifications)) {
+        const { student, installments } = data;
+        const totalOverdue = installments.reduce((sum, inst) => sum + (parseFloat(inst.amount) - parseFloat(inst.paidAmount)), 0);
+
+        await Notification.create({
+          recipientId: studentId,
+          senderId: userId,
+          title: 'Overdue Fee Payment Notice',
+          message: `You have ${installments.length} overdue fee installment(s) totaling $${totalOverdue.toFixed(2)}. Please make payment immediately to avoid access restrictions.`,
           type: 'warning',
           category: 'finance',
           isPopup: true,
-          priority: daysPastDue > 30 ? 'urgent' : 'high'
+          priority: 'urgent',
+          metadata: {
+            overdueCount: installments.length,
+            totalOverdue,
+            academicYear,
+            semester
+          }
         });
-        
-        notifications.push(notification);
+
+        notificationsSent.push({
+          studentId,
+          matricule: student.matricule,
+          overdueCount: installments.length,
+          totalOverdue
+        });
       }
 
-      res.status(200).json({
-        success: true,
-        notificationsSent: notifications.length,
-        message: `${notifications.length} overdue notifications sent successfully`
+      logger.info(`${notificationsSent.length} overdue payment notifications sent by user ${userId}`);
+
+      res.json({
+        message: 'Overdue payment notifications sent successfully',
+        sent: notificationsSent.length,
+        notifications: notificationsSent,
+        criteria: {
+          academicYear,
+          semester,
+          daysOverdue
+        }
       });
+
     } catch (error) {
-      logger.error('Send overdue notifications error:', error);
+      logger.error('Error sending overdue notifications:', error);
       res.status(500).json({
-        success: false,
-        message: 'Server error sending notifications'
+        message: 'Error sending overdue notifications',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
       });
     }
   }
 );
-
-router.get('/invoices', authenticateToken, roleAuth(['admin', 'finance_staff']), async (req, res) => {
-  try {
-    const invoices = [];
-    res.status(200).json({
-      success: true,
-      invoices,
-      message: 'Invoices retrieved successfully'
-    });
-  } catch (error) {
-    logger.error('Get invoices error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error retrieving invoices'
-    });
-  }
-});
-
-/**
- * @swagger
- * /api/finance/invoices:
- *   post:
- *     summary: Create new invoice
- *     tags: [Finance]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       201:
- *         description: Invoice created successfully
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Server error
- */
-router.post('/invoices', authenticateToken, roleAuth(['admin', 'finance_staff']), async (req, res) => {
-  try {
-    const { studentId, feeStructureId, dueDate } = req.body;
-    
-    if (!studentId || !feeStructureId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Student ID and fee structure ID are required'
-      });
-    }
-
-    const invoice = {
-      id: Date.now(),
-      studentId,
-      feeStructureId,
-      dueDate,
-      status: 'pending',
-      createdAt: new Date()
-    };
-
-    res.status(201).json({
-      success: true,
-      invoice,
-      message: 'Invoice created successfully'
-    });
-  } catch (error) {
-    logger.error('Create invoice error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error creating invoice'
-    });
-  }
-});
-
-/**
- * @swagger
- * /api/finance/invoices/{id}:
- *   put:
- *     summary: Update invoice
- *     tags: [Finance]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Invoice updated successfully
- *       404:
- *         description: Invoice not found
- */
-router.put('/invoices/:id', authenticateToken, roleAuth(['admin', 'finance_staff']), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updateData = req.body;
-
-    res.status(200).json({
-      success: true,
-      invoice: { id, ...updateData, updatedAt: new Date() },
-      message: 'Invoice updated successfully'
-    });
-  } catch (error) {
-    logger.error('Update invoice error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error updating invoice'
-    });
-  }
-});
-
-/**
- * @swagger
- * /api/finance/invoices/{id}:
- *   delete:
- *     summary: Delete invoice
- *     tags: [Finance]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Invoice deleted successfully
- *       404:
- *         description: Invoice not found
- */
-router.delete('/invoices/:id', authenticateToken, roleAuth(['admin', 'finance_staff']), async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    res.status(200).json({
-      success: true,
-      message: 'Invoice deleted successfully'
-    });
-  } catch (error) {
-    logger.error('Delete invoice error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error deleting invoice'
-    });
-  }
-});
-
-// Payment Management Routes
-/**
- * @swagger
- * /api/finance/payments:
- *   get:
- *     summary: Get all payments
- *     tags: [Finance]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Payments retrieved successfully
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Server error
- */
-router.get('/payments', authenticateToken, roleAuth(['admin', 'finance_staff']), async (req, res) => {
-  try {
-    const payments = [];
-    res.status(200).json({
-      success: true,
-      payments,
-      message: 'Payments retrieved successfully'
-    });
-  } catch (error) {
-    logger.error('Get payments error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error retrieving payments'
-    });
-  }
-});
-
-/**
- * @swagger
- * /api/finance/payments:
- *   post:
- *     summary: Process payment
- *     tags: [Finance]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       201:
- *         description: Payment processed successfully
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Server error
- */
-router.post('/payments', authenticateToken, roleAuth(['admin', 'finance_staff', 'student']), async (req, res) => {
-  try {
-    const { invoiceId, amount, paymentMethod } = req.body;
-    
-    if (!invoiceId || !amount || !paymentMethod) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invoice ID, amount, and payment method are required'
-      });
-    }
-
-    const payment = {
-      id: Date.now(),
-      invoiceId,
-      amount,
-      paymentMethod,
-      status: 'completed',
-      transactionId: `TXN_${Date.now()}`,
-      createdAt: new Date()
-    };
-
-    res.status(201).json({
-      success: true,
-      payment,
-      message: 'Payment processed successfully'
-    });
-  } catch (error) {
-    logger.error('Process payment error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error processing payment'
-    });
-  }
-});
-
-// Budget Management Routes
-/**
- * @swagger
- * /api/finance/budgets:
- *   get:
- *     summary: Get all budgets
- *     tags: [Finance]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Budgets retrieved successfully
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Server error
- */
-router.get('/budgets', authenticateToken, roleAuth(['admin', 'finance_staff']), async (req, res) => {
-  try {
-    const budgets = [];
-    res.status(200).json({
-      success: true,
-      budgets,
-      message: 'Budgets retrieved successfully'
-    });
-  } catch (error) {
-    logger.error('Get budgets error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error retrieving budgets'
-    });
-  }
-});
-
-/**
- * @swagger
- * /api/finance/budgets:
- *   post:
- *     summary: Create new budget
- *     tags: [Finance]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       201:
- *         description: Budget created successfully
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Server error
- */
-router.post('/budgets', authenticateToken, roleAuth(['admin', 'finance_staff']), async (req, res) => {
-  try {
-    const { name, amount, category, academicYear } = req.body;
-    
-    if (!name || !amount || !category) {
-      return res.status(400).json({
-        success: false,
-        message: 'Name, amount, and category are required'
-      });
-    }
-
-    const budget = {
-      id: Date.now(),
-      name,
-      amount,
-      category,
-      academicYear: academicYear || new Date().getFullYear(),
-      spent: 0,
-      remaining: amount,
-      createdAt: new Date()
-    };
-
-    res.status(201).json({
-      success: true,
-      budget,
-      message: 'Budget created successfully'
-    });
-  } catch (error) {
-    logger.error('Create budget error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error creating budget'
-    });
-  }
-});
-
-/**
- * @swagger
- * /api/finance/budgets/{id}:
- *   put:
- *     summary: Update budget
- *     tags: [Finance]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Budget updated successfully
- *       404:
- *         description: Budget not found
- */
-router.put('/budgets/:id', authenticateToken, roleAuth(['admin', 'finance_staff']), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updateData = req.body;
-
-    res.status(200).json({
-      success: true,
-      budget: { id, ...updateData, updatedAt: new Date() },
-      message: 'Budget updated successfully'
-    });
-  } catch (error) {
-    logger.error('Update budget error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error updating budget'
-    });
-  }
-});
-
-/**
- * @swagger
- * /api/finance/budgets/{id}:
- *   delete:
- *     summary: Delete budget
- *     tags: [Finance]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Budget deleted successfully
- *       404:
- *         description: Budget not found
- */
-router.delete('/budgets/:id', authenticateToken, roleAuth(['admin', 'finance_staff']), async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    res.status(200).json({
-      success: true,
-      message: 'Budget deleted successfully'
-    });
-  } catch (error) {
-    logger.error('Delete budget error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error deleting budget'
-    });
-  }
-});
-
-// Expense Management Routes
-/**
- * @swagger
- * /api/finance/expenses:
- *   get:
- *     summary: Get all expenses
- *     tags: [Finance]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Expenses retrieved successfully
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Server error
- */
-router.get('/expenses', authenticateToken, roleAuth(['admin', 'finance_staff']), async (req, res) => {
-  try {
-    const expenses = [];
-    res.status(200).json({
-      success: true,
-      expenses,
-      message: 'Expenses retrieved successfully'
-    });
-  } catch (error) {
-    logger.error('Get expenses error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error retrieving expenses'
-    });
-  }
-});
-
-/**
- * @swagger
- * /api/finance/expenses:
- *   post:
- *     summary: Record new expense
- *     tags: [Finance]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       201:
- *         description: Expense recorded successfully
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Server error
- */
-router.post('/expenses', authenticateToken, roleAuth(['admin', 'finance_staff']), async (req, res) => {
-  try {
-    const { description, amount, category, budgetId } = req.body;
-    
-    if (!description || !amount || !category) {
-      return res.status(400).json({
-        success: false,
-        message: 'Description, amount, and category are required'
-      });
-    }
-
-    const expense = {
-      id: Date.now(),
-      description,
-      amount,
-      category,
-      budgetId,
-      date: new Date(),
-      createdBy: req.user.id,
-      createdAt: new Date()
-    };
-
-    res.status(201).json({
-      success: true,
-      expense,
-      message: 'Expense recorded successfully'
-    });
-  } catch (error) {
-    logger.error('Record expense error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error recording expense'
-    });
-  }
-});
-
-// Marketing Campaign Routes
-/**
- * @swagger
- * /api/finance/campaigns:
- *   get:
- *     summary: Get all marketing campaigns
- *     tags: [Finance]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Campaigns retrieved successfully
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Server error
- */
-router.get('/campaigns', authenticateToken, roleAuth(['admin', 'marketing_staff']), async (req, res) => {
-  try {
-    const campaigns = [];
-    res.status(200).json({
-      success: true,
-      campaigns,
-      message: 'Campaigns retrieved successfully'
-    });
-  } catch (error) {
-    logger.error('Get campaigns error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error retrieving campaigns'
-    });
-  }
-});
-
-/**
- * @swagger
- * /api/finance/campaigns:
- *   post:
- *     summary: Create new marketing campaign
- *     tags: [Finance]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       201:
- *         description: Campaign created successfully
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Server error
- */
-router.post('/campaigns', authenticateToken, roleAuth(['admin', 'marketing_staff']), async (req, res) => {
-  try {
-    const { name, description, budget, startDate, endDate, targetAudience } = req.body;
-    
-    if (!name || !budget || !startDate || !endDate) {
-      return res.status(400).json({
-        success: false,
-        message: 'Name, budget, start date, and end date are required'
-      });
-    }
-
-    const campaign = {
-      id: Date.now(),
-      name,
-      description,
-      budget,
-      startDate,
-      endDate,
-      targetAudience,
-      spent: 0,
-      leads: 0,
-      conversions: 0,
-      status: 'active',
-      createdBy: req.user.id,
-      createdAt: new Date()
-    };
-
-    res.status(201).json({
-      success: true,
-      campaign,
-      message: 'Campaign created successfully'
-    });
-  } catch (error) {
-    logger.error('Create campaign error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error creating campaign'
-    });
-  }
-});
-
-/**
- * @swagger
- * /api/finance/campaigns/{id}:
- *   put:
- *     summary: Update campaign
- *     tags: [Finance]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Campaign updated successfully
- *       404:
- *         description: Campaign not found
- */
-router.put('/campaigns/:id', authenticateToken, roleAuth(['admin', 'marketing_staff']), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updateData = req.body;
-
-    res.status(200).json({
-      success: true,
-      campaign: { id, ...updateData, updatedAt: new Date() },
-      message: 'Campaign updated successfully'
-    });
-  } catch (error) {
-    logger.error('Update campaign error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error updating campaign'
-    });
-  }
-});
-
-/**
- * @swagger
- * /api/finance/campaigns/{id}:
- *   delete:
- *     summary: Delete campaign
- *     tags: [Finance]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Campaign deleted successfully
- *       404:
- *         description: Campaign not found
- */
-router.delete('/campaigns/:id', authenticateToken, roleAuth(['admin', 'marketing_staff']), async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    res.status(200).json({
-      success: true,
-      message: 'Campaign deleted successfully'
-    });
-  } catch (error) {
-    logger.error('Delete campaign error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error deleting campaign'
-    });
-  }
-});
-
-// Lead Management Routes
-/**
- * @swagger
- * /api/finance/leads:
- *   get:
- *     summary: Get all leads
- *     tags: [Finance]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Leads retrieved successfully
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Server error
- */
-router.get('/leads', authenticateToken, roleAuth(['admin', 'marketing_staff']), async (req, res) => {
-  try {
-    const leads = [];
-    res.status(200).json({
-      success: true,
-      leads,
-      message: 'Leads retrieved successfully'
-    });
-  } catch (error) {
-    logger.error('Get leads error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error retrieving leads'
-    });
-  }
-});
-
-/**
- * @swagger
- * /api/finance/leads:
- *   post:
- *     summary: Create new lead
- *     tags: [Finance]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       201:
- *         description: Lead created successfully
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Server error
- */
-router.post('/leads', authenticateToken, roleAuth(['admin', 'marketing_staff']), async (req, res) => {
-  try {
-    const { name, email, phone, source, status, notes } = req.body;
-    
-    if (!name || !email) {
-      return res.status(400).json({
-        success: false,
-        message: 'Name and email are required'
-      });
-    }
-
-    const lead = {
-      id: Date.now(),
-      name,
-      email,
-      phone,
-      source,
-      status: status || 'new',
-      notes,
-      createdBy: req.user.id,
-      createdAt: new Date()
-    };
-
-    res.status(201).json({
-      success: true,
-      lead,
-      message: 'Lead created successfully'
-    });
-  } catch (error) {
-    logger.error('Create lead error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error creating lead'
-    });
-  }
-});
-
-// Financial Reports Routes
-/**
- * @swagger
- * /api/finance/reports/financial-summary:
- *   get:
- *     summary: Generate financial summary report
- *     tags: [Finance]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Financial summary generated successfully
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Server error
- */
-router.get('/reports/financial-summary', authenticateToken, roleAuth(['admin', 'finance_staff']), async (req, res) => {
-  try {
-    const summary = {
-      totalRevenue: 0,
-      totalExpenses: 0,
-      netIncome: 0,
-      pendingPayments: 0,
-      completedPayments: 0,
-      budgetUtilization: 0,
-      generatedAt: new Date()
-    };
-
-    res.status(200).json({
-      success: true,
-      summary,
-      message: 'Financial summary generated successfully'
-    });
-  } catch (error) {
-    logger.error('Financial summary error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error generating financial summary'
-    });
-  }
-});
-
-/**
- * @swagger
- * /api/finance/reports/campaign-roi:
- *   get:
- *     summary: Generate campaign ROI report
- *     tags: [Finance]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Campaign ROI report generated successfully
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Server error
- */
-router.get('/reports/campaign-roi', authenticateToken, roleAuth(['admin', 'marketing_staff']), async (req, res) => {
-  try {
-    const roiReport = {
-      campaigns: [],
-      totalInvestment: 0,
-      totalRevenue: 0,
-      overallROI: 0,
-      generatedAt: new Date()
-    };
-
-    res.status(200).json({
-      success: true,
-      report: roiReport,
-      message: 'Campaign ROI report generated successfully'
-    });
-  } catch (error) {
-    logger.error('Campaign ROI report error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error generating campaign ROI report'
-    });
-  }
-});
-
-/**
- * @swagger
- * /api/finance/reports/budget-variance:
- *   get:
- *     summary: Generate budget variance report
- *     tags: [Finance]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Budget variance report generated successfully
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Server error
- */
-router.get('/reports/budget-variance', (req, res) => {
-  res.status(501).json({
-    success: false,
-    message: 'Generate budget variance report endpoint not implemented yet'
-  });
-});
 
 module.exports = router;

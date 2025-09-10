@@ -3,9 +3,9 @@ const { sequelize } = require('../config/database');
 
 const Complaint = sequelize.define('Complaint', {
   id: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     primaryKey: true,
-    autoIncrement: true
+    defaultValue: DataTypes.UUIDV4
   },
   studentId: {
     type: DataTypes.INTEGER,

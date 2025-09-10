@@ -3,85 +3,98 @@ const { sequelize } = require('../config/database');
 
 const Course = sequelize.define('Course', {
   id: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     primaryKey: true,
-    autoIncrement: true
+    defaultValue: DataTypes.UUIDV4,
+    field: 'id'
   },
-  code: {
+  courseCode: {
     type: DataTypes.STRING,
     allowNull: false,
-    unique: true
+    unique: true,
+    field: 'course_code'
   },
-  name: {
+  courseName: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: false,
+    field: 'course_name'
   },
   description: {
-    type: DataTypes.TEXT
+    type: DataTypes.TEXT,
+    field: 'description'
   },
   credits: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    defaultValue: 3
+    defaultValue: 3,
+    field: 'credits'
   },
   semester: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    validate: {
-      min: 1,
-      max: 2
-    }
+    field: 'semester'
   },
-  year: {
+  academicYear: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    validate: {
-      min: 1,
-      max: 4
-    }
+    field: 'academic_year'
   },
-  departmentId: {
+  department: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    field: 'department'
+  },
+  maxEnrollment: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    field: 'department_id',
-    references: {
-      model: 'departments',
-      key: 'id'
-    }
+    defaultValue: 30,
+    field: 'max_enrollment'
   },
-  majorId: {
+  currentEnrollment: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    field: 'major_id',
-    references: {
-      model: 'majors',
-      key: 'id'
-    }
+    defaultValue: 0,
+    field: 'current_enrollment'
   },
-  lecturerId: {
-    type: DataTypes.INTEGER,
+  instructorId: {
+    type: DataTypes.UUID,
     allowNull: true,
-    field: 'lecturer_id',
-    references: {
-      model: 'users',
-      key: 'id'
-    }
+    field: 'instructor_id'
   },
   prerequisites: {
     type: DataTypes.JSONB,
-    defaultValue: []
+    defaultValue: [],
+    field: 'prerequisites'
   },
   schedule: {
-    type: DataTypes.JSONB
+    type: DataTypes.JSONB,
+    field: 'schedule'
   },
   status: {
     type: DataTypes.ENUM('active', 'inactive', 'completed'),
-    defaultValue: 'active'
+    defaultValue: 'active',
+    field: 'status'
+  },
+  createdAt: {
+    type: DataTypes.DATE,
+    field: 'created_at'
+  },
+  updatedAt: {
+    type: DataTypes.DATE,
+    field: 'updated_at'
   }
 }, {
   tableName: 'courses',
   timestamps: true,
-  underscored: true
+  underscored: true,
+  sync: false,
+  freezeTableName: true,
+  // Disable automatic field discovery
+  define: {
+    timestamps: true,
+    underscored: true,
+    freezeTableName: true
+  }
 });
 
 module.exports = Course;

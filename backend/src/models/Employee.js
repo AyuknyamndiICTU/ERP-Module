@@ -3,9 +3,9 @@ const { sequelize } = require('../config/database');
 
 const Employee = sequelize.define('Employee', {
   id: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     primaryKey: true,
-    autoIncrement: true
+    defaultValue: DataTypes.UUIDV4
   },
   employeeId: {
     type: DataTypes.STRING,
@@ -14,7 +14,7 @@ const Employee = sequelize.define('Employee', {
     field: 'employee_id'
   },
   userId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: false,
     field: 'user_id',
     references: {
@@ -68,7 +68,7 @@ const Employee = sequelize.define('Employee', {
     defaultValue: 'active'
   },
   managerId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     field: 'manager_id',
     references: {
       model: 'employees',

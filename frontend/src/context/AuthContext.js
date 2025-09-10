@@ -116,7 +116,8 @@ export const AuthProvider = ({ children }) => {
   // Load user from token
   const loadUser = async () => {
     const token = localStorage.getItem('token');
-    
+    const userData = localStorage.getItem('user');
+
     if (!token) {
       dispatch({ type: AUTH_ACTIONS.LOAD_USER_FAILURE, payload: { error: 'No token found' } });
       return;
@@ -124,17 +125,21 @@ export const AuthProvider = ({ children }) => {
 
     try {
       dispatch({ type: AUTH_ACTIONS.LOAD_USER_START });
-      
+
       // Set token in API
       authAPI.setAuthToken(token);
-      
-      // Get user profile
+
+      // Try to get user profile from backend
       const response = await authAPI.getProfile();
-      
+      const user = response.data.data;
+
+      // Store updated user data
+      localStorage.setItem('user', JSON.stringify(user));
+
       dispatch({
         type: AUTH_ACTIONS.LOAD_USER_SUCCESS,
         payload: {
-          user: response.data.data,
+          user: user,
         },
       });
 
@@ -142,20 +147,47 @@ export const AuthProvider = ({ children }) => {
       dispatch({
         type: AUTH_ACTIONS.LOGIN_SUCCESS,
         payload: {
-          user: response.data.data,
+          user: user,
           token,
         },
       });
 
     } catch (error) {
       logger.error('Load user error:', error);
-      dispatch({
-        type: AUTH_ACTIONS.LOAD_USER_FAILURE,
-        payload: { error: error.response?.data?.error || 'Failed to load user' },
-      });
-      
-      // Remove invalid token
+
+      // If token is invalid, try to use stored user data as fallback
+      if (userData) {
+        try {
+          const user = JSON.parse(userData);
+          dispatch({
+            type: AUTH_ACTIONS.LOAD_USER_SUCCESS,
+            payload: {
+              user: user,
+            },
+          });
+          dispatch({
+            type: AUTH_ACTIONS.LOGIN_SUCCESS,
+            payload: {
+              user: user,
+              token,
+            },
+          });
+        } catch (parseError) {
+          dispatch({
+            type: AUTH_ACTIONS.LOAD_USER_FAILURE,
+            payload: { error: 'Failed to load user data' },
+          });
+        }
+      } else {
+        dispatch({
+          type: AUTH_ACTIONS.LOAD_USER_FAILURE,
+          payload: { error: 'Failed to load user data' },
+        });
+      }
+
+      // Remove invalid data
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
       authAPI.removeAuthToken();
     }
   };
@@ -168,6 +200,10 @@ export const AuthProvider = ({ children }) => {
       const response = await authAPI.login({ email, password });
       const { user, token } = response.data.data;
 
+      // Store user data and token in localStorage
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+
       dispatch({
         type: AUTH_ACTIONS.LOGIN_SUCCESS,
         payload: { user, token },
@@ -179,7 +215,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       logger.error('Login error:', error);
       const errorMessage = error.response?.data?.error || 'Login failed';
-      
+
       dispatch({
         type: AUTH_ACTIONS.LOGIN_FAILURE,
         payload: { error: errorMessage },
@@ -231,6 +267,7 @@ export const AuthProvider = ({ children }) => {
     } finally {
       dispatch({ type: AUTH_ACTIONS.LOGOUT });
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
       authAPI.removeAuthToken();
       logger.info('User logged out');
     }

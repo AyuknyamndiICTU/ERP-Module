@@ -301,7 +301,7 @@ const StudentsPage = () => {
       if (response.data.student) {
         setSnackbar({
           open: true,
-          message: 'Student created successfully!',
+          message: 'Trainee created successfully!',
           severity: 'success'
         });
         fetchStudents(); // Refresh the list
@@ -331,7 +331,7 @@ const StudentsPage = () => {
       if (response.data.student) {
         setSnackbar({
           open: true,
-          message: 'Student updated successfully!',
+          message: 'Trainee updated successfully!',
           severity: 'success'
         });
         fetchStudents(); // Refresh the list
@@ -361,7 +361,7 @@ const StudentsPage = () => {
 
       setSnackbar({
         open: true,
-        message: 'Student deleted successfully!',
+        message: 'Trainee deleted successfully!',
         severity: 'success'
       });
       fetchStudents(); // Refresh the list
@@ -512,10 +512,10 @@ const StudentsPage = () => {
             fontWeight: 800,
             mb: 1}}
         >
-          Student Management
+          Trainee Management
         </Typography>
         <Typography variant="h6" color="text.secondary">
-          Manage student records, enrollment, and academic progress
+          Manage trainee records, enrollment, and academic progress
         </Typography>
       </Box>
 
@@ -534,7 +534,7 @@ const StudentsPage = () => {
               {students.length}
             </Typography>
             <Typography variant="body1" sx={{ opacity: 0.9 }}>
-              Total Students
+              Total Trainees
             </Typography>
           </StatsCard>
         </Grid>
@@ -551,7 +551,7 @@ const StudentsPage = () => {
               {students.filter(s => s.status === 'active').length}
             </Typography>
             <Typography variant="body1" sx={{ opacity: 0.9 }}>
-              Active Students
+              Active Trainees
             </Typography>
           </StatsCard>
         </Grid>
@@ -585,7 +585,7 @@ const StudentsPage = () => {
               {students.filter(s => s.current_gpa >= 3.5).length}
             </Typography>
             <Typography variant="body1" sx={{ opacity: 0.9 }}>
-              Honor Students
+              Top Trainees
             </Typography>
           </StatsCard>
         </Grid>
@@ -595,7 +595,7 @@ const StudentsPage = () => {
       <GlassCard sx={{ mb: 4, animation: `${fadeInUp} 0.8s ease-out 0.5s both` }}>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           <TextField
-            placeholder="Search students..."
+            placeholder="Search trainees..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             InputProps={{
@@ -625,7 +625,7 @@ const StudentsPage = () => {
                 background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                 minWidth: 140}}
             >
-              Add Student
+              Add Trainee
             </Button>
           )}
         </Box>
@@ -750,7 +750,7 @@ const StudentsPage = () => {
                       Basic Information
                     </Typography>
                     <Typography variant="body2" paragraph>
-                      <strong>Student ID:</strong> {selectedStudent.student_id}
+                      <strong>Trainee ID:</strong> {selectedStudent.student_id}
                     </Typography>
                     <Typography variant="body2" paragraph>
                       <strong>Date of Birth:</strong> {new Date(selectedStudent.date_of_birth).toLocaleDateString()}
@@ -862,7 +862,7 @@ const StudentsPage = () => {
               </Button>
               {(user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'lecturer' || user?.role === 'faculty_coordinator' || user?.role === 'major_coordinator') && (
                 <Button variant="contained" startIcon={<EditIcon />}>
-                  Edit Student
+                  Edit Trainee
                 </Button>
               )}
             </DialogActions>
@@ -874,7 +874,7 @@ const StudentsPage = () => {
       <FormDialog
         open={showAddDialog}
         onClose={() => setShowAddDialog(false)}
-        title="Add New Student"
+        title="Add New Trainee"
         fields={[
           { name: 'firstName', label: 'First Name', type: 'text', required: true, width: 6 },
           { name: 'lastName', label: 'Last Name', type: 'text', required: true, width: 6 },
@@ -893,10 +893,10 @@ const StudentsPage = () => {
             { value: 'English Literature', label: 'English Literature' },
             { value: 'Business Administration', label: 'Business Administration' }
           ]},
-          { name: 'degreeType', label: 'Degree Type', type: 'select', required: true, options: [
-            { value: 'Bachelor', label: 'Bachelor' },
-            { value: 'Master', label: 'Master' },
-            { value: 'PhD', label: 'PhD' }
+          { name: 'degreeType', label: 'Academic Level', type: 'select', required: true, options: [
+            { value: 'Beginner', label: 'Beginner' },
+            { value: 'Intermediate', label: 'Intermediate' },
+            { value: 'Advanced', label: 'Advanced' }
           ]},
           { name: 'yearLevel', label: 'Year Level', type: 'select', required: true, options: [
             { value: '1', label: 'Year 1' },

@@ -202,8 +202,8 @@ const GradeManagement = () => {
                 <TableRow>
                   {!isStudent && (
                     <>
-                      <TableCell>Student Name</TableCell>
-                      <TableCell>Student ID</TableCell>
+                      <TableCell>Trainee Name</TableCell>
+                      <TableCell>Trainee ID</TableCell>
                     </>
                   )}
                   <TableCell>Course Code</TableCell>
@@ -303,7 +303,7 @@ const GradeManagement = () => {
             Continuous Assessment Marks
           </Typography>
           <Alert severity="info" sx={{ mb: 2 }}>
-            CA marks include quizzes, class participation, and mid-term assessments.
+            CA marks include quizzes, course participation, and mid-term assessments.
           </Alert>
           {/* CA marks content */}
         </TabPanel>
@@ -391,7 +391,7 @@ const GradeManagement = () => {
                 <Card>
                   <CardContent>
                     <Typography variant="h6" gutterBottom>
-                      Class Performance
+                      Course Performance
                     </Typography>
                     <Typography variant="h4" color="primary">
                       82.5%
@@ -412,7 +412,7 @@ const GradeManagement = () => {
                       95%
                     </Typography>
                     <Typography color="text.secondary">
-                      Students Passing
+                      Trainees Passing
                     </Typography>
                   </CardContent>
                 </Card>
@@ -432,7 +432,7 @@ const GradeManagement = () => {
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Student"
+                label="Trainee"
                 defaultValue={selectedGrade?.studentName || ''}
               />
             </Grid>

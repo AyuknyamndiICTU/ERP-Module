@@ -34,7 +34,7 @@ import {
   Cancel,
   Schedule,
   Person,
-  Class
+  School
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import RoleGuard from '../common/RoleGuard';
@@ -212,7 +212,7 @@ const AttendanceManagement = () => {
                   {stats.present}
                 </Typography>
                 <Typography color="text.secondary">
-                  Classes Attended
+                  Courses Attended
                 </Typography>
               </CardContent>
             </Card>
@@ -224,7 +224,7 @@ const AttendanceManagement = () => {
                   {stats.total}
                 </Typography>
                 <Typography color="text.secondary">
-                  Total Classes
+                  Total Courses
                 </Typography>
               </CardContent>
             </Card>
@@ -236,7 +236,7 @@ const AttendanceManagement = () => {
       <Card>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            {isStudent ? 'Attendance History' : 'Student Attendance Records'}
+            {isStudent ? 'Attendance History' : 'Trainee Attendance Records'}
           </Typography>
           
           <TableContainer component={Paper} variant="outlined">
@@ -245,8 +245,8 @@ const AttendanceManagement = () => {
                 <TableRow>
                   {!isStudent && (
                     <>
-                      <TableCell>Student Name</TableCell>
-                      <TableCell>Student ID</TableCell>
+                      <TableCell>Trainee Name</TableCell>
+                      <TableCell>Trainee ID</TableCell>
                     </>
                   )}
                   <TableCell>Course</TableCell>
@@ -354,7 +354,7 @@ const AttendanceManagement = () => {
       >
         <DialogTitle>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Class />
+            <School />
             Take Attendance
           </Box>
         </DialogTitle>
@@ -387,7 +387,7 @@ const AttendanceManagement = () => {
           </Grid>
 
           <Alert severity="info" sx={{ mt: 2 }}>
-            Select a course and date to begin taking attendance. You can mark students as Present, Absent, Late, or Excused.
+            Select a course and date to begin taking attendance. You can mark trainees as Present, Absent, Late, or Excused.
           </Alert>
         </DialogContent>
         <DialogActions>

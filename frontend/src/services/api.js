@@ -84,13 +84,13 @@ export const authAPI = {
   logout: () => api.post('/auth/logout'),
 
   // Get user profile
-  getProfile: () => api.get('/users/profile'),
+  getProfile: () => api.get('/profile'),
 
   // Update profile
-  updateProfile: (profileData) => api.put('/users/profile', profileData),
+  updateProfile: (profileData) => api.put('/profile', profileData),
 
   // Change password
-  changePassword: (passwordData) => api.put('/users/change-password', passwordData),
+  changePassword: (passwordData) => api.put('/profile/change-password', passwordData),
 
   // Forgot password
   forgotPassword: (email) => api.post('/auth/forgot-password', email),
@@ -100,6 +100,54 @@ export const authAPI = {
 
   // Refresh token
   refreshToken: (refreshToken) => api.post('/auth/refresh', { refreshToken }),
+};
+
+// Notifications API
+export const notificationsAPI = {
+  // Get notifications
+  getNotifications: (params) => api.get('/notifications', { params }),
+
+  // Get unread count
+  getUnreadCount: () => api.get('/notifications/unread-count'),
+
+  // Mark as read
+  markAsRead: (id) => api.put(`/notifications/${id}/read`),
+
+  // Mark all as read
+  markAllAsRead: () => api.put('/notifications/read-all'),
+
+  // Delete notification
+  deleteNotification: (id) => api.delete(`/notifications/${id}`),
+
+  // Send notification (admin)
+  send: (data) => api.post('/notifications/send', data),
+
+  // Broadcast notification (admin)
+  broadcast: (data) => api.post('/notifications/broadcast', data),
+};
+
+// Dashboard API
+export const dashboardAPI = {
+  // Get dashboard statistics
+  getDashboardStats: () => api.get('/users/dashboard/stats'),
+};
+
+// Complaints API
+export const complaintsAPI = {
+  // Get complaints
+  getComplaints: (params) => api.get('/complaints', { params }),
+
+  // Submit complaint
+  submitComplaint: (complaintData) => api.post('/complaints', complaintData),
+
+  // Get complaint details
+  getComplaint: (id) => api.get(`/complaints/${id}`),
+
+  // Respond to complaint
+  respondToComplaint: (id, responseData) => api.post(`/complaints/${id}/respond`, responseData),
+
+  // Update complaint
+  updateComplaint: (id, updateData) => api.put(`/complaints/${id}`, updateData),
 };
 
 // Users API
@@ -115,6 +163,9 @@ export const usersAPI = {
 
   // Delete user
   deleteUser: (id) => api.delete(`/users/${id}`),
+
+  // Get lecturers (for complaints)
+  getLecturers: () => api.get('/users?role=lecturer'),
 };
 
 // Academic API
@@ -142,8 +193,11 @@ export const academicAPI = {
   // Grades
   getGrades: (params) => api.get('/academic/grades', { params }),
   createGrade: (gradeData) => api.post('/academic/grades', gradeData),
+  bulkCreateGrades: (gradeData) => api.post('/academic/grades/bulk', gradeData),
   updateGrade: (id, gradeData) => api.put(`/academic/grades/${id}`, gradeData),
   deleteGrade: (id) => api.delete(`/academic/grades/${id}`),
+  publishGrades: (publishData) => api.post('/academic/grades/publish', publishData),
+  exportGrades: (params) => api.get('/academic/grades/export', { params }),
 
   // Attendance
   getAttendance: (params) => api.get('/academic/attendance', { params }),
