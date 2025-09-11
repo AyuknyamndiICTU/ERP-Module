@@ -144,13 +144,11 @@ const WhiteSidebar = ({ open, onClose, isMobile }) => {
       );
     }
 
-    // Administration items
-    if (user?.role === 'admin' || user?.role === 'system_admin') {
-      administrationItems.push(
-        { text: 'Notifications', icon: <NotificationsIcon />, path: '/admin/notifications', key: 'notifications' },
-        { text: 'Settings', icon: <SettingsIcon />, path: '/admin/settings', key: 'admin_settings' }
-      );
-    }
+    // Add notifications and settings for all users
+    baseItems.push(
+      { text: 'Notifications', icon: <NotificationsIcon />, path: '/notifications', key: 'notifications' },
+      { text: 'Settings', icon: <SettingsIcon />, path: '/settings', key: 'settings' }
+    );
 
     const menuSections = [];
     

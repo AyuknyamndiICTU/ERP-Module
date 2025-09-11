@@ -22,6 +22,13 @@ import ICTUCoursesPage from './pages/Academic/ICTUCoursesPage';
 import StudentsPage from './pages/Academic/StudentsPage';
 import GradesPage from './pages/Academic/GradesPage';
 import AttendancePage from './pages/Academic/AttendancePage';
+import TimetablePage from './pages/Academic/TimetablePage';
+import AssignmentsPage from './pages/Academic/AssignmentsPage';
+import ExamsPage from './pages/Academic/ExamsPage';
+
+// Settings and Notifications
+import SettingsPage from './pages/SettingsPage';
+import NotificationCenter from './components/NotificationSystem/NotificationCenter';
 
 // Finance Pages
 import InvoicesPage from './pages/Finance/InvoicesPage';
@@ -137,6 +144,30 @@ function App() {
                     />
                     <Route path="/academic/grades" element={<GradesPage />} />
                     <Route path="/academic/attendance" element={<AttendancePage />} />
+                    <Route 
+                      path="/academic/timetable" 
+                      element={
+                        <ProtectedRoute requiredRoles={["admin", "system_admin", "lecturer", "faculty_coordinator", "major_coordinator", "student"]}>
+                          <TimetablePage />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/academic/assignments" 
+                      element={
+                        <ProtectedRoute requiredRoles={["admin", "system_admin", "lecturer", "faculty_coordinator", "major_coordinator", "student"]}>
+                          <AssignmentsPage />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/academic/exams" 
+                      element={
+                        <ProtectedRoute requiredRoles={["admin", "system_admin", "lecturer", "faculty_coordinator", "major_coordinator", "student"]}>
+                          <ExamsPage />
+                        </ProtectedRoute>
+                      } 
+                    />
 
                     {/* Finance Module */}
                     <Route 
@@ -188,6 +219,24 @@ function App() {
                       element={
                         <ProtectedRoute requiredRoles={["admin", "system_admin", "hr_staff"]}>
                           <AssetsPage />
+                        </ProtectedRoute>
+                      } 
+                    />
+
+                    {/* Settings and Notifications */}
+                    <Route 
+                      path="/settings" 
+                      element={
+                        <ProtectedRoute>
+                          <SettingsPage />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/notifications" 
+                      element={
+                        <ProtectedRoute>
+                          <NotificationCenter />
                         </ProtectedRoute>
                       } 
                     />

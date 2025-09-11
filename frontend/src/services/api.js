@@ -210,6 +210,12 @@ export const academicAPI = {
   updateExam: (id, examData) => api.put(`/academic/exams/${id}`, examData),
   deleteExam: (id) => api.delete(`/academic/exams/${id}`),
 
+  // Timetables
+  getTimetables: (params) => api.get('/timetables', { params }),
+  createTimetable: (timetableData) => api.post('/timetables', timetableData),
+  updateTimetable: (id, timetableData) => api.put(`/timetables/${id}`, timetableData),
+  deleteTimetable: (id) => api.delete(`/timetables/${id}`),
+
   // Reports
   getTranscript: (studentId) => api.get(`/academic/reports/transcripts/${studentId}`),
   getAttendanceReport: (params) => api.get('/academic/reports/attendance', { params }),

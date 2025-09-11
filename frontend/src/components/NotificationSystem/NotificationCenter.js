@@ -32,7 +32,7 @@ import {
   Warning as WarningIcon,
   Info as InfoIcon,
   Delete as DeleteIcon,
-  MarkAsRead as MarkAsReadIcon
+  DoneAll as DoneAllIcon
 } from '@mui/icons-material';
 import { notificationsAPI } from '../../services/api';
 import logger from '../../utils/logger';
@@ -218,7 +218,7 @@ const NotificationCenter = () => {
           {unreadCount > 0 && (
             <Button
               variant="outlined"
-              startIcon={<MarkAsReadIcon />}
+              startIcon={<DoneAllIcon />}
               onClick={markAllAsRead}
             >
               Mark All Read

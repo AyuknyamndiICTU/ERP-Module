@@ -71,12 +71,16 @@ const slideIn = keyframes`
 const GradesPage = () => {
   const { user } = useAuth();
   const [courses, setCourses] = useState([]);
+  const [students, setStudents] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tabValue, setTabValue] = useState(0);
   const [gradeDialogOpen, setGradeDialogOpen] = useState(false);
   const [editingGrade, setEditingGrade] = useState(null);
   const [transcriptOpen, setTranscriptOpen] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [gradeDistribution, setGradeDistribution] = useState([]);
 
   useEffect(() => {
     const fetchInitialData = async () => {
