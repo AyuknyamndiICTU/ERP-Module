@@ -221,7 +221,7 @@ router.get('/',
  * @swagger
  * /api/grades/bulk:
  *   post:
- *     summary: Bulk create/update grades for a course (Lecturer only)
+ *     summary: Bulk create or update grades
  *     tags: [Grades]
  *     security:
  *       - bearerAuth: []
@@ -232,34 +232,19 @@ router.get('/',
  *           schema:
  *             type: object
  *             required:
- *               - courseId
- *               - semester
- *               - academicYear
  *               - grades
+ *               - courseId
  *             properties:
- *               courseId:
- *                 type: string
- *                 format: uuid
- *               semester:
- *                 type: integer
- *                 enum: [1, 2]
- *               academicYear:
- *                 type: string
  *               grades:
  *                 type: array
  *                 items:
  *                   type: object
- *                   required:
- *                     - studentId
- *                     - caMarks
- *                     - examMarks
  *                   properties:
  *                     studentId:
  *                       type: string
  *                       format: uuid
  *                     caMarks:
  *                       type: number
- *                       format: float
  *                       minimum: 0
  *                       maximum: 30
  *                     examMarks:

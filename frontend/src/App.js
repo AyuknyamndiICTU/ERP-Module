@@ -4,6 +4,8 @@ import { Box } from '@mui/material';
 import { Helmet } from 'react-helmet-async';
 
 // Context and hooks
+import { AuthProvider } from './context/AuthContext';
+import { NotificationProvider } from './context/NotificationContext';
 import { useAuth } from './context/AuthContext';
 
 // Components
@@ -16,6 +18,7 @@ import AnimatedBackground from './components/AnimatedBackground';
 import LoginPage from './pages/Auth/LoginPage';
 import DashboardPage from './pages/Dashboard/DashboardPage';
 import ProfilePage from './pages/Profile/ProfilePage';
+import ICTUStudentRegistration from './components/student/ICTUStudentRegistration';
 
 // Academic Pages
 import ICTUCoursesPage from './pages/Academic/ICTUCoursesPage';
@@ -86,6 +89,14 @@ const PublicRoute = ({ children }) => {
 };
 
 function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
+}
+
+function AppContent() {
   const { loading } = useAuth();
 
   if (loading) {
@@ -110,6 +121,14 @@ function App() {
             element={
               <PublicRoute>
                 <LoginPage />
+              </PublicRoute>
+            } 
+          />
+          <Route 
+            path="/register" 
+            element={
+              <PublicRoute>
+                <ICTUStudentRegistration />
               </PublicRoute>
             } 
           />
