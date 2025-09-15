@@ -47,6 +47,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import GlassCard, { StatsCard } from '../../components/GlassCard';
 import logger from '../../utils/logger';
+import { academicAPI } from '../../services/api';
 
 // Animation keyframes
 const fadeInUp = keyframes`
@@ -157,25 +158,42 @@ const AttendancePage = () => {
   };
 
   useEffect(() => {
-    // Simulate API call - mock data is static so no dependencies needed
-    setTimeout(() => {
-      setCourses(mockCourses);
-      if (mockCourses.length > 0) {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const res = await academicAPI.getCourses({});
+        const data = res.data?.courses || (Array.isArray(res.data) ? res.data : []);
+        if (data.length > 0) {
+          setCourses(data);
+          setSelectedCourse(data[0]);
+        } else {
+          // Fallback to mock
+          setCourses(mockCourses);
+          setSelectedCourse(mockCourses[0]);
+          setStudents(mockStudents);
+          setSessions(mockSessions);
+          setAttendanceSummary(mockSummary);
+        }
+      } catch (e) {
+        logger.error('Error loading courses:', e);
+        // Fallback to mock
+        setCourses(mockCourses);
         setSelectedCourse(mockCourses[0]);
         setStudents(mockStudents);
         setSessions(mockSessions);
         setAttendanceSummary(mockSummary);
-
+      } finally {
         // Initialize attendance records for today
         const initialRecords = {};
-        mockStudents.forEach(student => {
+        (students.length ? students : mockStudents).forEach(student => {
           initialRecords[student.enrollment_id] = 'present';
         });
         setAttendanceRecords(initialRecords);
+        setLoading(false);
       }
-      setLoading(false);
-    }, 1000);
-  }, []); // Mock data is static, no dependencies needed
+    };
+    fetchData();
+  }, []);
 
   // Check if user has access to attendance management
   const hasAttendanceAccess = user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'lecturer' || user?.role === 'faculty_coordinator' || user?.role === 'major_coordinator';
@@ -417,7 +435,7 @@ const AttendancePage = () => {
             >
               {courses.map((course) => (
                 <MenuItem key={course.id} value={course.id}>
-                  {course.code} - {course.name}
+                  {(course.courseCode || course.code)} - {(course.courseName || course.name)}
                 </MenuItem>
               ))}
             </Select>
@@ -776,7 +794,7 @@ const AttendancePage = () => {
       >
         <DialogTitle>
           <Typography variant="h5" fontWeight="700">
-            Take Attendance - {selectedCourse?.code}
+            Take Attendance - {(selectedCourse?.courseCode || selectedCourse?.code)}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             {new Date(selectedDate).toLocaleDateString()}

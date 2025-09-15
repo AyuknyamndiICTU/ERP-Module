@@ -28,29 +28,39 @@ const Course = require('../models/Course');
  *         schema:
  *           type: integer
  *           default: 1
- *         description: Page number
  *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
  *           default: 10
- *         description: Number of courses per page
  *       - in: query
  *         name: search
  *         schema:
  *           type: string
- *         description: Search in course code or name
- *       - in: query
- *         name: department
- *         schema:
- *           type: string
- *         description: Filter by department
  *       - in: query
  *         name: status
  *         schema:
  *           type: string
- *           enum: [active, inactive, completed]
- *         description: Filter by status
+ *           enum: [active, inactive]
+ *       - in: query
+ *         name: department
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: departmentId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *       - in: query
+ *         name: semester
+ *         schema:
+ *           type: integer
+ *           enum: [1, 2]
+ *       - in: query
+ *         name: difficulty
+ *         schema:
+ *           type: string
+ *           enum: [Undergraduate, Master, PhD]
  *     responses:
  *       200:
  *         description: List of courses
@@ -59,8 +69,6 @@ const Course = require('../models/Course');
  *             schema:
  *               type: object
  *               properties:
- *                 success:
- *                   type: boolean
  *                 courses:
  *                   type: array
  *                   items:
@@ -82,7 +90,11 @@ router.get('/', authenticateToken, [
   query('limit').optional().isInt({ min: 1, max: 100 }),
   query('search').optional().isLength({ min: 1, max: 100 }),
   query('department').optional().isLength({ min: 1, max: 100 }),
-  query('status').optional().isIn(['active', 'inactive', 'completed'])
+  query('status').optional().isIn(['active', 'inactive']),
+  query('department').optional().isString(),
+  query('departmentId').optional().isUUID(),
+  query('semester').optional().isInt({ min: 1, max: 2 }),
+  query('difficulty').optional().isIn(['Undergraduate', 'Master', 'PhD'])
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -94,13 +106,7 @@ router.get('/', authenticateToken, [
       });
     }
 
-    const {
-      page = 1,
-      limit = 10,
-      search,
-      department,
-      status = 'active'
-    } = req.query;
+    const { page = 1, limit = 10, search, status, department, departmentId, semester, difficulty } = req.query;
 
     // Build WHERE conditions
     const whereConditions = {};
@@ -113,11 +119,19 @@ router.get('/', authenticateToken, [
     }
 
     if (department) {
-      whereConditions.department = { [Op.iLike]: `%${department}%` };
+      whereConditions.department = department;
     }
 
-    if (status) {
-      whereConditions.status = status;
+    if (departmentId) {
+      whereConditions.departmentId = departmentId;
+    }
+
+    if (semester) {
+      whereConditions.semester = semester;
+    }
+
+    if (difficulty) {
+      whereConditions.difficulty = difficulty;
     }
 
     // Calculate offset
@@ -267,6 +281,10 @@ router.get('/:id', authenticateToken, [
  *               department:
  *                 type: string
  *                 description: Department offering the course
+ *               difficulty:
+ *                 type: string
+ *                 enum: [Undergraduate, Master, PhD]
+ *                 description: Course difficulty level
  *               semester:
  *                 type: integer
  *                 description: Semester (1 or 2)
@@ -318,6 +336,7 @@ router.post('/', authenticateToken, roleAuth(['admin', 'lecturer', 'faculty_coor
       description,
       credits,
       department,
+      difficulty = 'Undergraduate',
       semester,
       academicYear,
       maxEnrollment = 30,
@@ -341,6 +360,7 @@ router.post('/', authenticateToken, roleAuth(['admin', 'lecturer', 'faculty_coor
       description,
       credits,
       department,
+      difficulty,
       semester,
       academicYear,
       maxEnrollment,

@@ -3,6 +3,8 @@ const Student = require('./Student');
 const Course = require('./Course');
 const Employee = require('./Employee');
 const FeeStructure = require('./FeeStructure');
+const InstallmentPlan = require('./InstallmentPlan');
+const Installment = require('./Installment');
 const Faculty = require('./Faculty');
 const Department = require('./Department');
 const Major = require('./Major');
@@ -19,12 +21,6 @@ const Exam = require('./Exam');
 // User associations
 User.hasOne(Student, { foreignKey: 'userId', as: 'studentProfile' });
 User.hasOne(Employee, { foreignKey: 'userId', as: 'employeeProfile' });
-User.hasMany(Course, { foreignKey: 'instructorId', as: 'courses' });
-User.hasMany(Grade, { foreignKey: 'publishedBy', as: 'publishedGrades' });
-User.hasMany(Notification, { foreignKey: 'recipientId', as: 'receivedNotifications' });
-User.hasMany(Notification, { foreignKey: 'senderId', as: 'sentNotifications' });
-User.hasMany(Complaint, { foreignKey: 'studentId', as: 'complaints' });
-User.hasMany(Complaint, { foreignKey: 'handlerId', as: 'handledComplaints' });
 
 // Student associations
 Student.belongsTo(User, { foreignKey: 'userId', as: 'user' });
@@ -32,10 +28,11 @@ Student.belongsTo(Faculty, { foreignKey: 'facultyId', as: 'faculty' });
 Student.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
 Student.belongsTo(Major, { foreignKey: 'majorId', as: 'major' });
 Student.hasMany(Grade, { foreignKey: 'studentId', as: 'grades' });
-Student.hasMany(FeeInstallment, { foreignKey: 'studentId', as: 'installments' });
-Student.hasOne(StudentFinance, { foreignKey: 'studentId', as: 'finance' });
-Student.hasMany(Complaint, { foreignKey: 'studentId', as: 'complaints' });
+Student.hasMany(FeeInstallment, { foreignKey: 'studentId', as: 'feeInstallments' });
+Student.hasMany(StudentFinance, { foreignKey: 'studentId', as: 'finances' });
 Student.hasMany(Enrollment, { foreignKey: 'studentId', as: 'enrollments' });
+Student.hasMany(Complaint, { foreignKey: 'studentId', as: 'complaints' });
+Student.hasMany(InstallmentPlan, { foreignKey: 'studentId', as: 'installmentPlans' });
 Student.hasMany(Attendance, { foreignKey: 'studentId', as: 'attendance' });
 
 // Course associations (removed due to schema mismatch)
@@ -104,6 +101,16 @@ Attendance.belongsTo(Course, { foreignKey: 'courseId', as: 'course' });
 Attendance.belongsTo(User, { foreignKey: 'lecturerId', as: 'lecturer' });
 Attendance.belongsTo(User, { foreignKey: 'markedBy', as: 'markedByUser' });
 
+// InstallmentPlan associations
+InstallmentPlan.belongsTo(Student, { foreignKey: 'studentId', as: 'student' });
+InstallmentPlan.belongsTo(FeeStructure, { foreignKey: 'feeStructureId', as: 'feeStructure' });
+InstallmentPlan.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
+InstallmentPlan.hasMany(Installment, { foreignKey: 'installmentPlanId', as: 'installments' });
+
+// Installment associations
+Installment.belongsTo(InstallmentPlan, { foreignKey: 'installmentPlanId', as: 'installmentPlan' });
+Installment.belongsTo(User, { foreignKey: 'processedBy', as: 'processor' });
+
 // Exam associations
 Exam.belongsTo(Course, { foreignKey: 'courseId', as: 'course' });
 Exam.belongsTo(User, { foreignKey: 'lecturerId', as: 'lecturer' });
@@ -115,6 +122,8 @@ module.exports = {
   Course,
   Employee,
   FeeStructure,
+  InstallmentPlan,
+  Installment,
   Faculty,
   Department,
   Major,
