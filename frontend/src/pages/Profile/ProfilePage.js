@@ -6,11 +6,7 @@ import {
   TextField,
   Button,
   Avatar,
-  Paper,
-  Divider,
   IconButton,
-  Card,
-  CardContent,
   Chip,
   Alert,
   Snackbar
@@ -28,13 +24,12 @@ import {
   Work as WorkIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
-import { useNotification } from '../../context/NotificationContext';
 import logger from '../../utils/logger';
 import api from '../../services/api';
+import GlassCard from '../../components/GlassCard';
 
 const ProfilePage = () => {
   const { user, updateUser } = useAuth();
-  const { showNotification } = useNotification();
   const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState({
     firstName: user?.firstName || user?.name?.split(' ')[0] || '',
@@ -49,6 +44,7 @@ const ProfilePage = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
 
   const handleInputChange = (field, value) => {
     setProfileData(prev => ({
@@ -83,7 +79,7 @@ const ProfilePage = () => {
         });
 
         setIsEditing(false);
-        showNotification('Profile updated successfully', 'success');
+        setNotification({ open: true, message: 'Profile updated successfully', severity: 'success' });
       } else {
         throw new Error(response.data.message || 'Failed to update profile');
       }
@@ -91,7 +87,7 @@ const ProfilePage = () => {
       logger.error('Error updating profile:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Failed to update profile';
       setError(errorMessage);
-      showNotification(errorMessage, 'error');
+      setNotification({ open: true, message: errorMessage, severity: 'error' });
     } finally {
       setLoading(false);
     }
@@ -123,8 +119,7 @@ const ProfilePage = () => {
       finance_staff: '#ff9800',
       hr_staff: '#9c27b0',
       marketing_staff: '#e91e63',
-      employee: '#607d8b',
-      marketing_staff: '#00bcd4'
+      employee: '#607d8b'
     };
     return colors[role] || '#757575';
   };
@@ -140,8 +135,7 @@ const ProfilePage = () => {
       finance_staff: 'Finance Staff',
       hr_staff: 'HR Staff',
       marketing_staff: 'Marketing Staff',
-      employee: 'Employee',
-      marketing_staff: 'Marketing Staff'
+      employee: 'Employee'
     };
     return labels[role] || role;
   };
