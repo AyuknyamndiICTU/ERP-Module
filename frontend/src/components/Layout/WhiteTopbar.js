@@ -83,7 +83,7 @@ const WhiteTopbar = ({ onMenuClick, isMobile }) => {
     {
       id: 1,
       title: 'New Course Assignment',
-      message: 'You have been assigned to Advanced Programming',
+      message: 'You have been assigned to PhD Programming',
       time: '2 minutes ago',
       unread: true,
       type: 'course'

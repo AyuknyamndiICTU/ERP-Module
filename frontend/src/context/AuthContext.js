@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
 import { authAPI } from '../services/api';
 import { logger } from '../utils/logger';
+import NotificationPopup from '../components/common/NotificationPopup';
 
 // Initial state
 const initialState = {
@@ -96,6 +97,7 @@ const AuthContext = createContext();
 // Auth provider component
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
+  const [showNotificationPopup, setShowNotificationPopup] = useState(false);
 
   // Load user on app start
   useEffect(() => {
@@ -209,7 +211,10 @@ export const AuthProvider = ({ children }) => {
         payload: { user, token },
       });
 
-      logger.info('User logged in successfully:', user.email);
+      // Show notification popup for returning users
+      setTimeout(() => setShowNotificationPopup(true), 1000);
+
+      logger.info('Login successful');
       return { success: true };
 
     } catch (error) {
@@ -379,11 +384,14 @@ export const AuthProvider = ({ children }) => {
   return (
     <AuthContext.Provider value={value}>
       {children}
+      <NotificationPopup 
+        open={showNotificationPopup} 
+        onClose={() => setShowNotificationPopup(false)} 
+      />
     </AuthContext.Provider>
   );
 };
 
-// Custom hook to use auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
   
