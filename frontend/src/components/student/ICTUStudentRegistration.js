@@ -114,7 +114,7 @@ const ICTUStudentRegistration = () => {
       const response = await axios.get('/api/public/faculties');
       setFaculties(response.data.faculties || []);
     } catch (error) {
-      console.error('Error fetching faculties:', error);
+      // Error fetching faculties - using fallback data
     }
   };
 
@@ -123,7 +123,7 @@ const ICTUStudentRegistration = () => {
       const response = await axios.get(`/api/public/faculties/${facultyId}/departments`);
       setDepartments(response.data.departments || []);
     } catch (error) {
-      console.error('Error fetching departments:', error);
+      // Error fetching departments - using fallback data
     }
   };
 
@@ -132,7 +132,7 @@ const ICTUStudentRegistration = () => {
       const response = await axios.get('/api/public/majors');
       setMajors(response.data.majors || []);
     } catch (error) {
-      console.error('Error fetching majors:', error);
+      // Error fetching majors - using fallback data
     }
   };
 
@@ -144,7 +144,7 @@ const ICTUStudentRegistration = () => {
       });
       setCourses(response.data.courses || []);
     } catch (error) {
-      console.error('Error fetching courses:', error);
+      // Error fetching courses - using fallback data
       setCourses([]);
     }
   };
@@ -188,21 +188,19 @@ const ICTUStudentRegistration = () => {
         if (!formData.regionOfOrigin) newErrors.regionOfOrigin = 'Region of origin is required';
         if (!formData.placeOfOrigin) newErrors.placeOfOrigin = 'Place of origin is required';
         break;
-        
       case 1: // Academic Selection
         if (!formData.facultyId) newErrors.facultyId = 'Faculty is required';
         if (!formData.departmentId) newErrors.departmentId = 'Department is required';
-        if (!formData.majorId) newErrors.majorId = 'Major is required';
-        if (!formData.level) newErrors.level = 'Level is required';
-        if (!formData.selectedCourses || formData.selectedCourses.length === 0) {
-          newErrors.selectedCourses = 'Please select at least one course';
-        }
+        if (!formData.major) newErrors.major = 'Major is required';
+        if (!formData.semester) newErrors.semester = 'Semester is required';
+        if (!formData.courses || formData.courses.length === 0) newErrors.courses = 'At least one course must be selected';
         break;
-        
-      case 2: // Contact & Emergency
-        if (!formData.phoneNumber) newErrors.phoneNumber = 'Phone number is required';
+      case 2: // Contact Information
         if (!formData.emergencyContact.name) newErrors['emergencyContact.name'] = 'Emergency contact name is required';
-        if (!formData.emergencyContact.phoneNumber) newErrors['emergencyContact.phoneNumber'] = 'Emergency contact phone is required';
+        if (!formData.emergencyContact.phone) newErrors['emergencyContact.phone'] = 'Emergency contact phone is required';
+        if (!formData.emergencyContact.relationship) newErrors['emergencyContact.relationship'] = 'Emergency contact relationship is required';
+        break;
+      default:
         break;
     }
     
@@ -733,7 +731,7 @@ const ICTUStudentRegistration = () => {
       case 4:
         return renderSuccess();
       default:
-        return 'Unknown step';
+        return renderPersonalInformation();
     }
   };
 

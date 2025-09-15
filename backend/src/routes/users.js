@@ -1,6 +1,6 @@
 const express = require('express');
 const { sequelize } = require('../config/database');
-const { logger } = require('../utils/logger');
+const logger = require('../utils/logger');
 const { authenticateToken } = require('../middleware/auth');
 const { body, param, query, validationResult } = require('express-validator');
 const router = express.Router();

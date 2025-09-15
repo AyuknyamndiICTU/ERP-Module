@@ -1,39 +1,37 @@
 import React, { useState } from 'react';
 import {
-  Box,
   AppBar,
   Toolbar,
   Typography,
   IconButton,
+  Box,
   Avatar,
   Menu,
   MenuItem,
+  Divider,
+  Badge,
+  useTheme,
   TextField,
   InputAdornment,
-  Badge,
   Chip,
-  Divider,
-  ListItemIcon,
-  useTheme,
-  useMediaQuery,
-  Tooltip,
   Button,
+  Tooltip,
+  ListItemIcon
 } from '@mui/material';
 import {
   Menu as MenuIcon,
-  Search as SearchIcon,
   Notifications as NotificationsIcon,
+  AccountCircle as AccountCircleIcon,
   Settings as SettingsIcon,
-  Person as PersonIcon,
   Logout as LogoutIcon,
-  Brightness4 as DarkModeIcon,
-  Brightness7 as LightModeIcon,
-  FullscreenExit as FullscreenExitIcon,
-  Fullscreen as FullscreenIcon,
-  Help as HelpIcon,
-  Language as LanguageIcon,
+  Search as SearchIcon,
+  MoreVert as MoreVertIcon,
   School as SchoolIcon,
   Dashboard as DashboardIcon,
+  Help as HelpIcon,
+  FullscreenExit as FullscreenExitIcon,
+  Fullscreen as FullscreenIcon,
+  Person as PersonIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';

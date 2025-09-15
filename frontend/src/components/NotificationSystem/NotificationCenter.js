@@ -26,7 +26,6 @@ import {
 import {
   Notifications as NotificationsIcon,
   NotificationsActive as NotificationsActiveIcon,
-  Close as CloseIcon,
   CheckCircle as CheckCircleIcon,
   Error as ErrorIcon,
   Warning as WarningIcon,
@@ -55,7 +54,7 @@ const NotificationCenter = () => {
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [activeTab]);
+  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchNotifications = async () => {
     setLoading(true);

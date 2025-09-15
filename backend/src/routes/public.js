@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { body, validationResult } = require('express-validator');
-const { logger } = require('../utils/logger');
+const logger = require('../utils/logger');
 const Student = require('../models/Student');
 const Faculty = require('../models/Faculty');
 const Department = require('../models/Department');

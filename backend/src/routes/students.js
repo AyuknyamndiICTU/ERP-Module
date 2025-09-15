@@ -1,8 +1,11 @@
+const express = require('express');
+const router = express.Router();
 const { Student, User, Faculty, Department, Major, Course, Notification } = require('../models');
 const { body, validationResult, param, query } = require('express-validator');
 const bcrypt = require('bcryptjs');
-const { logger } = require('../utils/logger');
+const logger = require('../utils/logger');
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
+const roleAuth = require('../middleware/roleAuth');
 const { sendRegistrationApprovalEmail, sendRegistrationRejectionEmail } = require('../utils/emailService');
 const { Op } = require('sequelize');
 const { generateMatricule } = require('../utils/matriculeGenerator');

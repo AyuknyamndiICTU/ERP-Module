@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Grid,
@@ -28,11 +28,13 @@ import {
   Work as WorkIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
-import GlassCard from '../../components/GlassCard';
+import { useNotification } from '../../context/NotificationContext';
 import logger from '../../utils/logger';
+import api from '../../services/api';
 
 const ProfilePage = () => {
   const { user, updateUser } = useAuth();
+  const { showNotification } = useNotification();
   const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState({
     firstName: user?.firstName || user?.name?.split(' ')[0] || '',
@@ -45,7 +47,8 @@ const ProfilePage = () => {
     bio: user?.bio || '',
     avatar: user?.avatar || ''
   });
-  const [notification, setNotification] = useState({ open: false, message: '', severity: 'success' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleInputChange = (field, value) => {
     setProfileData(prev => ({
@@ -56,34 +59,41 @@ const ProfilePage = () => {
 
   const handleSave = async () => {
     try {
-      // Here you would typically make an API call to update the profile
-      logger.info('Updating profile:', profileData);
+      setLoading(true);
+      setError(null);
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Make real API call to update profile
+      const response = await api.put('/profile', {
+        firstName: profileData.firstName,
+        lastName: profileData.lastName,
+        email: profileData.email,
+        phone: profileData.phone,
+        bio: profileData.bio
+      });
 
-      // Update the user context
-      if (updateUser) {
+      if (response.data.success) {
+        // Update user context
         updateUser({
           ...user,
-          ...profileData,
-          name: `${profileData.firstName} ${profileData.lastName}`
+          firstName: profileData.firstName,
+          lastName: profileData.lastName,
+          email: profileData.email,
+          phone: profileData.phone,
+          bio: profileData.bio
         });
-      }
 
-      setIsEditing(false);
-      setNotification({
-        open: true,
-        message: 'Profile updated successfully!',
-        severity: 'success'
-      });
+        setIsEditing(false);
+        showNotification('Profile updated successfully', 'success');
+      } else {
+        throw new Error(response.data.message || 'Failed to update profile');
+      }
     } catch (error) {
       logger.error('Error updating profile:', error);
-      setNotification({
-        open: true,
-        message: 'Failed to update profile. Please try again.',
-        severity: 'error'
-      });
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to update profile';
+      setError(errorMessage);
+      showNotification(errorMessage, 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -135,6 +145,61 @@ const ProfilePage = () => {
     };
     return labels[role] || role;
   };
+
+  // Load user data on mount
+  useEffect(() => {
+    const loadProfileData = async () => {
+      if (user) {
+        try {
+          // Try to get fresh profile data from API
+          const response = await api.get('/profile');
+          if (response.data.success) {
+            const userData = response.data.user;
+            setProfileData({
+              firstName: userData.firstName || '',
+              lastName: userData.lastName || '',
+              email: userData.email || '',
+              phone: userData.phone || '',
+              address: userData.address || '',
+              department: userData.department || '',
+              position: userData.position || userData.role || '',
+              bio: userData.bio || '',
+              avatar: userData.avatar || ''
+            });
+          } else {
+            // Fallback to user context data
+            setProfileData({
+              firstName: user.firstName || user.name?.split(' ')[0] || '',
+              lastName: user.lastName || user.name?.split(' ')[1] || '',
+              email: user.email || '',
+              phone: user.phone || '',
+              address: user.address || '',
+              department: user.department || '',
+              position: user.position || user.role || '',
+              bio: user.bio || '',
+              avatar: user.avatar || ''
+            });
+          }
+        } catch (error) {
+          logger.error('Error loading profile data:', error);
+          // Fallback to user context data
+          setProfileData({
+            firstName: user.firstName || user.name?.split(' ')[0] || '',
+            lastName: user.lastName || user.name?.split(' ')[1] || '',
+            email: user.email || '',
+            phone: user.phone || '',
+            address: user.address || '',
+            department: user.department || '',
+            position: user.position || user.role || '',
+            bio: user.bio || '',
+            avatar: user.avatar || ''
+          });
+        }
+      }
+    };
+
+    loadProfileData();
+  }, [user]);
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, maxWidth: 1200, mx: 'auto' }}>
