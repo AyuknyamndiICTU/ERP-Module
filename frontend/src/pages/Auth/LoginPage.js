@@ -9,12 +9,16 @@ import {
   Container,
   InputAdornment,
   IconButton,
-  keyframes} from '@mui/material';
+  keyframes,
+  Divider
+} from '@mui/material';
 import {
   Visibility,
   VisibilityOff,
   Email,
-  Lock} from '@mui/icons-material';
+  Lock,
+  PersonAdd
+} from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import logger from '../../utils/logger';
@@ -98,6 +102,10 @@ const LoginPage = () => {
 
   const handleTogglePassword = () => {
     setShowPassword(!showPassword);
+  };
+
+  const handleNewStudentRegistration = () => {
+    navigate('/register');
   };
 
   if (loading) {
@@ -202,6 +210,22 @@ const LoginPage = () => {
               disabled={loading}
             >
               Sign In
+            </Button>
+
+            <Divider sx={{ my: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                New to ICTU?
+              </Typography>
+            </Divider>
+
+            <Button
+              fullWidth
+              variant="outlined"
+              startIcon={<PersonAdd />}
+              onClick={handleNewStudentRegistration}
+              sx={{ mb: 2 }}
+            >
+              New Student Registration
             </Button>
           </Box>
 
