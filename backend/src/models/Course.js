@@ -70,6 +70,12 @@ const Course = sequelize.define('Course', {
     type: DataTypes.JSONB,
     field: 'schedule'
   },
+  difficulty: {
+    type: DataTypes.ENUM('Undergraduate', 'Master', 'PhD'),
+    allowNull: false,
+    defaultValue: 'Undergraduate',
+    field: 'difficulty'
+  },
   status: {
     type: DataTypes.ENUM('active', 'inactive', 'completed'),
     defaultValue: 'active',
