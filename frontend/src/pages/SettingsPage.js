@@ -52,6 +52,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import logger from '../utils/logger';
+import api from '../services/api';
 
 // Theme options
 const THEMES = [
@@ -126,14 +127,25 @@ const SettingsPage = () => {
       setLoading(true);
       setError(null);
 
-      // Here you would call the API to update profile
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulating API call
+      // Make real API call to update profile
+      const response = await api.put('/profile', {
+        firstName: profileData.firstName,
+        lastName: profileData.lastName,
+        email: profileData.email,
+        phone: profileData.phone,
+        bio: profileData.bio
+      });
 
-      setSuccess('Profile updated successfully');
-      setTimeout(() => setSuccess(null), 3000);
+      if (response.data.success) {
+        setSuccess('Profile updated successfully');
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        throw new Error(response.data.message || 'Failed to update profile');
+      }
     } catch (error) {
       logger.error('Error updating profile:', error);
-      setError('Failed to update profile');
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to update profile';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -150,15 +162,23 @@ const SettingsPage = () => {
         return;
       }
 
-      // Here you would call the API to change password
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulating API call
+      // Make real API call to change password
+      const response = await api.put('/profile/change-password', {
+        currentPassword: security.password,
+        newPassword: security.newPassword
+      });
 
-      setSecurity({ ...security, password: '', newPassword: '', confirmPassword: '' });
-      setSuccess('Password changed successfully');
-      setTimeout(() => setSuccess(null), 3000);
+      if (response.data.success) {
+        setSecurity({ ...security, password: '', newPassword: '', confirmPassword: '' });
+        setSuccess('Password changed successfully');
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        throw new Error(response.data.message || 'Failed to change password');
+      }
     } catch (error) {
       logger.error('Error changing password:', error);
-      setError('Failed to change password');
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to change password';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -170,14 +190,22 @@ const SettingsPage = () => {
       setLoading(true);
       setError(null);
 
-      // Save preferences to localStorage or API
-      localStorage.setItem('userPreferences', JSON.stringify(preferences));
-
-      setSuccess('Preferences saved successfully');
-      setTimeout(() => setSuccess(null), 3000);
+      // Save preferences to API and localStorage as backup
+      const response = await api.put('/profile/preferences', preferences);
+      
+      if (response.data.success) {
+        localStorage.setItem('userPreferences', JSON.stringify(preferences));
+        setSuccess('Preferences saved successfully');
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        throw new Error(response.data.message || 'Failed to save preferences');
+      }
     } catch (error) {
       logger.error('Error saving preferences:', error);
-      setError('Failed to save preferences');
+      // Fallback to localStorage only
+      localStorage.setItem('userPreferences', JSON.stringify(preferences));
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to save preferences to server, saved locally';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -189,15 +217,38 @@ const SettingsPage = () => {
     if (file) {
       try {
         setLoading(true);
-        // Here you would upload the file to the server
-        const avatarUrl = URL.createObjectURL(file);
-        setProfileData({ ...profileData, avatar: avatarUrl });
-        setSuccess('Avatar updated successfully');
-        setTimeout(() => setSuccess(null), 3000);
+        
+        // Convert file to base64 for API upload
+        const reader = new FileReader();
+        reader.onload = async () => {
+          try {
+            const avatarData = reader.result;
+            
+            // Make API call to upload avatar
+            const response = await api.post('/profile/avatar', {
+              avatarData: avatarData
+            });
+            
+            if (response.data.success) {
+              setProfileData({ ...profileData, avatar: avatarData });
+              setSuccess('Avatar updated successfully');
+              setTimeout(() => setSuccess(null), 3000);
+            } else {
+              throw new Error(response.data.message || 'Failed to upload avatar');
+            }
+          } catch (error) {
+            logger.error('Error uploading avatar:', error);
+            const errorMessage = error.response?.data?.message || error.message || 'Failed to upload avatar';
+            setError(errorMessage);
+          } finally {
+            setLoading(false);
+          }
+        };
+        
+        reader.readAsDataURL(file);
       } catch (error) {
-        logger.error('Error uploading avatar:', error);
-        setError('Failed to upload avatar');
-      } finally {
+        logger.error('Error processing avatar file:', error);
+        setError('Failed to process avatar file');
         setLoading(false);
       }
     }
@@ -232,27 +283,63 @@ const SettingsPage = () => {
 
   // Initialize data on component mount
   useEffect(() => {
-    // Load saved preferences
-    const savedPreferences = localStorage.getItem('userPreferences');
-    if (savedPreferences) {
-      try {
-        setPreferences(JSON.parse(savedPreferences));
-      } catch (error) {
-        logger.error('Error loading saved preferences:', error);
+    const loadData = async () => {
+      // Load user profile data
+      if (user) {
+        try {
+          const profileResponse = await api.get('/profile');
+          if (profileResponse.data.success) {
+            const userData = profileResponse.data.user;
+            setProfileData({
+              firstName: userData.firstName || '',
+              lastName: userData.lastName || '',
+              email: userData.email || '',
+              phone: userData.phone || '',
+              bio: userData.bio || '',
+              avatar: userData.avatar || null,
+            });
+          }
+        } catch (error) {
+          logger.error('Error loading profile data:', error);
+          // Fallback to user context data
+          setProfileData({
+            firstName: user.firstName || '',
+            lastName: user.lastName || '',
+            email: user.email || '',
+            phone: user.phone || '',
+            bio: user.bio || '',
+            avatar: user.avatar || null,
+          });
+        }
       }
-    }
 
-    // Set user data
-    if (user) {
-      setProfileData({
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        email: user.email || '',
-        phone: user.phone || '',
-        bio: user.bio || '',
-        avatar: user.avatar || null,
-      });
-    }
+      // Load user preferences from API
+      try {
+        const prefsResponse = await api.get('/profile/preferences');
+        if (prefsResponse.data.success) {
+          setPreferences(prefsResponse.data.preferences);
+        } else {
+          // Fallback to localStorage
+          const savedPreferences = localStorage.getItem('userPreferences');
+          if (savedPreferences) {
+            setPreferences(JSON.parse(savedPreferences));
+          }
+        }
+      } catch (error) {
+        logger.error('Error loading preferences from API:', error);
+        // Fallback to localStorage
+        const savedPreferences = localStorage.getItem('userPreferences');
+        if (savedPreferences) {
+          try {
+            setPreferences(JSON.parse(savedPreferences));
+          } catch (parseError) {
+            logger.error('Error parsing saved preferences:', parseError);
+          }
+        }
+      }
+    };
+
+    loadData();
   }, [user]);
 
   const renderProfileTab = () => (

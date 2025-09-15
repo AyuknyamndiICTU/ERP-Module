@@ -3,7 +3,7 @@ const router = express.Router();
 const { Employee } = require('../models');
 const { authenticateToken } = require('../middleware/auth');
 const roleAuth = require('../middleware/roleAuth');
-const { logger } = require('../utils/logger');
+const logger = require('../utils/logger');
 const { body, param, query, validationResult } = require('express-validator');
 
 /**

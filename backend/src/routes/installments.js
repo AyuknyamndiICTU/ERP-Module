@@ -2,8 +2,9 @@ const express = require('express');
 const router = express.Router();
 const { InstallmentPlan, Installment, Student, FeeStructure, User } = require('../models');
 const { body, validationResult, param, query } = require('express-validator');
-const { authenticateToken, authorizeRoles } = require('../middleware/auth');
-const { logger } = require('../utils/logger');
+const { authenticateToken } = require('../middleware/auth');
+const roleAuth = require('../middleware/roleAuth');
+const logger = require('../utils/logger');
 const { sendFeePaymentReminderEmail } = require('../utils/emailService');
 const { Op } = require('sequelize');
 
@@ -92,7 +93,7 @@ const { Op } = require('sequelize');
  */
 router.post('/plans',
   authenticateToken,
-  authorizeRoles(['admin', 'finance_user']),
+  roleAuth(['admin', 'finance_user']),
   [
     body('studentId').isUUID().withMessage('Valid student ID is required'),
     body('feeStructureId').isUUID().withMessage('Valid fee structure ID is required'),
@@ -287,7 +288,7 @@ router.post('/plans',
  */
 router.get('/plans',
   authenticateToken,
-  authorizeRoles(['admin', 'finance_user', 'student']),
+  roleAuth(['admin', 'finance_user', 'student']),
   [
     query('studentId').optional().isUUID(),
     query('status').optional().isIn(['active', 'completed', 'overdue', 'cancelled']),
@@ -410,7 +411,7 @@ router.get('/plans',
  */
 router.post('/:installmentId/pay',
   authenticateToken,
-  authorizeRoles(['admin', 'finance_user']),
+  roleAuth(['admin', 'finance_user']),
   [
     param('installmentId').isUUID().withMessage('Valid installment ID is required'),
     body('amount').isFloat({ min: 0.01 }).withMessage('Amount must be greater than 0'),
@@ -530,7 +531,7 @@ router.post('/:installmentId/pay',
  */
 router.get('/overdue',
   authenticateToken,
-  authorizeRoles(['admin', 'finance_user']),
+  roleAuth(['admin', 'finance_user']),
   async (req, res) => {
     try {
       const today = new Date().toISOString().split('T')[0];
@@ -612,7 +613,7 @@ router.get('/overdue',
  */
 router.post('/send-reminders',
   authenticateToken,
-  authorizeRoles(['admin', 'finance_user']),
+  roleAuth(['admin', 'finance_user']),
   [
     body('daysAhead').optional().isInt({ min: 1, max: 30 }).withMessage('Days ahead must be between 1 and 30')
   ],
