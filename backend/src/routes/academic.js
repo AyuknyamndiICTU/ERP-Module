@@ -3,7 +3,7 @@ const router = express.Router();
 const { body, param, query, validationResult } = require('express-validator');
 const { authenticateToken } = require('../middleware/auth');
 const roleAuth = require('../middleware/roleAuth');
-const { logger } = require('../utils/logger');
+const logger = require('../utils/logger');
 const { Op } = require('sequelize');
 
 // Import models

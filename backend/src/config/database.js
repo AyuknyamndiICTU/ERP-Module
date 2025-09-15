@@ -1,5 +1,5 @@
 const { Sequelize } = require('sequelize');
-const { logger } = require('../utils/logger');
+const logger = require('../utils/logger');
 
 // Database configuration
 const config = {

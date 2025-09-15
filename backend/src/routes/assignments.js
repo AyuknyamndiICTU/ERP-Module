@@ -4,7 +4,7 @@ const { authenticateToken } = require('../middleware/auth');
 const roleAuth = require('../middleware/roleAuth');
 const { checkPermission, canAccessStudentData } = require('../middleware/rolePermissions');
 const { sequelize } = require('../config/database');
-const { logger } = require('../utils/logger');
+const logger = require('../utils/logger');
 const { body, param, query, validationResult } = require('express-validator');
 
 /**

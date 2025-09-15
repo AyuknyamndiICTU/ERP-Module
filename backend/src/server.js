@@ -46,7 +46,6 @@ const majorRoutes = require('./routes/majors');
 const timetableRoutes = require('./routes/timetables');
 const complaintRoutes = require('./routes/complaints');
 const notificationRoutes = require('./routes/notifications');
-const publicRoutes = require('./routes/public');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -122,7 +121,6 @@ app.use('/api/majors', majorRoutes);
 app.use('/api/timetables', timetableRoutes);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/notifications', notificationRoutes);
-app.use('/api/public', publicRoutes);
 
 // API documentation
 if (process.env.NODE_ENV !== 'production') {
@@ -162,15 +160,15 @@ const startServer = async () => {
       logger.warn('Server starting without database connection');
     }
   } catch (error) {
-    logger.error('Database connection failed, continuing without database:', error.message);
+    console.error('Database connection failed, continuing without database:', error);
   }
 
   try {
     // Start server
     const server = app.listen(PORT, () => {
-      logger.info(`Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
-      logger.info(`API documentation available at http://localhost:${PORT}/api-docs`);
-      logger.info(`Health check available at http://localhost:${PORT}/health`);
+      console.log(`Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
+      console.log(`API documentation available at http://localhost:${PORT}/api-docs`);
+      console.log(`Health check available at http://localhost:${PORT}/health`);
     });
 
     // Graceful shutdown

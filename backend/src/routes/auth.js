@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { sequelize } = require('../config/database');
-const { logger } = require('../utils/logger');
+const logger = require('../utils/logger');
 const router = express.Router();
 
 /**
