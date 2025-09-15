@@ -92,7 +92,7 @@ const ICTUCoursesPage = () => {
       enrolled_count: 45,
       capacity: 50,
       progress: 75,
-      difficulty: 'Beginner',
+      difficulty: 'Undergraduate',
       rating: 4.8,
       color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       schedule: {
@@ -124,7 +124,7 @@ const ICTUCoursesPage = () => {
       enrolled_count: 38,
       capacity: 40,
       progress: 60,
-      difficulty: 'Intermediate',
+      difficulty: 'Master',
       rating: 4.6,
       color: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
       schedule: {
@@ -156,7 +156,7 @@ const ICTUCoursesPage = () => {
       enrolled_count: 28,
       capacity: 30,
       progress: 85,
-      difficulty: 'Intermediate',
+      difficulty: 'Master',
       rating: 4.9,
       color: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
       schedule: {
@@ -188,7 +188,7 @@ const ICTUCoursesPage = () => {
       enrolled_count: 42,
       capacity: 45,
       progress: 40,
-      difficulty: 'Advanced',
+      difficulty: 'PhD',
       rating: 4.7,
       color: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
       schedule: {
@@ -220,7 +220,7 @@ const ICTUCoursesPage = () => {
       enrolled_count: 35,
       capacity: 40,
       progress: 90,
-      difficulty: 'Advanced',
+      difficulty: 'PhD',
       rating: 4.8,
       color: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
       schedule: {
@@ -240,7 +240,7 @@ const ICTUCoursesPage = () => {
     {
       id: 6,
       code: 'DBA601',
-      name: 'Advanced Database Systems',
+      name: 'PhD Database Systems',
       description: 'Enterprise database management, data warehousing, big data analytics, and database optimization techniques.',
       credits: 3,
       semester: 'Spring',
@@ -252,7 +252,7 @@ const ICTUCoursesPage = () => {
       enrolled_count: 30,
       capacity: 35,
       progress: 55,
-      difficulty: 'Advanced',
+      difficulty: 'PhD',
       rating: 4.5,
       color: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
       schedule: {
@@ -284,7 +284,7 @@ const ICTUCoursesPage = () => {
       enrolled_count: 48,
       capacity: 50,
       progress: 65,
-      difficulty: 'Intermediate',
+      difficulty: 'Master',
       rating: 4.9,
       color: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
       schedule: {
@@ -316,7 +316,7 @@ const ICTUCoursesPage = () => {
       enrolled_count: 25,
       capacity: 30,
       progress: 30,
-      difficulty: 'Advanced',
+      difficulty: 'PhD',
       rating: 4.8,
       color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       schedule: {
@@ -534,7 +534,7 @@ const ICTUCoursesPage = () => {
                 {course.enrolled_count}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                Trainees
+                Students
               </Typography>
             </Box>
           </Grid>

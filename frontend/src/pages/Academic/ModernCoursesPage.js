@@ -94,7 +94,7 @@ const ModernCoursesPage = () => {
       enrolled_count: 45,
       capacity: 50,
       progress: 75,
-      difficulty: 'Beginner',
+      difficulty: 'Undergraduate',
       rating: 4.8,
       color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       schedule: {
@@ -119,7 +119,7 @@ const ModernCoursesPage = () => {
       enrolled_count: 38,
       capacity: 40,
       progress: 60,
-      difficulty: 'Intermediate',
+      difficulty: 'Master',
       rating: 4.6,
       color: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
       schedule: {
@@ -134,7 +134,7 @@ const ModernCoursesPage = () => {
       id: 3,
       code: 'MATH301',
       name: 'Problem Solving',
-      description: 'Advanced problem-solving techniques and mathematical modeling for real-world applications.',
+      description: 'PhD problem-solving techniques and mathematical modeling for real-world applications.',
       credits: 3,
       semester: 'Spring',
       year: 2024,
@@ -144,7 +144,7 @@ const ModernCoursesPage = () => {
       enrolled_count: 28,
       capacity: 30,
       progress: 85,
-      difficulty: 'Advanced',
+      difficulty: 'PhD',
       rating: 4.9,
       color: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
       schedule: {
@@ -169,7 +169,7 @@ const ModernCoursesPage = () => {
       enrolled_count: 42,
       capacity: 45,
       progress: 40,
-      difficulty: 'Intermediate',
+      difficulty: 'Master',
       rating: 4.7,
       color: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
       schedule: {
@@ -194,7 +194,7 @@ const ModernCoursesPage = () => {
       enrolled_count: 35,
       capacity: 40,
       progress: 90,
-      difficulty: 'Advanced',
+      difficulty: 'PhD',
       rating: 4.8,
       color: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
       schedule: {
@@ -219,7 +219,7 @@ const ModernCoursesPage = () => {
       enrolled_count: 30,
       capacity: 35,
       progress: 55,
-      difficulty: 'Beginner',
+      difficulty: 'Undergraduate',
       rating: 4.5,
       color: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
       schedule: {
@@ -266,9 +266,9 @@ const ModernCoursesPage = () => {
 
   const getDifficultyColor = (difficulty) => {
     switch (difficulty) {
-      case 'Beginner': return '#10b981';
-      case 'Intermediate': return '#f59e0b';
-      case 'Advanced': return '#ef4444';
+      case 'Undergraduate': return '#10b981';
+      case 'Master': return '#f59e0b';
+      case 'PhD': return '#ef4444';
       default: return '#6b7280';
     }
   };
@@ -423,7 +423,7 @@ const ModernCoursesPage = () => {
                 {course.enrolled_count}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                Trainees
+                Students
               </Typography>
             </Box>
           </Grid>

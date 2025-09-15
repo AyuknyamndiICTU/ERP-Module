@@ -447,7 +447,7 @@ const DashboardPage = () => {
       case 'admin':
       case 'system_admin':
         return [
-          { title: 'Total Trainees', value: academic?.totalStudents || '1,247', icon: <SchoolIcon sx={{ fontSize: 32 }} />, color: 'primary', subtitle: 'Active enrollments', trend: 'up', trendValue: '+8.2%' },
+          { title: 'Total Students', value: academic?.totalStudents || '1,247', icon: <SchoolIcon sx={{ fontSize: 32 }} />, color: 'primary', subtitle: 'Active enrollments', trend: 'up', trendValue: '+8.2%' },
           { title: 'Revenue', value: '2.4M FCFA', icon: <MoneyIcon sx={{ fontSize: 32 }} />, color: 'success', subtitle: 'This academic year', trend: 'up', trendValue: '+12.5%' },
           { title: 'Staff Members', value: hr?.totalEmployees || '85', icon: <PeopleIcon sx={{ fontSize: 32 }} />, color: 'warning', subtitle: 'Active employees', trend: 'up', trendValue: '+3.1%' },
           { title: 'Growth Rate', value: '12.5%', icon: <TrendingUpIcon sx={{ fontSize: 32 }} />, color: 'error', subtitle: 'Monthly growth', trend: 'up', trendValue: '+2.3%' },
@@ -456,7 +456,7 @@ const DashboardPage = () => {
       case 'faculty_coordinator':
       case 'major_coordinator':
         return [
-          { title: 'My Trainees', value: '156', icon: <PeopleIcon sx={{ fontSize: 32 }} />, color: 'primary', subtitle: 'Active trainees', trend: 'up', trendValue: '+5.2%' },
+          { title: 'My Students', value: '156', icon: <PeopleIcon sx={{ fontSize: 32 }} />, color: 'primary', subtitle: 'Active Students', trend: 'up', trendValue: '+5.2%' },
           { title: 'My Courses', value: '8', icon: <SchoolIcon sx={{ fontSize: 32 }} />, color: 'success', subtitle: 'This semester', trend: 'up', trendValue: '+2' },
           { title: 'Pending Grades', value: '23', icon: <AssignmentIcon sx={{ fontSize: 32 }} />, color: 'warning', subtitle: 'To be graded', trend: 'down', trendValue: '-12' },
           { title: 'Attendance', value: '94%', icon: <EventIcon sx={{ fontSize: 32 }} />, color: 'purple', subtitle: 'Course average', trend: 'up', trendValue: '+2.1%' },
@@ -484,7 +484,7 @@ const DashboardPage = () => {
         ];
       default:
         return [
-          { title: 'Trainees', value: '1,247', icon: <SchoolIcon sx={{ fontSize: 32 }} />, color: 'primary', subtitle: 'Active enrollments' },
+          { title: 'Students', value: '1,247', icon: <SchoolIcon sx={{ fontSize: 32 }} />, color: 'primary', subtitle: 'Active enrollments' },
           { title: 'Revenue', value: '2.4M', icon: <MoneyIcon sx={{ fontSize: 32 }} />, color: 'success', subtitle: 'This year' },
           { title: 'Staff', value: '85', icon: <PeopleIcon sx={{ fontSize: 32 }} />, color: 'warning', subtitle: 'Employees' },
           { title: 'Growth', value: '12.5%', icon: <TrendingUpIcon sx={{ fontSize: 32 }} />, color: 'error', subtitle: 'Monthly' },

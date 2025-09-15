@@ -31,7 +31,7 @@ import {
   Receipt as InvoicesIcon,
   Payment as PaymentsIcon,
   AccountBalanceWallet as BudgetsIcon,
-  Group as TraineesIcon,
+  Group as StudentsIcon,
   PersonAdd as EmployeesIcon,
   MonetizationOn as PayrollIcon,
   BeachAccess as LeaveIcon,
@@ -94,11 +94,11 @@ const WhiteSidebar = ({ open, onClose, isMobile }) => {
         { text: 'Exams', icon: <ExamsIcon />, path: '/academic/exams', key: 'exams' }
       );
       
-      // Only admin, system_admin, lecturers, and coordinators can manage trainees
+      // Only admin, system_admin, lecturers, and coordinators can manage students
       if (user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'lecturer' || 
           user?.role === 'faculty_coordinator' || user?.role === 'major_coordinator') {
         academicItems.push(
-          { text: 'Trainees', icon: <TraineesIcon />, path: '/academic/students', key: 'trainees' }
+          { text: 'Students', icon: <StudentsIcon />, path: '/academic/students', key: 'students' }
         );
       }
     }

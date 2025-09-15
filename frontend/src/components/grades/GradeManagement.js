@@ -123,9 +123,9 @@ const GradeManagement = () => {
     setOpenGradeDialog(true);
   };
 
-  const handleDownloadTranscript = () => {
+  const handleDownloadStudentscript = () => {
     // Implement PDF download functionality
-    console.log('Downloading transcript...');
+    console.log('Downloading studentscript...');
   };
 
   const getGradeColor = (grade) => {
@@ -162,10 +162,10 @@ const GradeManagement = () => {
             <Button
               variant="outlined"
               startIcon={<Download />}
-              onClick={handleDownloadTranscript}
+              onClick={handleDownloadStudentscript}
               sx={{ textTransform: 'none' }}
             >
-              Download Transcript
+              Download Studentscript
             </Button>
           )}
           
@@ -189,7 +189,7 @@ const GradeManagement = () => {
             <Tab label="Assignments" />
             <Tab label="CA Marks" />
             <Tab label="Exam Marks" />
-            {isStudent && <Tab label="Transcript" />}
+            {isStudent && <Tab label="Studentscript" />}
             {canManageGrades && <Tab label="Statistics" />}
           </Tabs>
         </Box>
@@ -202,8 +202,8 @@ const GradeManagement = () => {
                 <TableRow>
                   {!isStudent && (
                     <>
-                      <TableCell>Trainee Name</TableCell>
-                      <TableCell>Trainee ID</TableCell>
+                      <TableCell>Student Name</TableCell>
+                      <TableCell>Student ID</TableCell>
                     </>
                   )}
                   <TableCell>Course Code</TableCell>
@@ -316,15 +316,15 @@ const GradeManagement = () => {
           {/* Exam marks content */}
         </TabPanel>
 
-        {/* Transcript Tab (Students only) */}
+        {/* Studentscript Tab (Students only) */}
         {isStudent && (
           <TabPanel value={activeTab} index={4}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-              <Typography variant="h6">Academic Transcript</Typography>
+              <Typography variant="h6">Academic Studentscript</Typography>
               <Button
                 variant="contained"
                 startIcon={<Download />}
-                onClick={handleDownloadTranscript}
+                onClick={handleDownloadStudentscript}
                 sx={{ textTransform: 'none' }}
               >
                 Download PDF
@@ -412,7 +412,7 @@ const GradeManagement = () => {
                       95%
                     </Typography>
                     <Typography color="text.secondary">
-                      Trainees Passing
+                      Students Passing
                     </Typography>
                   </CardContent>
                 </Card>
@@ -432,7 +432,7 @@ const GradeManagement = () => {
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Trainee"
+                label="Student"
                 defaultValue={selectedGrade?.studentName || ''}
               />
             </Grid>

@@ -236,7 +236,7 @@ const AttendanceManagement = () => {
       <Card>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            {isStudent ? 'Attendance History' : 'Trainee Attendance Records'}
+            {isStudent ? 'Attendance History' : 'Student Attendance Records'}
           </Typography>
           
           <TableContainer component={Paper} variant="outlined">
@@ -245,8 +245,8 @@ const AttendanceManagement = () => {
                 <TableRow>
                   {!isStudent && (
                     <>
-                      <TableCell>Trainee Name</TableCell>
-                      <TableCell>Trainee ID</TableCell>
+                      <TableCell>Student Name</TableCell>
+                      <TableCell>Student ID</TableCell>
                     </>
                   )}
                   <TableCell>Course</TableCell>
