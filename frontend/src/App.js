@@ -5,7 +5,6 @@ import { Helmet } from 'react-helmet-async';
 
 // Context and hooks
 import { AuthProvider } from './context/AuthContext';
-import { NotificationProvider } from './context/NotificationContext';
 import { useAuth } from './context/AuthContext';
 
 // Components
