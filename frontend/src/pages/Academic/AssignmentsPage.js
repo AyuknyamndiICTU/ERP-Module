@@ -11,39 +11,21 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Chip,
   Alert,
-  Skeleton,
-  Paper,
   Container,
   useTheme,
   useMediaQuery,
   keyframes,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   IconButton,
-  Tooltip,
   CircularProgress,
   Avatar,
-  Stack,
 } from '@mui/material';
 import {
   Assignment as AssignmentIcon,
   Add as AddIcon,
-  Edit as EditIcon,
   Delete as DeleteIcon,
   UploadFile as UploadFileIcon,
-  Grade as GradeIcon,
-  Person as PersonIcon,
-  Schedule as ScheduleIcon,
   CheckCircle as CheckCircleIcon,
   Pending as PendingIcon,
   Refresh as RefreshIcon,
@@ -51,26 +33,36 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import logger from '../../utils/logger';
 
-// Animation keyframes
-const fadeIn = keyframes`
+// Enhanced Animation keyframes
+const slideIn = keyframes`
   from {
     opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-`;
-
-const slideInLeft = keyframes`
-  from {
-    opacity: 0;
-    transform: translateX(-20px);
+    transform: translateX(-30px);
   }
   to {
     opacity: 1;
     transform: translateX(0);
+  }
+`;
+
+const pulse = keyframes`
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+`;
+
+const float = keyframes`
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
   }
 `;
 
@@ -131,8 +123,6 @@ const createAssignment = async (data) => {
 const AssignmentsPage = () => {
   const { user } = useAuth();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const isSmall = useMediaQuery(theme.breakpoints.down('sm'));
 
   // State management
   const [assignments, setAssignments] = useState([]);
@@ -363,7 +353,7 @@ const AssignmentsPage = () => {
   // Initialize and fetch data
   useEffect(() => {
     fetchAssignments();
-  }, [filters]);
+  }, [fetchAssignments, filters]);
 
   // Render loading state
   if (loading && assignments.length === 0) {
@@ -380,19 +370,43 @@ const AssignmentsPage = () => {
   }
 
   return (
-    <Container maxWidth="xl" sx={{ py: { xs: 2, md: 4 } }}>
-      {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        <Paper
-          sx={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            borderRadius: 4,
-            p: { xs: 3, md: 4 },
-            color: 'white',
-            position: 'relative',
-            overflow: 'hidden',
-          }}
-        >
+    <Box sx={{ 
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      p: 0
+    }}>
+      {/* Enhanced Header with Floating Elements */}
+      <Box sx={{ 
+        position: 'relative',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        borderRadius: '0 0 50px 50px',
+        p: 4,
+        mb: 4,
+        overflow: 'hidden',
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          top: '-50%',
+          right: '-10%',
+          width: '300px',
+          height: '300px',
+          background: 'rgba(255, 255, 255, 0.1)',
+          borderRadius: '50%',
+          animation: `${pulse} 4s ease-in-out infinite`,
+        },
+        '&::after': {
+          content: '""',
+          position: 'absolute',
+          bottom: '-30%',
+          left: '-5%',
+          width: '200px',
+          height: '200px',
+          background: 'rgba(255, 255, 255, 0.08)',
+          borderRadius: '50%',
+          animation: `${float} 6s ease-in-out infinite`,
+        }
+      }}>
+        <Container maxWidth="xl" sx={{ position: 'relative', zIndex: 1 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
             <Box>
               <Typography variant="h3" sx={{
@@ -493,15 +507,16 @@ const AssignmentsPage = () => {
               </Grid>
             </Grid>
           )}
-        </Paper>
+        </Container>
       </Box>
 
-      {/* Error Alert */}
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
-        </Alert>
-      )}
+      <Container maxWidth="xl" sx={{ py: 2 }}>
+        {/* Error Alert */}
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+        )}
 
       {/* Assignments Content */}
       {loading ? (
@@ -528,7 +543,7 @@ const AssignmentsPage = () => {
                   background: 'rgba(255,255,255,0.95)',
                   backdropFilter: 'blur(10px)',
                   borderRadius: 3,
-                  animation: `${slideInLeft} 0.6s ease-out ${index * 0.1}s both`,
+                  animation: `${slideIn} 0.6s ease-out ${index * 0.1}s both`,
                   transition: 'all 0.3s ease',
                   '&:hover': {
                     transform: 'translateY(-4px)',
@@ -828,7 +843,8 @@ const AssignmentsPage = () => {
           )}
         </DialogActions>
       </Dialog>
-    </Container>
+      </Container>
+    </Box>
   );
 };
 

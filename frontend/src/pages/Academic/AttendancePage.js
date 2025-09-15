@@ -45,15 +45,15 @@ import {
   Download as DownloadIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
-import GlassCard, { StatsCard } from '../../components/GlassCard';
+import GlassCard from '../../components/GlassCard';
 import logger from '../../utils/logger';
 import { academicAPI } from '../../services/api';
 
-// Animation keyframes
+// Enhanced Animation keyframes
 const fadeInUp = keyframes`
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(30px);
   }
   to {
     opacity: 1;
@@ -64,13 +64,37 @@ const fadeInUp = keyframes`
 const slideIn = keyframes`
   from {
     opacity: 0;
-    transform: translateX(-20px);
+    transform: translateX(-30px);
   }
   to {
     opacity: 1;
     transform: translateX(0);
   }
 `;
+
+const scaleIn = keyframes`
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+`;
+
+const pulse = keyframes`
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+`;
+
 
 const AttendancePage = () => {
   const { user } = useAuth();
@@ -401,160 +425,380 @@ const AttendancePage = () => {
   const stats = getAttendanceStats();
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box sx={{ mb: 4, animation: `${slideIn} 0.8s ease-out` }}>
-        <Typography
-          variant="h3"
-          component="h1"
-          sx={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            fontWeight: 800,
-            mb: 1,
-          }}
-        >
-          Attendance Tracking
-        </Typography>
-        <Typography variant="h6" color="text.secondary">
-          Monitor and manage student attendance across all courses
-        </Typography>
+    <Box sx={{ 
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      p: 0
+    }}>
+      {/* Enhanced Header with Floating Bubbles */}
+      <Box sx={{ 
+        position: 'relative',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        borderRadius: '0 0 50px 50px',
+        p: 4,
+        mb: 4,
+        overflow: 'hidden',
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          top: '-50%',
+          right: '-10%',
+          width: '300px',
+          height: '300px',
+          background: 'rgba(255, 255, 255, 0.1)',
+          borderRadius: '50%',
+          animation: `${pulse} 4s ease-in-out infinite`,
+        },
+        '&::after': {
+          content: '""',
+          position: 'absolute',
+          bottom: '-30%',
+          left: '-5%',
+          width: '200px',
+          height: '200px',
+          background: 'rgba(255, 255, 255, 0.08)',
+          borderRadius: '50%',
+          animation: `${pulse} 3s ease-in-out infinite reverse`,
+        }
+      }}>
+        <Box sx={{ position: 'relative', zIndex: 1, animation: `${slideIn} 0.8s ease-out` }}>
+          <Typography
+            variant="h2"
+            component="h1"
+            sx={{
+              color: 'white',
+              fontWeight: 900,
+              mb: 2,
+              fontSize: { xs: '2.5rem', md: '3.5rem' },
+              textShadow: '0 4px 20px rgba(0,0,0,0.3)',
+              letterSpacing: '-0.02em'
+            }}
+          >
+            📊 Attendance Tracking
+          </Typography>
+          <Typography 
+            variant="h5" 
+            sx={{ 
+              color: 'rgba(255,255,255,0.9)',
+              fontWeight: 400,
+              fontSize: { xs: '1.1rem', md: '1.3rem' },
+              maxWidth: '600px'
+            }}
+          >
+            Monitor and manage student attendance across all courses
+          </Typography>
+        </Box>
       </Box>
 
-      {/* Course Selection */}
-      <GlassCard sx={{ mb: 4, animation: `${fadeInUp} 0.8s ease-out 0.1s both` }}>
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-          <FormControl sx={{ minWidth: 300 }}>
-            <InputLabel>Select Course</InputLabel>
-            <Select
-              value={selectedCourse?.id || ''}
-              onChange={(e) => handleCourseChange(e.target.value)}
-              label="Select Course"
-            >
-              {courses.map((course) => (
-                <MenuItem key={course.id} value={course.id}>
-                  {(course.courseCode || course.code)} - {(course.courseName || course.name)}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+      <Box sx={{ px: 3 }}>
+        {/* Enhanced Course Selection Card */}
+        <GlassCard sx={{ 
+          mb: 4, 
+          animation: `${fadeInUp} 0.8s ease-out 0.1s both`,
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+          borderRadius: '20px',
+          p: 3
+        }}>
+          <Box sx={{ display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'wrap' }}>
+            <FormControl sx={{ 
+              minWidth: 350,
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '15px',
+                background: 'rgba(102, 126, 234, 0.05)',
+                '&:hover': {
+                  background: 'rgba(102, 126, 234, 0.08)',
+                },
+                '&.Mui-focused': {
+                  background: 'rgba(102, 126, 234, 0.1)',
+                }
+              }
+            }}>
+              <InputLabel sx={{ fontWeight: 600, color: '#667eea' }}>Select Course</InputLabel>
+              <Select
+                value={selectedCourse?.id || ''}
+                onChange={(e) => handleCourseChange(e.target.value)}
+                label="Select Course"
+                sx={{ fontWeight: 600 }}
+              >
+                {courses.map((course) => (
+                  <MenuItem key={course.id} value={course.id} sx={{ fontWeight: 500 }}>
+                    <Box>
+                      <Typography variant="subtitle1" fontWeight="700" color="#667eea">
+                        {(course.courseCode || course.code)}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {(course.courseName || course.name)}
+                      </Typography>
+                    </Box>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
 
-          <TextField
-            placeholder="Search students..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-            }}
-            sx={{ flexGrow: 1, minWidth: 250 }}
-          />
-
-          {(user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'lecturer' || user?.role === 'faculty_coordinator' || user?.role === 'major_coordinator') && (
-            <Button
-              variant="contained"
-              startIcon={<CalendarIcon />}
-              onClick={handleTakeAttendance}
-              sx={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                minWidth: 160,
+            <TextField
+              placeholder="🔍 Search students..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ color: '#667eea' }} />
+                  </InputAdornment>
+                ),
               }}
-            >
-              Take Attendance
-            </Button>
-          )}
-        </Box>
-      </GlassCard>
+              sx={{ 
+                flexGrow: 1, 
+                minWidth: 300,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '15px',
+                  background: 'rgba(102, 126, 234, 0.05)',
+                  '&:hover': {
+                    background: 'rgba(102, 126, 234, 0.08)',
+                  },
+                  '&.Mui-focused': {
+                    background: 'rgba(102, 126, 234, 0.1)',
+                  }
+                }
+              }}
+            />
+
+            {(user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'lecturer' || user?.role === 'faculty_coordinator' || user?.role === 'major_coordinator') && (
+              <Button
+                variant="contained"
+                startIcon={<CalendarIcon />}
+                onClick={handleTakeAttendance}
+                sx={{
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  minWidth: 180,
+                  height: 56,
+                  borderRadius: '15px',
+                  fontWeight: 700,
+                  fontSize: '1rem',
+                  textTransform: 'none',
+                  boxShadow: '0 10px 30px rgba(102, 126, 234, 0.4)',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%)',
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 15px 35px rgba(102, 126, 234, 0.5)',
+                  },
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                📅 Take Attendance
+              </Button>
+            )}
+          </Box>
+        </GlassCard>
 
       {selectedCourse && (
         <>
-          {/* Stats Cards */}
+          {/* Enhanced Stats Cards with Better Visual Design */}
           <Grid container spacing={3} sx={{ mb: 4 }}>
             <Grid item xs={12} sm={6} md={3}>
-              <StatsCard
-                icon={<PersonIcon />}
-                color="primary"
-                sx={{
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  color: '#ffffff',
-                  animation: `${fadeInUp} 0.6s ease-out 0.2s both`,
-                }}
-              >
-                <Typography variant="h3" fontWeight="800" sx={{ mb: 1 }}>
-                  {stats.totalStudents}
-                </Typography>
-                <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                  Total Students
-                </Typography>
-              </StatsCard>
+              <Box sx={{
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                borderRadius: '25px',
+                p: 3,
+                color: 'white',
+                position: 'relative',
+                overflow: 'hidden',
+                animation: `${scaleIn} 0.6s ease-out 0.2s both`,
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  transform: 'translateY(-8px) scale(1.02)',
+                  boxShadow: '0 20px 40px rgba(102, 126, 234, 0.3)',
+                },
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: '-50%',
+                  right: '-50%',
+                  width: '100px',
+                  height: '100px',
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  borderRadius: '50%',
+                }
+              }}>
+                <Box sx={{ position: 'relative', zIndex: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <PersonIcon sx={{ fontSize: '2rem', mr: 1 }} />
+                    <Typography variant="h6" fontWeight="700">👥 Students</Typography>
+                  </Box>
+                  <Typography variant="h2" fontWeight="900" sx={{ mb: 1, fontSize: '3rem' }}>
+                    {stats.totalStudents}
+                  </Typography>
+                  <Typography variant="body1" sx={{ opacity: 0.9, fontWeight: 500 }}>
+                    Total Enrolled
+                  </Typography>
+                </Box>
+              </Box>
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
-              <StatsCard
-                icon={<TrendingUpIcon />}
-                color="success"
-                sx={{
-                  background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
-                  color: '#ffffff',
-                  animation: `${fadeInUp} 0.6s ease-out 0.3s both`,
-                }}
-              >
-                <Typography variant="h3" fontWeight="800" sx={{ mb: 1 }}>
-                  {stats.averageAttendance.toFixed(1)}%
-                </Typography>
-                <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                  Average Attendance
-                </Typography>
-              </StatsCard>
+              <Box sx={{
+                background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
+                borderRadius: '25px',
+                p: 3,
+                color: 'white',
+                position: 'relative',
+                overflow: 'hidden',
+                animation: `${scaleIn} 0.6s ease-out 0.3s both`,
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  transform: 'translateY(-8px) scale(1.02)',
+                  boxShadow: '0 20px 40px rgba(16, 185, 129, 0.3)',
+                },
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: '-50%',
+                  right: '-50%',
+                  width: '100px',
+                  height: '100px',
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  borderRadius: '50%',
+                }
+              }}>
+                <Box sx={{ position: 'relative', zIndex: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <TrendingUpIcon sx={{ fontSize: '2rem', mr: 1 }} />
+                    <Typography variant="h6" fontWeight="700">📈 Average</Typography>
+                  </Box>
+                  <Typography variant="h2" fontWeight="900" sx={{ mb: 1, fontSize: '3rem' }}>
+                    {stats.averageAttendance.toFixed(1)}%
+                  </Typography>
+                  <Typography variant="body1" sx={{ opacity: 0.9, fontWeight: 500 }}>
+                    Attendance Rate
+                  </Typography>
+                </Box>
+              </Box>
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
-              <StatsCard
-                icon={<PresentIcon />}
-                color="info"
-                sx={{
-                  background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                  color: '#ffffff',
-                  animation: `${fadeInUp} 0.6s ease-out 0.4s both`,
-                }}
-              >
-                <Typography variant="h3" fontWeight="800" sx={{ mb: 1 }}>
-                  {stats.highAttendance}
-                </Typography>
-                <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                  High Attendance (95%+)
-                </Typography>
-              </StatsCard>
+              <Box sx={{
+                background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                borderRadius: '25px',
+                p: 3,
+                color: 'white',
+                position: 'relative',
+                overflow: 'hidden',
+                animation: `${scaleIn} 0.6s ease-out 0.4s both`,
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  transform: 'translateY(-8px) scale(1.02)',
+                  boxShadow: '0 20px 40px rgba(79, 172, 254, 0.3)',
+                },
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: '-50%',
+                  right: '-50%',
+                  width: '100px',
+                  height: '100px',
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  borderRadius: '50%',
+                }
+              }}>
+                <Box sx={{ position: 'relative', zIndex: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <PresentIcon sx={{ fontSize: '2rem', mr: 1 }} />
+                    <Typography variant="h6" fontWeight="700">⭐ Excellent</Typography>
+                  </Box>
+                  <Typography variant="h2" fontWeight="900" sx={{ mb: 1, fontSize: '3rem' }}>
+                    {stats.highAttendance}
+                  </Typography>
+                  <Typography variant="body1" sx={{ opacity: 0.9, fontWeight: 500 }}>
+                    High Performers (95%+)
+                  </Typography>
+                </Box>
+              </Box>
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
-              <StatsCard
-                icon={<WarningIcon />}
-                color="warning"
-                sx={{
-                  background: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)',
-                  color: '#ffffff',
-                  animation: `${fadeInUp} 0.6s ease-out 0.5s both`,
-                }}
-              >
-                <Typography variant="h3" fontWeight="800" sx={{ mb: 1 }}>
-                  {stats.lowAttendance}
-                </Typography>
-                <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                  At Risk (&lt;75%)
-                </Typography>
-              </StatsCard>
+              <Box sx={{
+                background: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)',
+                borderRadius: '25px',
+                p: 3,
+                color: 'white',
+                position: 'relative',
+                overflow: 'hidden',
+                animation: `${scaleIn} 0.6s ease-out 0.5s both`,
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  transform: 'translateY(-8px) scale(1.02)',
+                  boxShadow: '0 20px 40px rgba(245, 158, 11, 0.3)',
+                },
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: '-50%',
+                  right: '-50%',
+                  width: '100px',
+                  height: '100px',
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  borderRadius: '50%',
+                }
+              }}>
+                <Box sx={{ position: 'relative', zIndex: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <WarningIcon sx={{ fontSize: '2rem', mr: 1 }} />
+                    <Typography variant="h6" fontWeight="700">⚠️ At Risk</Typography>
+                  </Box>
+                  <Typography variant="h2" fontWeight="900" sx={{ mb: 1, fontSize: '3rem' }}>
+                    {stats.lowAttendance}
+                  </Typography>
+                  <Typography variant="body1" sx={{ opacity: 0.9, fontWeight: 500 }}>
+                    Need Attention (&lt;75%)
+                  </Typography>
+                </Box>
+              </Box>
             </Grid>
           </Grid>
 
-          {/* Main Content */}
-          <GlassCard sx={{ animation: `${fadeInUp} 0.8s ease-out 0.6s both` }}>
-            <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)} sx={{ mb: 3 }}>
-              <Tab label="Student Attendance" />
-              <Tab label="Session History" />
-              <Tab label="Reports" />
+          {/* Enhanced Main Content */}
+          <GlassCard sx={{ 
+            animation: `${fadeInUp} 0.8s ease-out 0.6s both`,
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(20px)',
+            borderRadius: '25px',
+            p: 4,
+            boxShadow: '0 25px 50px rgba(0,0,0,0.1)'
+          }}>
+            <Tabs 
+              value={tabValue} 
+              onChange={(e, newValue) => setTabValue(newValue)} 
+              sx={{ 
+                mb: 4,
+                '& .MuiTab-root': {
+                  fontWeight: 700,
+                  fontSize: '1.1rem',
+                  textTransform: 'none',
+                  minHeight: 60,
+                  borderRadius: '15px',
+                  mx: 1,
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    background: 'rgba(102, 126, 234, 0.1)',
+                    transform: 'translateY(-2px)',
+                  },
+                  '&.Mui-selected': {
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    boxShadow: '0 8px 25px rgba(102, 126, 234, 0.3)',
+                  }
+                },
+                '& .MuiTabs-indicator': {
+                  display: 'none'
+                }
+              }}
+            >
+              <Tab label="📊 Student Attendance" />
+              <Tab label="📅 Session History" />
+              <Tab label="📈 Reports" />
             </Tabs>
 
             {tabValue === 0 && (
@@ -896,6 +1140,7 @@ const AttendancePage = () => {
           </Button>
         </DialogActions>
       </Dialog>
+      </Box>
     </Box>
   );
 };

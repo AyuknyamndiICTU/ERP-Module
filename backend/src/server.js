@@ -7,7 +7,7 @@ const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const { connectDB } = require('./config/database');
-const { logger } = require('./utils/logger');
+const logger = require('./utils/logger');
 const errorHandler = require('./middleware/errorHandler');
 const notFound = require('./middleware/notFound');
 
@@ -151,6 +151,7 @@ app.use(errorHandler);
 
 // Database connection and server startup
 const startServer = async () => {
+  console.log('🔄 Backend server starting... (restarted)');
   // Try to connect to database (optional in development)
   try {
     const dbConnection = await connectDB();

@@ -25,7 +25,9 @@ import {
   Tabs,
   Tab,
   LinearProgress,
-  keyframes} from '@mui/material';
+  CircularProgress,
+  keyframes
+} from '@mui/material';
 import {
   Add as AddIcon,
   Search as SearchIcon,
@@ -45,11 +47,11 @@ import TranscriptGenerator from '../../components/Transcript/TranscriptGenerator
 import { academicAPI } from '../../services/api';
 import logger from '../../utils/logger';
 
-// Animation keyframes
+// Enhanced Animation keyframes
 const fadeInUp = keyframes`
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(30px);
   }
   to {
     opacity: 1;
@@ -60,11 +62,34 @@ const fadeInUp = keyframes`
 const slideIn = keyframes`
   from {
     opacity: 0;
-    transform: translateX(-20px);
+    transform: translateX(-30px);
   }
   to {
     opacity: 1;
     transform: translateX(0);
+  }
+`;
+
+const scaleIn = keyframes`
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+`;
+
+const pulse = keyframes`
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
   }
 `;
 
@@ -77,10 +102,12 @@ const GradesPage = () => {
   const [tabValue, setTabValue] = useState(0);
   const [gradeDialogOpen, setGradeDialogOpen] = useState(false);
   const [editingGrade, setEditingGrade] = useState(null);
-  const [transcriptOpen, setStudentscriptOpen] = useState(false);
+  const [transcriptOpen, setTranscriptOpen] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [gradeDistribution, setGradeDistribution] = useState([]);
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [grades, setGrades] = useState([]);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -142,6 +169,7 @@ const GradesPage = () => {
 
       const gradesResponse = await academicAPI.getGrades(gradesParams);
       const grades = gradesResponse.data?.grades || [];
+      setGrades(grades);
 
       logger.debug('Fetched grades:', grades.length);
 
@@ -212,6 +240,9 @@ const GradesPage = () => {
       }
 
       setStudents(finalStudents);
+      
+      // Calculate grade distribution
+      calculateGradeDistribution(finalStudents);
 
     } catch (error) {
       logger.error('Error fetching course data:', error);
@@ -223,6 +254,7 @@ const GradesPage = () => {
       // Fetch grades for current student
       const gradesResponse = await academicAPI.getGrades();
       const grades = gradesResponse.data?.grades || [];
+      setGrades(grades);
 
       // Transform grades to student format
       const studentGrades = grades.map(grade => ({
@@ -255,6 +287,27 @@ const GradesPage = () => {
     } catch (error) {
       logger.error('Error fetching student grades:', error);
     }
+  };
+
+  const calculateGradeDistribution = (studentsList) => {
+    const distribution = [
+      { letter_grade: 'A', count: 0, min: 3.7 },
+      { letter_grade: 'B', count: 0, min: 3.0 },
+      { letter_grade: 'C', count: 0, min: 2.0 },
+      { letter_grade: 'D', count: 0, min: 1.0 },
+      { letter_grade: 'F', count: 0, min: 0.0 }
+    ];
+
+    studentsList.forEach(student => {
+      const grade = student.current_grade;
+      if (grade >= 3.7) distribution[0].count++;
+      else if (grade >= 3.0) distribution[1].count++;
+      else if (grade >= 2.0) distribution[2].count++;
+      else if (grade >= 1.0) distribution[3].count++;
+      else distribution[4].count++;
+    });
+
+    setGradeDistribution(distribution);
   };
 
   const filteredStudents = students.filter(student =>
@@ -334,7 +387,7 @@ const GradesPage = () => {
         const updateData = {
           caMarks: editingGrade.caMarks,
           examMarks: editingGrade.examMarks,
-          totalMarks: editingGrade.caMarks + editingGrade.examMarks,
+          totalMarks: parseFloat(editingGrade.caMarks) + parseFloat(editingGrade.examMarks),
           status: editingGrade.status
         };
         await academicAPI.updateGrade(editingGrade.id, updateData);
@@ -368,504 +421,703 @@ const GradesPage = () => {
     }
   };
 
+  const handleViewTranscript = (student) => {
+    setSelectedStudent(student);
+    setTranscriptOpen(true);
+  };
+
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box sx={{ mb: 4, animation: `${slideIn} 0.8s ease-out` }}>
-        <Typography
-          variant="h3"
-          component="h1"
-          sx={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            fontWeight: 800,
-            mb: 1}}
-        >
-          Grade Management
-        </Typography>
-        <Typography variant="h6" color="text.secondary">
-          Manage student grades, assignments, and academic performance
-        </Typography>
+    <Box sx={{ 
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      p: 0
+    }}>
+      {/* Enhanced Header with Floating Elements */}
+      <Box sx={{ 
+        position: 'relative',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        borderRadius: '0 0 50px 50px',
+        p: 4,
+        mb: 4,
+        overflow: 'hidden',
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          top: '-50%',
+          right: '-10%',
+          width: '300px',
+          height: '300px',
+          background: 'rgba(255, 255, 255, 0.1)',
+          borderRadius: '50%',
+          animation: `${pulse} 4s ease-in-out infinite`,
+        },
+        '&::after': {
+          content: '""',
+          position: 'absolute',
+          bottom: '-30%',
+          left: '-5%',
+          width: '200px',
+          height: '200px',
+          background: 'rgba(255, 255, 255, 0.08)',
+          borderRadius: '50%',
+          animation: `${pulse} 3s ease-in-out infinite reverse`,
+        }
+      }}>
+        <Box sx={{ position: 'relative', zIndex: 1, animation: `${slideIn} 0.8s ease-out` }}>
+          <Typography
+            variant="h2"
+            component="h1"
+            sx={{
+              color: 'white',
+              fontWeight: 900,
+              mb: 2,
+              fontSize: { xs: '2.5rem', md: '3.5rem' },
+              textShadow: '0 4px 20px rgba(0,0,0,0.3)',
+              letterSpacing: '-0.02em'
+            }}
+          >
+            🎓 Grades Management
+          </Typography>
+          <Typography 
+            variant="h5" 
+            sx={{ 
+              color: 'rgba(255,255,255,0.9)',
+              fontWeight: 400,
+              fontSize: { xs: '1.1rem', md: '1.3rem' },
+              maxWidth: '600px'
+            }}
+          >
+            Manage student grades, assignments, and academic performance
+          </Typography>
+        </Box>
       </Box>
 
-      {/* Course Selection */}
-      <GlassCard sx={{ mb: 4, animation: `${fadeInUp} 0.8s ease-out 0.1s both` }}>
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-          <FormControl sx={{ minWidth: 300 }}>
-              <InputLabel>Select Course</InputLabel>
-            <Select
-              value={selectedCourse?.id || ''}
-              onChange={(e) => handleCourseChange(e.target.value)}
-              label="Select Course"
-            >
-              {courses.map((course) => (
-                <MenuItem key={course.id} value={course.id}>
-                  {(course.courseCode || course.code)} - {(course.courseName || course.name)}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          <TextField
-            placeholder="Search students..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              )}}
-            sx={{ flexGrow: 1, minWidth: 250 }}
-          />
-
-          {user?.role === 'student' && (
-            <Button
-              variant="contained"
-              startIcon={<DownloadIcon />}
-              onClick={() => setStudentscriptOpen(true)}
-              sx={{
-                background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                minWidth: 140,
-                mr: 2
-              }}
-            >
-              Download Studentscript
-            </Button>
-          )}
-
-          {(user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'lecturer' || user?.role === 'faculty_coordinator' || user?.role === 'major_coordinator') && (
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleAddGrade}
-              sx={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                minWidth: 140}}
-            >
-              Add Grade
-            </Button>
-          )}
-        </Box>
-      </GlassCard>
-
-      {selectedCourse && (
-        <>
-          {/* Stats Cards */}
-          <Grid container spacing={3} sx={{ mb: 4 }}>
-            <Grid item xs={12} sm={6} md={3}>
-              <StatsCard
-                icon={<PersonIcon />}
-                color="primary"
-                sx={{
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  color: '#ffffff',
-                  animation: `${fadeInUp} 0.6s ease-out 0.2s both`}}
-              >
-                <Typography variant="h3" fontWeight="800" sx={{ mb: 1 }}>
-                  {students.length}
-                </Typography>
-                <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                  Enrolled Students
-                </Typography>
-              </StatsCard>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <StatsCard
-                icon={<AssessmentIcon />}
-                color="secondary"
-                sx={{
-                  background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                  color: '#ffffff',
-                  animation: `${fadeInUp} 0.6s ease-out 0.3s both`}}
-              >
-                <Typography variant="h3" fontWeight="800" sx={{ mb: 1 }}>
-                  {assignments.length}
-                </Typography>
-                <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                  Assignments
-                </Typography>
-              </StatsCard>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <StatsCard
-                icon={<GradeIcon />}
-                color="success"
-                sx={{
-                  background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                  color: '#ffffff',
-                  animation: `${fadeInUp} 0.6s ease-out 0.4s both`}}
-              >
-                <Typography variant="h3" fontWeight="800" sx={{ mb: 1 }}>
-                  {students.length > 0 ? (students.reduce((sum, s) => sum + s.current_grade, 0) / students.length).toFixed(2) : '0.00'}
-                </Typography>
-                <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                  Course Average
-                </Typography>
-              </StatsCard>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <StatsCard
-                icon={<TrendingUpIcon />}
-                color="warning"
-                sx={{
-                  background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-                  color: '#ffffff',
-                  animation: `${fadeInUp} 0.6s ease-out 0.5s both`}}
-              >
-                <Typography variant="h3" fontWeight="800" sx={{ mb: 1 }}>
-                  {gradeDistribution.find(g => g.letter_grade === 'A')?.count || 0}
-                </Typography>
-                <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                  A Students
-                </Typography>
-              </StatsCard>
-            </Grid>
-          </Grid>
-
-          {/* Main Content */}
-          <GlassCard sx={{ animation: `${fadeInUp} 0.8s ease-out 0.6s both` }}>
-            <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)} sx={{ mb: 3 }}>
-              <Tab label="Student Grades" />
-              <Tab label="Assignments" />
-              <Tab label="Grade Distribution" />
-            </Tabs>
-
-            {tabValue === 0 && (
-              <TableContainer>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Student</TableCell>
-                      <TableCell>Student ID</TableCell>
-                      <TableCell align="center">Current Grade</TableCell>
-                      <TableCell align="center">GPA</TableCell>
-                      <TableCell align="center">Progress</TableCell>
-                      <TableCell align="center">Actions</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {filteredStudents.map((student, index) => (
-                      <TableRow
-                        key={student.student_id}
-                        sx={{
-                          animation: `${fadeInUp} 0.6s ease-out ${index * 0.1}s both`,
-                          '&:hover': {
-                            backgroundColor: 'rgba(102, 126, 234, 0.05)'}}}
-                      >
-                        <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Avatar
-                              sx={{
-                                background: `linear-gradient(135deg, ${getGradeColor(student.current_grade)}, ${getGradeColor(student.current_grade)}dd)`,
-                                width: 40,
-                                height: 40,
-                                mr: 2,
-                                fontSize: '1rem',
-                                fontWeight: 700}}
-                            >
-                              {student.first_name[0]}{student.last_name[0]}
-                            </Avatar>
-                            <Box>
-                              <Typography variant="subtitle2" fontWeight="600">
-                                {student.first_name} {student.last_name}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                {student.email}
-                              </Typography>
-                            </Box>
-                          </Box>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" fontWeight="600">
-                            {student.student_number}
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="center">
-                          <Chip
-                            label={student.current_grade >= 3.7 ? 'A' : student.current_grade >= 3.0 ? 'B' : student.current_grade >= 2.0 ? 'C' : 'D'}
-                            sx={{
-                              background: getLetterGradeColor(student.current_grade >= 3.7 ? 'A' : student.current_grade >= 3.0 ? 'B' : student.current_grade >= 2.0 ? 'C' : 'D'),
-                              color: '#ffffff',
-                              fontWeight: 600}}
-                          />
-                        </TableCell>
-                        <TableCell align="center">
-                          <Typography variant="body2" fontWeight="600">
-                            {student.current_grade.toFixed(2)}
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="center">
-                          <Box sx={{ width: 80, mx: 'auto' }}>
-                            <LinearProgress
-                              variant="determinate"
-                              value={(student.current_grade / 4.0) * 100}
-                              sx={{
-                                height: 8,
-                                borderRadius: 4,
-                                backgroundColor: '#f3f4f6',
-                                '& .MuiLinearProgress-bar': {
-                                  backgroundColor: getGradeColor(student.current_grade),
-                                  borderRadius: 4}}}
-                            />
-                          </Box>
-                        </TableCell>
-                        <TableCell align="center">
-                          <Button
-                            size="small"
-                            startIcon={<EditIcon />}
-                            onClick={() => handleEditGrade(student.grades[0])}
-                          >
-                            Edit
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            )}
-
-            {tabValue === 1 && (
-              <TableContainer>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Assignment</TableCell>
-                      <TableCell>Type</TableCell>
-                      <TableCell align="center">Points</TableCell>
-                      <TableCell align="center">Weight</TableCell>
-                      <TableCell align="center">Due Date</TableCell>
-                      <TableCell align="center">Submissions</TableCell>
-                      <TableCell align="center">Average</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {assignments.map((assignment, index) => (
-                      <TableRow
-                        key={assignment.assignment_name}
-                        sx={{
-                          animation: `${fadeInUp} 0.6s ease-out ${index * 0.1}s both`}}
-                      >
-                        <TableCell>
-                          <Typography variant="subtitle2" fontWeight="600">
-                            {assignment.assignment_name}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={assignment.assignment_type}
-                            size="small"
-                            color="primary"
-                            variant="outlined"
-                          />
-                        </TableCell>
-                        <TableCell align="center">
-                          <Typography variant="body2">
-                            {assignment.points_possible}
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="center">
-                          <Typography variant="body2">
-                            {(assignment.weight * 100).toFixed(0)}%
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="center">
-                          <Typography variant="body2">
-                            {new Date(assignment.due_date).toLocaleDateString()}
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="center">
-                          <Typography variant="body2">
-                            {assignment.submission_count}
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="center">
-                          <Typography variant="body2" fontWeight="600">
-                            {assignment.average_score.toFixed(1)}%
-                          </Typography>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            )}
-
-            {tabValue === 2 && (
-              <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
-                  <Typography variant="h6" fontWeight="700" gutterBottom>
-                    Grade Distribution
-                  </Typography>
-                  {gradeDistribution.map((grade, index) => (
-                    <Box
-                      key={grade.letter_grade}
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        mb: 2,
-                        animation: `${fadeInUp} 0.6s ease-out ${index * 0.1}s both`}}
-                    >
-                      <Typography variant="h6" sx={{ minWidth: 40, fontWeight: 700 }}>
-                        {grade.letter_grade}
-                      </Typography>
-                      <Box sx={{ flexGrow: 1, mx: 2 }}>
-                        <LinearProgress
-                          variant="determinate"
-                          value={students.length > 0 ? (grade.count / students.length) * 100 : 0}
-                          sx={{
-                            height: 12,
-                            borderRadius: 6,
-                            backgroundColor: '#f3f4f6',
-                            '& .MuiLinearProgress-bar': {
-                              backgroundColor: getLetterGradeColor(grade.letter_grade),
-                              borderRadius: 6}}}
-                        />
-                      </Box>
-                      <Typography variant="body2" fontWeight="600" sx={{ minWidth: 60 }}>
-                        {grade.count} ({students.length > 0 ? ((grade.count / students.length) * 100).toFixed(1) : '0.0'}%)
-                      </Typography>
-                    </Box>
-                  ))}
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <Typography variant="h6" fontWeight="700" gutterBottom>
-                    Course Statistics
-                  </Typography>
-                  <Box sx={{ p: 2, background: 'rgba(102, 126, 234, 0.05)', borderRadius: 2 }}>
-                    <Typography variant="body2" paragraph>
-                      <strong>Total Students:</strong> {students.length}
-                    </Typography>
-                    <Typography variant="body2" paragraph>
-                      <strong>Course Average:</strong> {students.length > 0 ? (students.reduce((sum, s) => sum + s.current_grade, 0) / students.length).toFixed(2) : '0.00'}
-                    </Typography>
-                    <Typography variant="body2" paragraph>
-                      <strong>Highest Grade:</strong> {students.length > 0 ? Math.max(...students.map(s => s.current_grade)).toFixed(2) : '0.00'}
-                    </Typography>
-                    <Typography variant="body2" paragraph>
-                      <strong>Lowest Grade:</strong> {students.length > 0 ? Math.min(...students.map(s => s.current_grade)).toFixed(2) : '0.00'}
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Pass Rate:</strong> {students.length > 0 ? ((students.filter(s => s.current_grade >= 2.0).length / students.length) * 100).toFixed(1) : '0.0'}%
-                    </Typography>
-                  </Box>
-                </Grid>
-              </Grid>
-            )}
-          </GlassCard>
-        </>
-      )}
-
-      {/* Grade Entry Dialog */}
-      <Dialog
-        open={gradeDialogOpen}
-        onClose={() => setGradeDialogOpen(false)}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>
-          <Typography variant="h5" fontWeight="700">
-            {editingGrade?.id ? 'Edit Grade' : 'Add New Grade'}
+      {loading ? (
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: 'column',
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          minHeight: '400px',
+          animation: `${fadeInUp} 0.6s ease-out`
+        }}>
+          <Box sx={{ 
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            mb: 3
+          }}>
+            <CircularProgress 
+              size={60} 
+              sx={{ 
+                color: 'white',
+                animation: `${pulse} 2s ease-in-out infinite`
+              }} 
+            />
+            <Box sx={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)'
+            }}>
+              <GradeIcon sx={{ color: 'rgba(255,255,255,0.7)', fontSize: 24 }} />
+            </Box>
+          </Box>
+          <Typography variant="h6" sx={{ 
+            color: 'white', 
+            mb: 1,
+            fontWeight: 600,
+            animation: `${slideIn} 0.8s ease-out 0.2s both`
+          }}>
+            Loading Grades Data
           </Typography>
-        </DialogTitle>
-        <DialogContent>
-          {editingGrade && (
-            <Grid container spacing={3} sx={{ mt: 1 }}>
-              <Grid item xs={12} md={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Assignment Type</InputLabel>
-                  <Select
-                    value={editingGrade.assignment_type}
-                    onChange={(e) => setEditingGrade({...editingGrade, assignment_type: e.target.value})}
-                    label="Assignment Type"
-                  >
-                    <MenuItem value="assignment">Assignment</MenuItem>
-                    <MenuItem value="quiz">Quiz</MenuItem>
-                    <MenuItem value="exam">Exam</MenuItem>
-                    <MenuItem value="project">Project</MenuItem>
-                    <MenuItem value="participation">Participation</MenuItem>
-                    <MenuItem value="final">Final Exam</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Assignment Name"
-                  value={editingGrade.assignment_name}
-                  onChange={(e) => setEditingGrade({...editingGrade, assignment_name: e.target.value})}
-                />
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  label="Points Earned"
-                  type="number"
-                  value={editingGrade.points_earned}
-                  onChange={(e) => setEditingGrade({...editingGrade, points_earned: parseFloat(e.target.value)})}
-                />
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  label="Points Possible"
-                  type="number"
-                  value={editingGrade.points_possible}
-                  onChange={(e) => setEditingGrade({...editingGrade, points_possible: parseFloat(e.target.value)})}
-                />
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  label="Weight"
-                  type="number"
-                  inputProps={{ min: 0, max: 1, step: 0.1 }}
-                  value={editingGrade.weight}
-                  onChange={(e) => setEditingGrade({...editingGrade, weight: parseFloat(e.target.value)})}
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Due Date"
-                  type="date"
-                  value={editingGrade.due_date}
-                  onChange={(e) => setEditingGrade({...editingGrade, due_date: e.target.value})}
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Comments"
-                  multiline
-                  rows={3}
-                  value={editingGrade.comments}
-                  onChange={(e) => setEditingGrade({...editingGrade, comments: e.target.value})}
-                />
-              </Grid>
-            </Grid>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setGradeDialogOpen(false)} startIcon={<CancelIcon />}>
-            Cancel
-          </Button>
-          <Button variant="contained" onClick={handleSaveGrade} startIcon={<SaveIcon />}>
-            Save Grade
-          </Button>
-        </DialogActions>
-      </Dialog>
+          <Typography variant="body2" sx={{ 
+            color: 'rgba(255,255,255,0.8)',
+            textAlign: 'center',
+            animation: `${slideIn} 0.8s ease-out 0.4s both`
+          }}>
+            Fetching courses, students, and grade information...
+          </Typography>
+        </Box>
+      ) : (
+        <Box sx={{ px: 4, pb: 4 }}>
+          {/* Course Selection */}
+          <GlassCard sx={{ mb: 4, animation: `${fadeInUp} 0.8s ease-out 0.1s both` }}>
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+              <FormControl sx={{ minWidth: 300 }}>
+                <InputLabel>Select Course</InputLabel>
+                <Select
+                  value={selectedCourse?.id || ''}
+                  onChange={(e) => handleCourseChange(e.target.value)}
+                  label="Select Course"
+                >
+                  {courses.map((course) => (
+                    <MenuItem key={course.id} value={course.id}>
+                      {(course.courseCode || course.code)} - {(course.courseName || course.name)}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
 
-      {/* Transcript Generator */}
-      <TranscriptGenerator
-        open={transcriptOpen}
-        onClose={() => setStudentscriptOpen(false)}
-        studentData={user?.role === 'student' ? user : null}
-      />
+              <TextField
+                placeholder="Search students..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  )}}
+                sx={{ flexGrow: 1, minWidth: 250 }}
+              />
+
+              {user?.role === 'student' && students.length > 0 && (
+                <Button
+                  variant="contained"
+                  startIcon={<DownloadIcon />}
+                  onClick={() => handleViewTranscript(students[0])}
+                  sx={{
+                    background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                    minWidth: 140,
+                    mr: 2
+                  }}
+                >
+                  Download Transcript
+                </Button>
+              )}
+
+              {(user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'lecturer' || user?.role === 'faculty_coordinator' || user?.role === 'major_coordinator') && (
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={handleAddGrade}
+                  sx={{
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    minWidth: 140
+                  }}
+                >
+                  Add Grade
+                </Button>
+              )}
+            </Box>
+          </GlassCard>
+
+          {selectedCourse && (
+            <>
+              <Box sx={{ px: 3 }}>
+                {/* Enhanced Stats Cards */}
+                <Grid container spacing={3} sx={{ mb: 4 }}>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Box sx={{
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      borderRadius: '25px',
+                      p: 3,
+                      color: 'white',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      animation: `${scaleIn} 0.6s ease-out 0.1s both`,
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                        transform: 'translateY(-8px) scale(1.02)',
+                        boxShadow: '0 20px 40px rgba(102, 126, 234, 0.3)',
+                      },
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        top: '-50%',
+                        right: '-50%',
+                        width: '100px',
+                        height: '100px',
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        borderRadius: '50%',
+                      }
+                    }}>
+                      <Box sx={{ position: 'relative', zIndex: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                          <PersonIcon sx={{ fontSize: '2rem', mr: 1 }} />
+                          <Typography variant="h6" fontWeight="700">👥 Students</Typography>
+                        </Box>
+                        <Typography variant="h2" fontWeight="900" sx={{ mb: 1, fontSize: '3rem' }}>
+                          {students.length}
+                        </Typography>
+                        <Typography variant="body1" sx={{ opacity: 0.9, fontWeight: 500 }}>
+                          Total Enrolled
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Box sx={{
+                      background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
+                      borderRadius: '25px',
+                      p: 3,
+                      color: 'white',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      animation: `${scaleIn} 0.6s ease-out 0.2s both`,
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                        transform: 'translateY(-8px) scale(1.02)',
+                        boxShadow: '0 20px 40px rgba(16, 185, 129, 0.3)',
+                      },
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        top: '-50%',
+                        right: '-50%',
+                        width: '100px',
+                        height: '100px',
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        borderRadius: '50%',
+                      }
+                    }}>
+                      <Box sx={{ position: 'relative', zIndex: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                          <GradeIcon sx={{ fontSize: '2rem', mr: 1 }} />
+                          <Typography variant="h6" fontWeight="700">📊 Average</Typography>
+                        </Box>
+                        <Typography variant="h2" fontWeight="900" sx={{ mb: 1, fontSize: '3rem' }}>
+                          {students.length > 0 ? (students.reduce((sum, s) => sum + s.current_grade, 0) / students.length).toFixed(2) : '0.00'}
+                        </Typography>
+                        <Typography variant="body1" sx={{ opacity: 0.9, fontWeight: 500 }}>
+                          GPA Score
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Box sx={{
+                      background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                      borderRadius: '25px',
+                      p: 3,
+                      color: 'white',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      animation: `${scaleIn} 0.6s ease-out 0.3s both`,
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                        transform: 'translateY(-8px) scale(1.02)',
+                        boxShadow: '0 20px 40px rgba(79, 172, 254, 0.3)',
+                      },
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        top: '-50%',
+                        right: '-50%',
+                        width: '100px',
+                        height: '100px',
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        borderRadius: '50%',
+                      }
+                    }}>
+                      <Box sx={{ position: 'relative', zIndex: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                          <TrendingUpIcon sx={{ fontSize: '2rem', mr: 1 }} />
+                          <Typography variant="h6" fontWeight="700">⭐ High</Typography>
+                        </Box>
+                        <Typography variant="h2" fontWeight="900" sx={{ mb: 1, fontSize: '3rem' }}>
+                          {students.filter(s => s.current_grade >= 3.5).length}
+                        </Typography>
+                        <Typography variant="body1" sx={{ opacity: 0.9, fontWeight: 500 }}>
+                          Performers (3.5+)
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Box sx={{
+                      background: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)',
+                      borderRadius: '25px',
+                      p: 3,
+                      color: 'white',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      animation: `${scaleIn} 0.6s ease-out 0.4s both`,
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                        transform: 'translateY(-8px) scale(1.02)',
+                        boxShadow: '0 20px 40px rgba(245, 158, 11, 0.3)',
+                      },
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        top: '-50%',
+                        right: '-50%',
+                        width: '100px',
+                        height: '100px',
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        borderRadius: '50%',
+                      }
+                    }}>
+                      <Box sx={{ position: 'relative', zIndex: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                          <AssessmentIcon sx={{ fontSize: '2rem', mr: 1 }} />
+                          <Typography variant="h6" fontWeight="700">📝 Active</Typography>
+                        </Box>
+                        <Typography variant="h2" fontWeight="900" sx={{ mb: 1, fontSize: '3rem' }}>
+                          {assignments.length}
+                        </Typography>
+                        <Typography variant="body1" sx={{ opacity: 0.9, fontWeight: 500 }}>
+                          Assignments
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Grid>
+                </Grid>
+
+                {/* Main Content */}
+                <GlassCard sx={{ animation: `${fadeInUp} 0.8s ease-out 0.6s both` }}>
+                  <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)} sx={{ mb: 3 }}>
+                    <Tab label="Student Grades" />
+                    <Tab label="Assignments" />
+                    <Tab label="Grade Distribution" />
+                  </Tabs>
+
+                  {tabValue === 0 && (
+                    <TableContainer>
+                      <Table>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>Student</TableCell>
+                            <TableCell>Student ID</TableCell>
+                            <TableCell align="center">Current Grade</TableCell>
+                            <TableCell align="center">GPA</TableCell>
+                            <TableCell align="center">Progress</TableCell>
+                            <TableCell align="center">Actions</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {filteredStudents.map((student, index) => (
+                            <TableRow
+                              key={student.student_id}
+                              sx={{
+                                animation: `${fadeInUp} 0.6s ease-out ${index * 0.1}s both`,
+                                '&:hover': {
+                                  backgroundColor: 'rgba(102, 126, 234, 0.05)'
+                                }
+                              }}
+                            >
+                              <TableCell>
+                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                  <Avatar
+                                    sx={{
+                                      background: `linear-gradient(135deg, ${getGradeColor(student.current_grade)}, ${getGradeColor(student.current_grade)}dd)`,
+                                      width: 40,
+                                      height: 40,
+                                      mr: 2,
+                                      fontSize: '1rem',
+                                      fontWeight: 700
+                                    }}
+                                  >
+                                    {student.first_name[0]}{student.last_name[0]}
+                                  </Avatar>
+                                  <Box>
+                                    <Typography variant="subtitle2" fontWeight="600">
+                                      {student.first_name} {student.last_name}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                      {student.email}
+                                    </Typography>
+                                  </Box>
+                                </Box>
+                              </TableCell>
+                              <TableCell>
+                                <Typography variant="body2" fontWeight="600">
+                                  {student.student_number}
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="center">
+                                <Chip
+                                  label={student.current_grade >= 3.7 ? 'A' : student.current_grade >= 3.0 ? 'B' : student.current_grade >= 2.0 ? 'C' : 'D'}
+                                  sx={{
+                                    background: getLetterGradeColor(student.current_grade >= 3.7 ? 'A' : student.current_grade >= 3.0 ? 'B' : student.current_grade >= 2.0 ? 'C' : 'D'),
+                                    color: '#ffffff',
+                                    fontWeight: 600
+                                  }}
+                                />
+                              </TableCell>
+                              <TableCell align="center">
+                                <Typography variant="body2" fontWeight="600">
+                                  {student.current_grade.toFixed(2)}
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="center">
+                                <Box sx={{ width: 80, mx: 'auto' }}>
+                                  <LinearProgress
+                                    variant="determinate"
+                                    value={(student.current_grade / 4.0) * 100}
+                                    sx={{
+                                      height: 8,
+                                      borderRadius: 4,
+                                      backgroundColor: '#f3f4f6',
+                                      '& .MuiLinearProgress-bar': {
+                                        backgroundColor: getGradeColor(student.current_grade),
+                                        borderRadius: 4
+                                      }
+                                    }}
+                                  />
+                                </Box>
+                              </TableCell>
+                              <TableCell align="center">
+                                <Button
+                                  size="small"
+                                  startIcon={<EditIcon />}
+                                  onClick={() => handleEditGrade(student.grades[0])}
+                                  sx={{ mr: 1 }}
+                                >
+                                  Edit
+                                </Button>
+                                {(user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'lecturer' || user?.role === 'faculty_coordinator' || user?.role === 'major_coordinator') && (
+                                  <Button
+                                    size="small"
+                                    startIcon={<DownloadIcon />}
+                                    onClick={() => handleViewTranscript(student)}
+                                  >
+                                    Transcript
+                                  </Button>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  )}
+
+                  {tabValue === 1 && (
+                    <TableContainer>
+                      <Table>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>Assignment</TableCell>
+                            <TableCell>Type</TableCell>
+                            <TableCell align="center">Points</TableCell>
+                            <TableCell align="center">Weight</TableCell>
+                            <TableCell align="center">Due Date</TableCell>
+                            <TableCell align="center">Submissions</TableCell>
+                            <TableCell align="center">Average</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {assignments.map((assignment, index) => (
+                            <TableRow
+                              key={assignment.assignment_name}
+                              sx={{
+                                animation: `${fadeInUp} 0.6s ease-out ${index * 0.1}s both`
+                              }}
+                            >
+                              <TableCell>
+                                <Typography variant="subtitle2" fontWeight="600">
+                                  {assignment.assignment_name}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Chip
+                                  label={assignment.assignment_type}
+                                  size="small"
+                                  color="primary"
+                                  variant="outlined"
+                                />
+                              </TableCell>
+                              <TableCell align="center">
+                                <Typography variant="body2">
+                                  {assignment.points_possible}
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="center">
+                                <Typography variant="body2">
+                                  {(assignment.weight * 100).toFixed(0)}%
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="center">
+                                <Typography variant="body2">
+                                  {new Date(assignment.due_date).toLocaleDateString()}
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="center">
+                                <Typography variant="body2">
+                                  {assignment.submission_count}
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="center">
+                                <Typography variant="body2" fontWeight="600">
+                                  {assignment.average_score.toFixed(1)}%
+                                </Typography>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  )}
+
+                  {tabValue === 2 && (
+                    <Grid container spacing={3}>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="h6" fontWeight="700" gutterBottom>
+                          Grade Distribution
+                        </Typography>
+                        {gradeDistribution.map((grade, index) => (
+                          <Box
+                            key={grade.letter_grade}
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              mb: 2,
+                              animation: `${fadeInUp} 0.6s ease-out ${index * 0.1}s both`
+                            }}
+                          >
+                            <Typography variant="h6" sx={{ minWidth: 40, fontWeight: 700 }}>
+                              {grade.letter_grade}
+                            </Typography>
+                            <Box sx={{ flexGrow: 1, mx: 2 }}>
+                              <LinearProgress
+                                variant="determinate"
+                                value={students.length > 0 ? (grade.count / students.length) * 100 : 0}
+                                sx={{
+                                  height: 12,
+                                  borderRadius: 6,
+                                  backgroundColor: '#f3f4f6',
+                                  '& .MuiLinearProgress-bar': {
+                                    backgroundColor: getLetterGradeColor(grade.letter_grade),
+                                    borderRadius: 6
+                                  }
+                                }}
+                              />
+                            </Box>
+                            <Typography variant="body2" fontWeight="600" sx={{ minWidth: 60 }}>
+                              {grade.count} ({students.length > 0 ? ((grade.count / students.length) * 100).toFixed(1) : '0.0'}%)
+                            </Typography>
+                          </Box>
+                        ))}
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="h6" fontWeight="700" gutterBottom>
+                          Course Statistics
+                        </Typography>
+                        <Box sx={{ p: 2, background: 'rgba(102, 126, 234, 0.05)', borderRadius: 2 }}>
+                          <Typography variant="body2" paragraph>
+                            <strong>Total Students:</strong> {students.length}
+                          </Typography>
+                          <Typography variant="body2" paragraph>
+                            <strong>Course Average:</strong> {students.length > 0 ? (students.reduce((sum, s) => sum + s.current_grade, 0) / students.length).toFixed(2) : '0.00'}
+                          </Typography>
+                          <Typography variant="body2" paragraph>
+                            <strong>Highest Grade:</strong> {students.length > 0 ? Math.max(...students.map(s => s.current_grade)).toFixed(2) : '0.00'}
+                          </Typography>
+                          <Typography variant="body2" paragraph>
+                            <strong>Lowest Grade:</strong> {students.length > 0 ? Math.min(...students.map(s => s.current_grade)).toFixed(2) : '0.00'}
+                          </Typography>
+                          <Typography variant="body2">
+                            <strong>Pass Rate:</strong> {students.length > 0 ? ((students.filter(s => s.current_grade >= 2.0).length / students.length) * 100).toFixed(1) : '0.0'}%
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    </Grid>
+                  )}
+                </GlassCard>
+              </Box>
+            </>
+          )}
+
+          {/* Grade Entry Dialog */}
+          <Dialog
+            open={gradeDialogOpen}
+            onClose={() => setGradeDialogOpen(false)}
+            maxWidth="md"
+            fullWidth
+          >
+            <DialogTitle>
+              <Typography variant="h5" fontWeight="700">
+                {editingGrade?.id ? 'Edit Grade' : 'Add New Grade'}
+              </Typography>
+            </DialogTitle>
+            <DialogContent>
+              {editingGrade && (
+                <Grid container spacing={3} sx={{ mt: 1 }}>
+                  <Grid item xs={12} md={6}>
+                    <FormControl fullWidth>
+                      <InputLabel>Assignment Type</InputLabel>
+                      <Select
+                        value={editingGrade.assignment_type}
+                        onChange={(e) => setEditingGrade({...editingGrade, assignment_type: e.target.value})}
+                        label="Assignment Type"
+                      >
+                        <MenuItem value="assignment">Assignment</MenuItem>
+                        <MenuItem value="quiz">Quiz</MenuItem>
+                        <MenuItem value="exam">Exam</MenuItem>
+                        <MenuItem value="project">Project</MenuItem>
+                        <MenuItem value="participation">Participation</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label="Assignment Name"
+                      value={editingGrade.assignment_name}
+                      onChange={(e) => setEditingGrade({...editingGrade, assignment_name: e.target.value})}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label="CA Marks"
+                      type="number"
+                      value={editingGrade.caMarks}
+                      onChange={(e) => setEditingGrade({...editingGrade, caMarks: e.target.value})}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label="Exam Marks"
+                      type="number"
+                      value={editingGrade.examMarks}
+                      onChange={(e) => setEditingGrade({...editingGrade, examMarks: e.target.value})}
+                    />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <FormControl fullWidth>
+                      <InputLabel>Status</InputLabel>
+                      <Select
+                        value={editingGrade.status}
+                        onChange={(e) => setEditingGrade({...editingGrade, status: e.target.value})}
+                        label="Status"
+                      >
+                        <MenuItem value="draft">Draft</MenuItem>
+                        <MenuItem value="published">Published</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                </Grid>
+              )}
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setGradeDialogOpen(false)} startIcon={<CancelIcon />}>
+                Cancel
+              </Button>
+              <Button variant="contained" onClick={handleSaveGrade} startIcon={<SaveIcon />}>
+                Save Grade
+              </Button>
+            </DialogActions>
+          </Dialog>
+
+          {/* Transcript Generator */}
+          <TranscriptGenerator
+            open={transcriptOpen}
+            onClose={() => setTranscriptOpen(false)}
+            student={user?.role === 'student' ? students[0] : selectedStudent}
+            grades={user?.role === 'student' ? students[0]?.grades || [] : grades}
+          />
+        </Box>
+      )}
     </Box>
   );
 };

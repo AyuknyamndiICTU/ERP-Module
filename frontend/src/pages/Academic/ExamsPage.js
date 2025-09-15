@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -25,9 +25,6 @@ import {
   IconButton,
   Tooltip,
   CircularProgress,
-  Avatar,
-  Stack,
-  Divider,
 } from '@mui/material';
 import {
   Assessment as AssessmentIcon,
@@ -48,11 +45,11 @@ import { useAuth } from '../../context/AuthContext';
 import { academicAPI } from '../../services/api';
 import logger from '../../utils/logger';
 
-// Animation keyframes
-const fadeIn = keyframes`
+// Enhanced Animation keyframes
+const fadeInUp = keyframes`
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(30px);
   }
   to {
     opacity: 1;
@@ -60,14 +57,46 @@ const fadeIn = keyframes`
   }
 `;
 
-const slideInLeft = keyframes`
+const slideIn = keyframes`
   from {
     opacity: 0;
-    transform: translateX(-20px);
+    transform: translateX(-30px);
   }
   to {
     opacity: 1;
     transform: translateX(0);
+  }
+`;
+
+const scaleIn = keyframes`
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+`;
+
+const pulse = keyframes`
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+`;
+
+const float = keyframes`
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
   }
 `;
 
@@ -115,7 +144,7 @@ const ExamsPage = () => {
   const [publishing, setPublishing] = useState(false);
 
   // Fetch exams data
-  const fetchExams = async () => {
+  const fetchExams = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -294,7 +323,7 @@ const ExamsPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
 
   // Handle filter changes
   const handleFilterChange = (field, value) => {
@@ -493,55 +522,96 @@ const ExamsPage = () => {
   }
 
   return (
-    <Container maxWidth="xl" sx={{ py: { xs: 2, md: 4 } }}>
-      {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        <Paper
-          sx={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            borderRadius: 4,
-            p: { xs: 3, md: 4 },
-            color: 'white',
-            position: 'relative',
-            overflow: 'hidden',
-          }}
-        >
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-            <Box>
-              <Typography variant="h3" sx={{
-                fontWeight: 800,
-                mb: 1,
-                fontSize: { xs: '1.75rem', md: '3rem' }
-              }}>
-                <AssessmentIcon sx={{ mr: 2, verticalAlign: 'bottom' }} />
-                Exams & Assessments
-              </Typography>
-              <Typography variant="body1" sx={{
-                opacity: 0.9,
-                fontSize: { xs: '0.9rem', md: '1rem' }
-              }}>
-                Manage course examinations and assessments
-              </Typography>
-            </Box>
-            {canManageExams() && (
-              <Button
-                variant="contained"
-                sx={{
-                  background: 'rgba(255,255,255,0.2)',
-                  color: 'white',
-                  borderRadius: 3,
-                  '&:hover': {
-                    background: 'rgba(255,255,255,0.3)',
-                  }
-                }}
-                onClick={handleCreateExam}
-              >
-                <AddIcon sx={{ mr: 1 }} />
-                Create Exam
-              </Button>
-            )}
-          </Box>
-
+    <Box sx={{ 
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      p: 0
+    }}>
+      {/* Enhanced Header with Floating Elements */}
+      <Box sx={{ 
+        position: 'relative',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        borderRadius: '0 0 50px 50px',
+        p: 4,
+        mb: 4,
+        overflow: 'hidden',
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          top: '-50%',
+          right: '-10%',
+          width: '300px',
+          height: '300px',
+          background: 'rgba(255, 255, 255, 0.1)',
+          borderRadius: '50%',
+          animation: `${pulse} 4s ease-in-out infinite`,
+        },
+        '&::after': {
+          content: '""',
+          position: 'absolute',
+          bottom: '-30%',
+          left: '-5%',
+          width: '200px',
+          height: '200px',
+          background: 'rgba(255, 255, 255, 0.08)',
+          borderRadius: '50%',
+          animation: `${float} 6s ease-in-out infinite`,
+        }
+      }}>
+        <Box sx={{ position: 'relative', zIndex: 1, animation: `${slideIn} 0.8s ease-out` }}>
+          <Typography
+            variant="h2"
+            component="h1"
+            sx={{
+              color: 'white',
+              fontWeight: 900,
+              mb: 2,
+              fontSize: { xs: '2.5rem', md: '3.5rem' },
+              textShadow: '0 4px 20px rgba(0,0,0,0.3)',
+              letterSpacing: '-0.02em'
+            }}
+          >
+            📝 Exams & Assessments
+          </Typography>
+          <Typography 
+            variant="h6" 
+            sx={{ 
+              color: 'rgba(255,255,255,0.9)',
+              fontWeight: 400,
+              fontSize: { xs: '1.1rem', md: '1.3rem' },
+              maxWidth: '600px',
+              mb: 3
+            }}
+          >
+            Manage course examinations and assessments
+          </Typography>
+          
+          {canManageExams() && (
+            <Button
+              variant="contained"
+              sx={{
+                background: 'rgba(255,255,255,0.2)',
+                color: 'white',
+                borderRadius: 3,
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                px: 3,
+                py: 1.5,
+                fontSize: '1rem',
+                fontWeight: 600,
+                animation: `${scaleIn} 0.6s ease-out 0.3s both`,
+                '&:hover': {
+                  background: 'rgba(255,255,255,0.3)',
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 8px 25px rgba(0,0,0,0.2)'
+                }
+              }}
+              onClick={handleCreateExam}
+            >
+              <AddIcon sx={{ mr: 1 }} />
+              Create Exam
+            </Button>
+          )}
           {/* Filters */}
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6} md={3}>
@@ -636,32 +706,33 @@ const ExamsPage = () => {
               </FormControl>
             </Grid>
           </Grid>
-        </Paper>
+        </Box>
       </Box>
 
-      {/* Error Alert */}
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
-        </Alert>
-      )}
+      <Box sx={{ px: 4, pb: 4 }}>
+        {/* Error Alert */}
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+        )}
 
-      {/* Exams Content */}
-      {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-          <CircularProgress />
-        </Box>
-      ) : exams.length === 0 ? (
-        <Box sx={{ textAlign: 'center', py: 8 }}>
-          <AssessmentIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
-          <Typography variant="h6" color="text.secondary">
-            No exams found
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {Object.values(filters).some(filter => filter) ? 'Try adjusting your filters.' : 'Exams will appear here when they are scheduled.'}
-          </Typography>
-        </Box>
-      ) : (
+        {/* Exams Content */}
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+            <CircularProgress />
+          </Box>
+        ) : exams.length === 0 ? (
+          <Box sx={{ textAlign: 'center', py: 8 }}>
+            <AssessmentIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
+            <Typography variant="h6" color="text.secondary">
+              No exams found
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {Object.values(filters).some(filter => filter) ? 'Try adjusting your filters.' : 'Exams will appear here when they are scheduled.'}
+            </Typography>
+          </Box>
+        ) : (
         <Grid container spacing={3}>
           {exams.map((exam, index) => (
             <Grid item xs={12} md={6} lg={4} key={exam.id}>
@@ -671,7 +742,7 @@ const ExamsPage = () => {
                   background: 'rgba(255,255,255,0.95)',
                   backdropFilter: 'blur(10px)',
                   borderRadius: 3,
-                  animation: `${slideInLeft} 0.6s ease-out ${index * 0.1}s both`,
+                  animation: `${slideIn} 0.6s ease-out ${index * 0.1}s both`,
                   transition: 'all 0.3s ease',
                   '&:hover': {
                     transform: 'translateY(-4px)',
@@ -784,7 +855,8 @@ const ExamsPage = () => {
             </Grid>
           ))}
         </Grid>
-      )}
+        )}
+      </Box>
 
       {/* Exam Dialog */}
       <Dialog
@@ -1036,7 +1108,7 @@ const ExamsPage = () => {
           )}
         </DialogActions>
       </Dialog>
-    </Container>
+    </Box>
   );
 };
 

@@ -43,11 +43,11 @@ import FormDialog from '../../components/Common/FormDialog';
 import GlassCard, { FeatureCard, StatsCard } from '../../components/GlassCard';
 import axios from 'axios';
 
-// Animation keyframes
+// Enhanced Animation keyframes
 const fadeInUp = keyframes`
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(30px);
   }
   to {
     opacity: 1;
@@ -58,11 +58,34 @@ const fadeInUp = keyframes`
 const slideIn = keyframes`
   from {
     opacity: 0;
-    transform: translateX(-20px);
+    transform: translateX(-30px);
   }
   to {
     opacity: 1;
     transform: translateX(0);
+  }
+`;
+
+const scaleIn = keyframes`
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+`;
+
+const pulse = keyframes`
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
   }
 `;
 
@@ -498,147 +521,331 @@ const StudentsPage = () => {
   );
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box sx={{ mb: 4, animation: `${slideIn} 0.8s ease-out` }}>
-        <Typography
-          variant="h3"
-          component="h1"
-          sx={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            fontWeight: 800,
-            mb: 1}}
-        >
-          Student Management
-        </Typography>
-        <Typography variant="h6" color="text.secondary">
-          Manage student records, enrollment, and academic progress
-        </Typography>
+    <Box sx={{ 
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      p: 0
+    }}>
+      {/* Enhanced Header with Floating Elements */}
+      <Box sx={{ 
+        position: 'relative',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        borderRadius: '0 0 50px 50px',
+        p: 4,
+        mb: 4,
+        overflow: 'hidden',
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          top: '-50%',
+          right: '-10%',
+          width: '300px',
+          height: '300px',
+          background: 'rgba(255, 255, 255, 0.1)',
+          borderRadius: '50%',
+          animation: `${pulse} 4s ease-in-out infinite`,
+        },
+        '&::after': {
+          content: '""',
+          position: 'absolute',
+          bottom: '-30%',
+          left: '-5%',
+          width: '200px',
+          height: '200px',
+          background: 'rgba(255, 255, 255, 0.08)',
+          borderRadius: '50%',
+          animation: `${pulse} 3s ease-in-out infinite reverse`,
+        }
+      }}>
+        <Box sx={{ position: 'relative', zIndex: 1, animation: `${slideIn} 0.8s ease-out` }}>
+          <Typography
+            variant="h2"
+            component="h1"
+            sx={{
+              color: 'white',
+              fontWeight: 900,
+              mb: 2,
+              fontSize: { xs: '2.5rem', md: '3.5rem' },
+              textShadow: '0 4px 20px rgba(0,0,0,0.3)',
+              letterSpacing: '-0.02em'
+            }}
+          >
+            👥 Student Management
+          </Typography>
+          <Typography 
+            variant="h5" 
+            sx={{ 
+              color: 'rgba(255,255,255,0.9)',
+              fontWeight: 400,
+              fontSize: { xs: '1.1rem', md: '1.3rem' },
+              maxWidth: '600px'
+            }}
+          >
+            Manage student records, enrollment, and academic progress
+          </Typography>
+        </Box>
       </Box>
 
-      {/* Stats Cards */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatsCard
-            icon={<PersonIcon />}
-            color="primary"
-            sx={{
+      <Box sx={{ px: 3 }}>
+        {/* Enhanced Stats Cards */}
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid item xs={12} sm={6} md={3}>
+            <Box sx={{
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: '#ffffff',
-              animation: `${fadeInUp} 0.6s ease-out 0.1s both`}}
-          >
-            <Typography variant="h3" fontWeight="800" sx={{ mb: 1 }}>
-              {students.length}
-            </Typography>
-            <Typography variant="body1" sx={{ opacity: 0.9 }}>
-              Total Students
-            </Typography>
-          </StatsCard>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatsCard
-            icon={<SchoolIcon />}
-            color="secondary"
-            sx={{
-              background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-              color: '#ffffff',
-              animation: `${fadeInUp} 0.6s ease-out 0.2s both`}}
-          >
-            <Typography variant="h3" fontWeight="800" sx={{ mb: 1 }}>
-              {students.filter(s => s.status === 'active').length}
-            </Typography>
-            <Typography variant="body1" sx={{ opacity: 0.9 }}>
-              Active Students
-            </Typography>
-          </StatsCard>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatsCard
-            icon={<GradeIcon />}
-            color="success"
-            sx={{
-              background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-              color: '#ffffff',
-              animation: `${fadeInUp} 0.6s ease-out 0.3s both`}}
-          >
-            <Typography variant="h3" fontWeight="800" sx={{ mb: 1 }}>
-              {(students.reduce((sum, s) => sum + s.current_gpa, 0) / students.length).toFixed(2)}
-            </Typography>
-            <Typography variant="body1" sx={{ opacity: 0.9 }}>
-              Average GPA
-            </Typography>
-          </StatsCard>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatsCard
-            icon={<TrendingUpIcon />}
-            color="warning"
-            sx={{
-              background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-              color: '#ffffff',
-              animation: `${fadeInUp} 0.6s ease-out 0.4s both`}}
-          >
-            <Typography variant="h3" fontWeight="800" sx={{ mb: 1 }}>
-              {students.filter(s => s.current_gpa >= 3.5).length}
-            </Typography>
-            <Typography variant="body1" sx={{ opacity: 0.9 }}>
-              Top Students
-            </Typography>
-          </StatsCard>
-        </Grid>
-      </Grid>
-
-      {/* Search and Filter Bar */}
-      <GlassCard sx={{ mb: 4, animation: `${fadeInUp} 0.8s ease-out 0.5s both` }}>
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-          <TextField
-            placeholder="Search Students..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              )}}
-            sx={{ flexGrow: 1, minWidth: 300 }}
-          />
-
-          <Button
-            variant="outlined"
-            startIcon={<FilterIcon />}
-            onClick={handleFilterClick}
-            sx={{ minWidth: 120 }}
-          >
-            Filters
-          </Button>
-
-          {(user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'lecturer' || user?.role === 'faculty_coordinator' || user?.role === 'major_coordinator') && (
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => setShowAddDialog(true)}
-              sx={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                minWidth: 140}}
-            >
-              Add Student
-            </Button>
-          )}
-        </Box>
-      </GlassCard>
-
-      {/* Students Grid */}
-      <Grid container spacing={3}>
-        {filteredStudents.map((student, index) => (
-          <Grid item xs={12} sm={6} lg={4} key={student.id}>
-            <StudentCard student={student} index={index} />
+              borderRadius: '25px',
+              p: 3,
+              color: 'white',
+              position: 'relative',
+              overflow: 'hidden',
+              animation: `${scaleIn} 0.6s ease-out 0.1s both`,
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                transform: 'translateY(-8px) scale(1.02)',
+                boxShadow: '0 20px 40px rgba(102, 126, 234, 0.3)',
+              },
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: '-50%',
+                right: '-50%',
+                width: '100px',
+                height: '100px',
+                background: 'rgba(255, 255, 255, 0.1)',
+                borderRadius: '50%',
+              }
+            }}>
+              <Box sx={{ position: 'relative', zIndex: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                  <PersonIcon sx={{ fontSize: '2rem', mr: 1 }} />
+                  <Typography variant="h6" fontWeight="700">👥 Total</Typography>
+                </Box>
+                <Typography variant="h2" fontWeight="900" sx={{ mb: 1, fontSize: '3rem' }}>
+                  {students.length}
+                </Typography>
+                <Typography variant="body1" sx={{ opacity: 0.9, fontWeight: 500 }}>
+                  Students Enrolled
+                </Typography>
+              </Box>
+            </Box>
           </Grid>
-        ))}
-      </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Box sx={{
+              background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+              borderRadius: '25px',
+              p: 3,
+              color: 'white',
+              position: 'relative',
+              overflow: 'hidden',
+              animation: `${scaleIn} 0.6s ease-out 0.2s both`,
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                transform: 'translateY(-8px) scale(1.02)',
+                boxShadow: '0 20px 40px rgba(240, 147, 251, 0.3)',
+              },
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: '-50%',
+                right: '-50%',
+                width: '100px',
+                height: '100px',
+                background: 'rgba(255, 255, 255, 0.1)',
+                borderRadius: '50%',
+              }
+            }}>
+              <Box sx={{ position: 'relative', zIndex: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                  <SchoolIcon sx={{ fontSize: '2rem', mr: 1 }} />
+                  <Typography variant="h6" fontWeight="700">🎓 Active</Typography>
+                </Box>
+                <Typography variant="h2" fontWeight="900" sx={{ mb: 1, fontSize: '3rem' }}>
+                  {students.filter(s => s.status === 'active').length}
+                </Typography>
+                <Typography variant="body1" sx={{ opacity: 0.9, fontWeight: 500 }}>
+                  Active Students
+                </Typography>
+              </Box>
+            </Box>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Box sx={{
+              background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+              borderRadius: '25px',
+              p: 3,
+              color: 'white',
+              position: 'relative',
+              overflow: 'hidden',
+              animation: `${scaleIn} 0.6s ease-out 0.3s both`,
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                transform: 'translateY(-8px) scale(1.02)',
+                boxShadow: '0 20px 40px rgba(79, 172, 254, 0.3)',
+              },
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: '-50%',
+                right: '-50%',
+                width: '100px',
+                height: '100px',
+                background: 'rgba(255, 255, 255, 0.1)',
+                borderRadius: '50%',
+              }
+            }}>
+              <Box sx={{ position: 'relative', zIndex: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                  <GradeIcon sx={{ fontSize: '2rem', mr: 1 }} />
+                  <Typography variant="h6" fontWeight="700">📊 Average</Typography>
+                </Box>
+                <Typography variant="h2" fontWeight="900" sx={{ mb: 1, fontSize: '3rem' }}>
+                  {(students.reduce((sum, s) => sum + s.current_gpa, 0) / students.length).toFixed(2)}
+                </Typography>
+                <Typography variant="body1" sx={{ opacity: 0.9, fontWeight: 500 }}>
+                  GPA Score
+                </Typography>
+              </Box>
+            </Box>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Box sx={{
+              background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+              borderRadius: '25px',
+              p: 3,
+              color: 'white',
+              position: 'relative',
+              overflow: 'hidden',
+              animation: `${scaleIn} 0.6s ease-out 0.4s both`,
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                transform: 'translateY(-8px) scale(1.02)',
+                boxShadow: '0 20px 40px rgba(67, 233, 123, 0.3)',
+              },
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: '-50%',
+                right: '-50%',
+                width: '100px',
+                height: '100px',
+                background: 'rgba(255, 255, 255, 0.1)',
+                borderRadius: '50%',
+              }
+            }}>
+              <Box sx={{ position: 'relative', zIndex: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                  <TrendingUpIcon sx={{ fontSize: '2rem', mr: 1 }} />
+                  <Typography variant="h6" fontWeight="700">⭐ Top</Typography>
+                </Box>
+                <Typography variant="h2" fontWeight="900" sx={{ mb: 1, fontSize: '3rem' }}>
+                  {students.filter(s => s.current_gpa >= 3.5).length}
+                </Typography>
+                <Typography variant="body1" sx={{ opacity: 0.9, fontWeight: 500 }}>
+                  High Achievers
+                </Typography>
+              </Box>
+            </Box>
+          </Grid>
+        </Grid>
+
+        {/* Enhanced Search and Filter Bar */}
+        <GlassCard sx={{ 
+          mb: 4, 
+          animation: `${fadeInUp} 0.8s ease-out 0.5s both`,
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+          borderRadius: '20px',
+          p: 3
+        }}>
+          <Box sx={{ display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'wrap' }}>
+            <TextField
+              placeholder="🔍 Search students by name, ID, or email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ color: '#667eea' }} />
+                  </InputAdornment>
+                )}}
+              sx={{ 
+                flexGrow: 1, 
+                minWidth: 350,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '15px',
+                  background: 'rgba(102, 126, 234, 0.05)',
+                  '&:hover': {
+                    background: 'rgba(102, 126, 234, 0.08)',
+                  },
+                  '&.Mui-focused': {
+                    background: 'rgba(102, 126, 234, 0.1)',
+                  }
+                }
+              }}
+            />
+
+            <Button
+              variant="outlined"
+              startIcon={<FilterIcon />}
+              onClick={handleFilterClick}
+              sx={{ 
+                minWidth: 140,
+                height: 56,
+                borderRadius: '15px',
+                fontWeight: 600,
+                borderColor: '#667eea',
+                color: '#667eea',
+                '&:hover': {
+                  borderColor: '#5a67d8',
+                  background: 'rgba(102, 126, 234, 0.1)',
+                }
+              }}
+            >
+              🔧 Filters
+            </Button>
+
+            {(user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'lecturer' || user?.role === 'faculty_coordinator' || user?.role === 'major_coordinator') && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => setShowAddDialog(true)}
+                sx={{
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  minWidth: 160,
+                  height: 56,
+                  borderRadius: '15px',
+                  fontWeight: 700,
+                  fontSize: '1rem',
+                  textTransform: 'none',
+                  boxShadow: '0 10px 30px rgba(102, 126, 234, 0.4)',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%)',
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 15px 35px rgba(102, 126, 234, 0.5)',
+                  },
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                ➕ Add Student
+              </Button>
+            )}
+          </Box>
+        </GlassCard>
+
+        {/* Enhanced Students Grid */}
+        <Grid container spacing={3}>
+          {filteredStudents.map((student, index) => (
+            <Grid item xs={12} sm={6} lg={4} key={student.id}>
+              <StudentCard student={student} index={index} />
+            </Grid>
+          ))}
+        </Grid>
+      </Box>
 
       {/* Filter Menu */}
       <Menu
