@@ -1,13 +1,9 @@
-const express = require('express');
-const router = express.Router();
+const { Student, User, Faculty, Department, Major, Course, Notification } = require('../models');
 const { body, validationResult, param, query } = require('express-validator');
-const { authenticateToken } = require('../middleware/auth');
-const roleAuth = require('../middleware/roleAuth');
+const bcrypt = require('bcryptjs');
 const { logger } = require('../utils/logger');
-const Student = require('../models/Student');
-const Faculty = require('../models/Faculty');
-const Department = require('../models/Department');
-const Major = require('../models/Major');
+const { authenticateToken, authorizeRoles } = require('../middleware/auth');
+const { sendRegistrationApprovalEmail, sendRegistrationRejectionEmail } = require('../utils/emailService');
 const { Op } = require('sequelize');
 const { generateMatricule } = require('../utils/matriculeGenerator');
 
@@ -424,7 +420,7 @@ router.post('/',
         });
       }
 
-      // Create new student with ICTU requirements
+      // Create new student with ICTU requirements (pending approval)
       const newStudent = await Student.create({
         matricule,
         firstName: first_name,
@@ -437,23 +433,67 @@ router.post('/',
         gender,
         age,
         bloodGroup: blood_group,
+        address,
+        emergencyContact: emergency_contact,
         facultyId: faculty_id,
         departmentId: department_id,
         majorId: major_id,
         semester,
-        studentType: student_type || 'regular',
+        studentType: student_type,
         level,
         enrollmentDate: enrollment_date,
         registrationYear,
-        status: 'registered',
-        registrationLocked: true
+        status: 'pending',
+        registrationLocked: false
       });
 
       logger.info(`Student ${matricule} created by user ${req.user.id}`);
 
+      // Notify coordinators about new registration
+      const faculty = await Faculty.findByPk(faculty_id, {
+        include: [{ model: User, as: 'coordinator' }]
+      });
+      const major = await Major.findByPk(major_id, {
+        include: [{ model: User, as: 'coordinator' }]
+      });
+
+      // Create notifications for coordinators
+      const notifications = [];
+      if (faculty?.coordinator) {
+        notifications.push({
+          userId: faculty.coordinator.id,
+          title: 'New Student Registration',
+          message: `New student ${first_name} ${last_name} (${matricule}) has applied for ${faculty.name}`,
+          type: 'info',
+          category: 'academic',
+          data: { studentId: newStudent.id, action: 'review_registration' }
+        });
+      }
+      if (major?.coordinator && major.coordinator.id !== faculty?.coordinator?.id) {
+        notifications.push({
+          userId: major.coordinator.id,
+          title: 'New Student Registration',
+          message: `New student ${first_name} ${last_name} (${matricule}) has applied for ${major.name}`,
+          type: 'info',
+          category: 'academic',
+          data: { studentId: newStudent.id, action: 'review_registration' }
+        });
+      }
+
+      if (notifications.length > 0) {
+        await Notification.bulkCreate(notifications);
+      }
+
       res.status(201).json({
-        message: 'Student created successfully',
-        student: newStudent
+        message: 'Registration submitted successfully. You will be contacted via email once your application is reviewed.',
+        student: {
+          id: newStudent.id,
+          matricule: newStudent.matricule,
+          firstName: newStudent.firstName,
+          lastName: newStudent.lastName,
+          email: newStudent.email,
+          status: newStudent.status
+        }
       });
 
     } catch (error) {
@@ -656,6 +696,328 @@ router.delete('/:id',
       logger.error('Error deleting student:', error);
       res.status(500).json({ 
         message: 'Error deleting student',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/students/{id}/approve:
+ *   post:
+ *     summary: Approve student registration (Coordinator only)
+ *     tags: [Students]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Student registration approved successfully
+ *       403:
+ *         description: Not authorized to approve this student
+ *       404:
+ *         description: Student not found
+ */
+router.post('/:id/approve',
+  authenticateToken,
+  roleAuth(['faculty_coordinator', 'major_coordinator']),
+  [param('id').isUUID()],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { id } = req.params;
+      const coordinatorId = req.user.id;
+
+      // Find the student
+      const student = await Student.findByPk(id, {
+        include: [
+          { model: Faculty, as: 'faculty' },
+          { model: Major, as: 'major' }
+        ]
+      });
+
+      if (!student) {
+        return res.status(404).json({ message: 'Student not found' });
+      }
+
+      if (student.status !== 'pending') {
+        return res.status(400).json({ message: 'Student registration is not pending approval' });
+      }
+
+      // Check if coordinator has permission
+      const hasPermission = 
+        (student.faculty?.coordinatorId === coordinatorId) ||
+        (student.major?.coordinatorId === coordinatorId);
+
+      if (!hasPermission) {
+        return res.status(403).json({
+          message: 'You are not authorized to approve this student registration'
+        });
+      }
+
+      // Create user account for the student
+      const bcrypt = require('bcryptjs');
+      const tempPassword = Math.random().toString(36).slice(-8);
+      const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+      const user = await User.create({
+        email: student.email,
+        password: hashedPassword,
+        firstName: student.firstName,
+        lastName: student.lastName,
+        role: 'student',
+        isActive: true
+      });
+
+      // Update student status and link to user
+      await student.update({
+        userId: user.id,
+        status: 'active',
+        registrationLocked: true
+      });
+
+      // Send notification to student
+      await Notification.create({
+        userId: user.id,
+        title: 'Registration Approved',
+        message: `Welcome to ICTU! Your registration has been approved. Your matricule is ${student.matricule}`,
+        type: 'success',
+        category: 'academic',
+        data: { 
+          matricule: student.matricule,
+          tempPassword: tempPassword,
+          action: 'login_credentials'
+        }
+      });
+
+      // Send email notification to student
+      const studentWithAssociations = await Student.findByPk(student.id, {
+        include: [
+          { model: Faculty, as: 'faculty' },
+          { model: Department, as: 'department' },
+          { model: Major, as: 'major' }
+        ]
+      });
+
+      const emailResult = await sendRegistrationApprovalEmail(
+        studentWithAssociations,
+        { tempPassword }
+      );
+
+      if (!emailResult.success) {
+        logger.warn(`Failed to send approval email to ${student.email}: ${emailResult.error}`);
+      }
+
+      logger.info(`Student registration ${student.matricule} approved by coordinator ${coordinatorId}`);
+
+      res.json({
+        message: 'Student registration approved successfully',
+        student: {
+          id: student.id,
+          matricule: student.matricule,
+          firstName: student.firstName,
+          lastName: student.lastName,
+          email: student.email,
+          status: student.status
+        },
+        credentials: {
+          email: student.email,
+          tempPassword: tempPassword
+        }
+      });
+
+    } catch (error) {
+      logger.error('Error approving student registration:', error);
+      res.status(500).json({ 
+        message: 'Error approving student registration',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/students/{id}/reject:
+ *   post:
+ *     summary: Reject student registration (Coordinator only)
+ *     tags: [Students]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               reason:
+ *                 type: string
+ *                 description: Reason for rejection
+ *     responses:
+ *       200:
+ *         description: Student registration rejected successfully
+ *       403:
+ *         description: Not authorized to reject this student
+ *       404:
+ *         description: Student not found
+ */
+router.post('/:id/reject',
+  authenticateToken,
+  roleAuth(['faculty_coordinator', 'major_coordinator']),
+  [
+    param('id').isUUID(),
+    body('reason').notEmpty().withMessage('Rejection reason is required')
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { id } = req.params;
+      const { reason } = req.body;
+      const coordinatorId = req.user.id;
+
+      // Find the student
+      const student = await Student.findByPk(id, {
+        include: [
+          { model: Faculty, as: 'faculty' },
+          { model: Major, as: 'major' }
+        ]
+      });
+
+      if (!student) {
+        return res.status(404).json({ message: 'Student not found' });
+      }
+
+      if (student.status !== 'pending') {
+        return res.status(400).json({ message: 'Student registration is not pending approval' });
+      }
+
+      // Check if coordinator has permission
+      const hasPermission = 
+        (student.faculty?.coordinatorId === coordinatorId) ||
+        (student.major?.coordinatorId === coordinatorId);
+
+      if (!hasPermission) {
+        return res.status(403).json({
+          message: 'You are not authorized to reject this student registration'
+        });
+      }
+
+      // Update student status
+      await student.update({
+        status: 'inactive',
+        registrationLocked: true
+      });
+
+      // Send email notification to student about rejection
+      const emailResult = await sendRegistrationRejectionEmail(student, reason);
+
+      if (!emailResult.success) {
+        logger.warn(`Failed to send rejection email to ${student.email}: ${emailResult.error}`);
+      }
+
+      logger.info(`Student registration ${student.matricule} rejected by coordinator ${coordinatorId}. Reason: ${reason}`);
+
+      res.json({
+        message: 'Student registration rejected successfully',
+        student: {
+          id: student.id,
+          matricule: student.matricule,
+          firstName: student.firstName,
+          lastName: student.lastName,
+          email: student.email,
+          status: student.status
+        },
+        reason: reason
+      });
+
+    } catch (error) {
+      logger.error('Error rejecting student registration:', error);
+      res.status(500).json({ 
+        message: 'Error rejecting student registration',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/students/pending:
+ *   get:
+ *     summary: Get pending student registrations (Coordinator only)
+ *     tags: [Students]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of pending student registrations
+ */
+router.get('/pending',
+  authenticateToken,
+  roleAuth(['faculty_coordinator', 'major_coordinator']),
+  async (req, res) => {
+    try {
+      const coordinatorId = req.user.id;
+
+      // Find students pending approval for this coordinator's faculty/major
+      const students = await Student.findAll({
+        where: { status: 'pending' },
+        include: [
+          { 
+            model: Faculty, 
+            as: 'faculty',
+            where: { coordinatorId: coordinatorId },
+            required: false
+          },
+          { 
+            model: Major, 
+            as: 'major',
+            where: { coordinatorId: coordinatorId },
+            required: false
+          },
+          { model: Department, as: 'department' }
+        ]
+      });
+
+      // Filter students where coordinator has permission
+      const filteredStudents = students.filter(student => 
+        student.faculty?.coordinatorId === coordinatorId ||
+        student.major?.coordinatorId === coordinatorId
+      );
+
+      res.json({
+        message: 'Pending student registrations retrieved successfully',
+        students: filteredStudents,
+        count: filteredStudents.length
+      });
+
+    } catch (error) {
+      logger.error('Error fetching pending student registrations:', error);
+      res.status(500).json({ 
+        message: 'Error fetching pending student registrations',
         error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
       });
     }
