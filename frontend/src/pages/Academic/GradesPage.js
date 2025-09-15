@@ -77,7 +77,7 @@ const GradesPage = () => {
   const [tabValue, setTabValue] = useState(0);
   const [gradeDialogOpen, setGradeDialogOpen] = useState(false);
   const [editingGrade, setEditingGrade] = useState(null);
-  const [transcriptOpen, setTranscriptOpen] = useState(false);
+  const [transcriptOpen, setStudentscriptOpen] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [gradeDistribution, setGradeDistribution] = useState([]);
@@ -386,7 +386,7 @@ const GradesPage = () => {
           Grade Management
         </Typography>
         <Typography variant="h6" color="text.secondary">
-          Manage trainee grades, assignments, and academic performance
+          Manage student grades, assignments, and academic performance
         </Typography>
       </Box>
 
@@ -394,7 +394,7 @@ const GradesPage = () => {
       <GlassCard sx={{ mb: 4, animation: `${fadeInUp} 0.8s ease-out 0.1s both` }}>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           <FormControl sx={{ minWidth: 300 }}>
-            <InputLabel>Select Course</InputLabel>
+              <InputLabel>Select Course</InputLabel>
             <Select
               value={selectedCourse?.id || ''}
               onChange={(e) => handleCourseChange(e.target.value)}
@@ -402,14 +402,14 @@ const GradesPage = () => {
             >
               {courses.map((course) => (
                 <MenuItem key={course.id} value={course.id}>
-                  {course.code} - {course.name}
+                  {(course.courseCode || course.code)} - {(course.courseName || course.name)}
                 </MenuItem>
               ))}
             </Select>
           </FormControl>
 
           <TextField
-            placeholder="Search trainees..."
+            placeholder="Search students..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             InputProps={{
@@ -425,14 +425,14 @@ const GradesPage = () => {
             <Button
               variant="contained"
               startIcon={<DownloadIcon />}
-              onClick={() => setTranscriptOpen(true)}
+              onClick={() => setStudentscriptOpen(true)}
               sx={{
                 background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
                 minWidth: 140,
                 mr: 2
               }}
             >
-              Download Transcript
+              Download Studentscript
             </Button>
           )}
 
@@ -468,7 +468,7 @@ const GradesPage = () => {
                   {students.length}
                 </Typography>
                 <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                  Enrolled Trainees
+                  Enrolled Students
                 </Typography>
               </StatsCard>
             </Grid>
@@ -519,7 +519,7 @@ const GradesPage = () => {
                   {gradeDistribution.find(g => g.letter_grade === 'A')?.count || 0}
                 </Typography>
                 <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                  A Trainees
+                  A Students
                 </Typography>
               </StatsCard>
             </Grid>
@@ -528,7 +528,7 @@ const GradesPage = () => {
           {/* Main Content */}
           <GlassCard sx={{ animation: `${fadeInUp} 0.8s ease-out 0.6s both` }}>
             <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)} sx={{ mb: 3 }}>
-              <Tab label="Trainee Grades" />
+              <Tab label="Student Grades" />
               <Tab label="Assignments" />
               <Tab label="Grade Distribution" />
             </Tabs>
@@ -538,8 +538,8 @@ const GradesPage = () => {
                 <Table>
                   <TableHead>
                     <TableRow>
-                      <TableCell>Trainee</TableCell>
-                      <TableCell>Trainee ID</TableCell>
+                      <TableCell>Student</TableCell>
+                      <TableCell>Student ID</TableCell>
                       <TableCell align="center">Current Grade</TableCell>
                       <TableCell align="center">GPA</TableCell>
                       <TableCell align="center">Progress</TableCell>
@@ -737,7 +737,7 @@ const GradesPage = () => {
                   </Typography>
                   <Box sx={{ p: 2, background: 'rgba(102, 126, 234, 0.05)', borderRadius: 2 }}>
                     <Typography variant="body2" paragraph>
-                      <strong>Total Trainees:</strong> {students.length}
+                      <strong>Total Students:</strong> {students.length}
                     </Typography>
                     <Typography variant="body2" paragraph>
                       <strong>Course Average:</strong> {students.length > 0 ? (students.reduce((sum, s) => sum + s.current_grade, 0) / students.length).toFixed(2) : '0.00'}
@@ -863,7 +863,7 @@ const GradesPage = () => {
       {/* Transcript Generator */}
       <TranscriptGenerator
         open={transcriptOpen}
-        onClose={() => setTranscriptOpen(false)}
+        onClose={() => setStudentscriptOpen(false)}
         studentData={user?.role === 'student' ? user : null}
       />
     </Box>
