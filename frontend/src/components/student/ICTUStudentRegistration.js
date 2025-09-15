@@ -24,7 +24,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import axios from 'axios';
 
 const mapLevelLabel = (lvl) =>
-  ({ undergraduate: 'Beginner', masters: 'Intermediate', phd: 'Advanced' }[String(lvl).toLowerCase()] || lvl);
+  ({ undergraduate: 'Undergraduate', masters: 'Master', phd: 'PhD' }[String(lvl).toLowerCase()] || lvl);
 
 const ICTUStudentRegistration = () => {
   const [activeStep, setActiveStep] = useState(0);
@@ -32,6 +32,7 @@ const ICTUStudentRegistration = () => {
   const [faculties, setFaculties] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [majors, setMajors] = useState([]);
+  const [courses, setCourses] = useState([]);
   const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState('');
 
@@ -61,6 +62,7 @@ const ICTUStudentRegistration = () => {
     semester: 1,
     level: '',
     studentType: 'regular',
+    selectedCourses: [],
     previousEducation: '',
     
     // Emergency Contact
@@ -101,11 +103,15 @@ const ICTUStudentRegistration = () => {
     }
   }, [formData.facultyId]);
 
+  useEffect(() => {
+    if (formData.departmentId && formData.semester) {
+      fetchCourses(formData.departmentId, formData.semester);
+    }
+  }, [formData.departmentId, formData.semester]);
+
   const fetchFaculties = async () => {
     try {
-      const response = await axios.get('/api/faculties', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
+      const response = await axios.get('/api/public/faculties');
       setFaculties(response.data.faculties || []);
     } catch (error) {
       console.error('Error fetching faculties:', error);
@@ -114,9 +120,7 @@ const ICTUStudentRegistration = () => {
 
   const fetchDepartments = async (facultyId) => {
     try {
-      const response = await axios.get(`/api/faculties/${facultyId}/departments`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
+      const response = await axios.get(`/api/public/faculties/${facultyId}/departments`);
       setDepartments(response.data.departments || []);
     } catch (error) {
       console.error('Error fetching departments:', error);
@@ -125,12 +129,23 @@ const ICTUStudentRegistration = () => {
 
   const fetchMajors = async () => {
     try {
-      const response = await axios.get('/api/majors', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
+      const response = await axios.get('/api/public/majors');
       setMajors(response.data.majors || []);
     } catch (error) {
       console.error('Error fetching majors:', error);
+    }
+  };
+
+  const fetchCourses = async (departmentId, semester) => {
+    try {
+      const response = await axios.get('/api/academic/courses', {
+        params: { departmentId, semester, status: 'active' },
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      setCourses(response.data.courses || []);
+    } catch (error) {
+      console.error('Error fetching courses:', error);
+      setCourses([]);
     }
   };
 
@@ -179,6 +194,9 @@ const ICTUStudentRegistration = () => {
         if (!formData.departmentId) newErrors.departmentId = 'Department is required';
         if (!formData.majorId) newErrors.majorId = 'Major is required';
         if (!formData.level) newErrors.level = 'Level is required';
+        if (!formData.selectedCourses || formData.selectedCourses.length === 0) {
+          newErrors.selectedCourses = 'Please select at least one course';
+        }
         break;
         
       case 2: // Contact & Emergency
@@ -207,11 +225,9 @@ const ICTUStudentRegistration = () => {
     
     setLoading(true);
     try {
-      const response = await axios.post('/api/students/register', formData, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
+      const response = await axios.post('/api/public/register', formData);
       
-      setSuccess(`Registration successful! Your matricule is: ${response.data.student.matricule}`);
+      setSuccess(`Registration submitted successfully! Your matricule is: ${response.data.student.matricule}. ${response.data.message}`);
       setActiveStep(4); // Success step
     } catch (error) {
       setErrors({
@@ -458,6 +474,49 @@ const ICTUStudentRegistration = () => {
               </MenuItem>
             ))}
           </Select>
+        </FormControl>
+      </Grid>
+      
+      <Grid item xs={12}>
+        <FormControl fullWidth error={!!errors.selectedCourses}>
+          <InputLabel>Select Courses for Semester {formData.semester}</InputLabel>
+          <Select
+            multiple
+            value={formData.selectedCourses}
+            onChange={(e) => handleInputChange('selectedCourses', e.target.value)}
+            label={`Select Courses for Semester ${formData.semester}`}
+            disabled={!formData.departmentId || courses.length === 0}
+            renderValue={(selected) => (
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                {selected.map((courseId) => {
+                  const course = courses.find(c => c.id === courseId);
+                  return (
+                    <Chip 
+                      key={courseId} 
+                      label={course ? `${course.courseCode} - ${course.courseName}` : courseId}
+                      size="small"
+                    />
+                  );
+                })}
+              </Box>
+            )}
+          >
+            {courses.map(course => (
+              <MenuItem key={course.id} value={course.id}>
+                {course.courseCode} - {course.courseName} ({course.credits} credits)
+              </MenuItem>
+            ))}
+          </Select>
+          {errors.selectedCourses && (
+            <Typography variant="caption" color="error" sx={{ mt: 1 }}>
+              {errors.selectedCourses}
+            </Typography>
+          )}
+          {formData.departmentId && courses.length === 0 && (
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+              No courses available for the selected department and semester.
+            </Typography>
+          )}
         </FormControl>
       </Grid>
       
