@@ -4,7 +4,7 @@ const Department = require('../../models/Department');
 const Major = require('../../models/Major');
 const Course = require('../../models/Course');
 const User = require('../../models/User');
-const { logger } = require('../../utils/logger');
+const logger = require('../../utils/logger');
 
 /**
  * Seed ICTU-specific faculties, departments, majors, and courses

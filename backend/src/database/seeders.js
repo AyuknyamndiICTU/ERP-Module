@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const { User, Student, Course, Employee, FeeStructure } = require('../models');
-const { logger } = require('../utils/logger');
+const logger = require('../utils/logger');
 
 const seedDatabase = async () => {
   try {

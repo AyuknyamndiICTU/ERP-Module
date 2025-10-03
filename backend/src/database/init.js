@@ -1,7 +1,7 @@
 const { sequelize } = require('../config/database');
 const { User, Student, Course, Employee, FeeStructure } = require('../models');
 const { seedDatabase } = require('./seeders');
-const { logger } = require('../utils/logger');
+const logger = require('../utils/logger');
 
 const initializeDatabase = async () => {
   try {

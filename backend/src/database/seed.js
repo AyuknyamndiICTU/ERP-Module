@@ -1,5 +1,5 @@
 const { DatabaseMigrator } = require('./migrate');
-const { logger } = require('../utils/logger');
+const logger = require('../utils/logger');
 
 /**
  * Database Seeding Script
