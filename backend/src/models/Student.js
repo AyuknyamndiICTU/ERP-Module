@@ -13,6 +13,11 @@ const Student = sequelize.define('Student', {
     unique: true,
     field: 'matricule'
   },
+  studentId: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    field: 'student_id'
+  },
   userId: {
     type: DataTypes.UUID,
     allowNull: true,
@@ -21,6 +26,11 @@ const Student = sequelize.define('Student', {
       model: 'users',
       key: 'id'
     }
+  },
+  userIdOld: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'user_id_old'
   },
   firstName: {
     type: DataTypes.STRING,
@@ -64,6 +74,20 @@ const Student = sequelize.define('Student', {
   bloodGroup: {
     type: DataTypes.ENUM('A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'),
     field: 'blood_group'
+  },
+  address: {
+    type: DataTypes.JSONB,
+    field: 'address'
+  },
+  programId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'program_id'
+  },
+  yearLevel: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'year_level'
   },
   facultyId: {
     type: DataTypes.UUID,
