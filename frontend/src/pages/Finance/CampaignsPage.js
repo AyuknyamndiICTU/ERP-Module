@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -32,7 +32,8 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import FormDialog from '../../components/Common/FormDialog';
 import GlassCard from '../../components/GlassCard';
-import axios from 'axios';
+import { financeAPI } from '../../services/api';
+import { debounce } from 'lodash';
 
 const CampaignsPage = () => {
   const { user } = useAuth();
@@ -44,6 +45,7 @@ const CampaignsPage = () => {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [error, setError] = useState(null);
+  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0 });
 
   // Mock data
   const mockCampaigns = [
@@ -94,64 +96,90 @@ const CampaignsPage = () => {
     }
   ];
 
-  useEffect(() => {
-    fetchCampaigns();
-  }, []);
-
-  const fetchCampaigns = async () => {
+  // Fetch campaigns from backend
+  const fetchCampaigns = useCallback(async (search = '', page = 1) => {
     try {
       setLoading(true);
       setError(null);
       
-      const token = localStorage.getItem('token');
-      const response = await axios.get('/api/finance/campaigns', {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+      const response = await financeAPI.getCampaigns({ 
+        search, 
+        page, 
+        limit: pagination.limit 
       });
-
-      if (response.data.campaigns) {
+      
+      if (response.data && response.data.campaigns) {
         setCampaigns(response.data.campaigns);
+        setPagination(prev => ({
+          ...prev,
+          page: response.data.currentPage || page,
+          total: response.data.total || response.data.campaigns.length
+        }));
       } else {
         // Fallback to mock data if API fails
+        console.warn('API response invalid, using fallback data');
         setCampaigns(mockCampaigns);
+        setPagination(prev => ({ ...prev, total: mockCampaigns.length }));
       }
     } catch (error) {
       console.error('Error fetching campaigns:', error);
       setError('Failed to load campaigns. Using sample data.');
-      // Use mock data as fallback
+      // Use fallback mock data
       setCampaigns(mockCampaigns);
+      setPagination(prev => ({ ...prev, total: mockCampaigns.length }));
+      setSnackbar({
+        open: true,
+        message: 'Failed to load campaigns. Using offline data.',
+        severity: 'warning'
+      });
     } finally {
       setLoading(false);
     }
-  };
+  }, [pagination.limit]);
+
+  // Debounced search
+  const debouncedSearch = useCallback(
+    debounce((searchValue) => {
+      fetchCampaigns(searchValue, 1);
+    }, 500),
+    [fetchCampaigns]
+  );
+
+  useEffect(() => {
+    fetchCampaigns();
+  }, [fetchCampaigns]);
+
+  useEffect(() => {
+    if (searchTerm) {
+      debouncedSearch(searchTerm);
+    } else {
+      fetchCampaigns('', 1);
+    }
+  }, [searchTerm, debouncedSearch, fetchCampaigns]);
 
   const handleAddCampaign = async (formData) => {
     try {
       const campaignData = {
         name: formData.name,
+        type: formData.type,
         description: formData.description,
         budget: parseFloat(formData.budget),
         startDate: formData.startDate,
         endDate: formData.endDate,
-        targetAudience: formData.targetAudience
+        targetAudience: formData.targetAudience,
+        status: 'active'
       };
 
-      const token = localStorage.getItem('token');
-      const response = await axios.post('/api/finance/campaigns', campaignData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await financeAPI.createCampaign(campaignData);
 
-      if (response.data.campaign) {
+      if (response.data) {
         setSnackbar({
           open: true,
           message: 'Campaign created successfully!',
           severity: 'success'
         });
-        fetchCampaigns(); // Refresh the list
+        setShowAddDialog(false);
+        fetchCampaigns(searchTerm, pagination.page);
       }
     } catch (error) {
       console.error('Error creating campaign:', error);
@@ -160,28 +188,20 @@ const CampaignsPage = () => {
         message: error.response?.data?.message || 'Failed to create campaign',
         severity: 'error'
       });
-    } finally {
-      setShowAddDialog(false);
     }
   };
 
   const handleEditCampaign = async (campaignId, updateData) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.put(`/api/finance/campaigns/${campaignId}`, updateData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await financeAPI.updateCampaign(campaignId, updateData);
 
-      if (response.data.campaign) {
+      if (response.data) {
         setSnackbar({
           open: true,
           message: 'Campaign updated successfully!',
           severity: 'success'
         });
-        fetchCampaigns(); // Refresh the list
+        fetchCampaigns(searchTerm, pagination.page);
       }
     } catch (error) {
       console.error('Error updating campaign:', error);
@@ -199,19 +219,14 @@ const CampaignsPage = () => {
     }
 
     try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`/api/finance/campaigns/${campaignId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
+      await financeAPI.deleteCampaign(campaignId);
 
       setSnackbar({
         open: true,
         message: 'Campaign deleted successfully!',
         severity: 'success'
       });
-      fetchCampaigns(); // Refresh the list
+      fetchCampaigns(searchTerm, pagination.page);
     } catch (error) {
       console.error('Error deleting campaign:', error);
       setSnackbar({
@@ -232,11 +247,8 @@ const CampaignsPage = () => {
     }
   };
 
-  const filteredCampaigns = campaigns.filter(campaign =>
-    campaign.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    campaign.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    campaign.targetAudience.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Use campaigns directly since filtering is handled by backend API
+  const filteredCampaigns = campaigns;
 
   const campaignFields = [
     { name: 'name', label: 'Campaign Name', type: 'text', required: true },
@@ -326,7 +338,7 @@ const CampaignsPage = () => {
                 Total Budget
               </Typography>
               <Typography variant="h4" fontWeight="700">
-                {totalBudget.toLocaleString()} FCFA
+                {(totalBudget || 0).toLocaleString()} FCFA
               </Typography>
             </CardContent>
           </GlassCard>
@@ -338,7 +350,7 @@ const CampaignsPage = () => {
                 Total Spent
               </Typography>
               <Typography variant="h4" fontWeight="700">
-                {totalSpent.toLocaleString()} FCFA
+                {(totalSpent || 0).toLocaleString()} FCFA
               </Typography>
             </CardContent>
           </GlassCard>
@@ -350,7 +362,7 @@ const CampaignsPage = () => {
                 Total Leads
               </Typography>
               <Typography variant="h4" fontWeight="700">
-                {totalLeads.toLocaleString()}
+                {(totalLeads || 0).toLocaleString()}
               </Typography>
             </CardContent>
           </GlassCard>
@@ -362,7 +374,7 @@ const CampaignsPage = () => {
                 Conversions
               </Typography>
               <Typography variant="h4" fontWeight="700">
-                {totalConversions.toLocaleString()}
+                {(totalConversions || 0).toLocaleString()}
               </Typography>
             </CardContent>
           </GlassCard>
@@ -397,8 +409,19 @@ const CampaignsPage = () => {
                     </Typography>
                     <Chip
                       label={campaign.status.toUpperCase()}
-                      color={getStatusColor(campaign.status)}
                       size="small"
+                      sx={{ 
+                        fontWeight: 600,
+                        backgroundColor: campaign.status === 'active' ? '#10b981' : 
+                                       campaign.status === 'pending' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 
+                                       campaign.status === 'completed' ? '#3b82f6' : 
+                                       campaign.status === 'cancelled' ? '#ef4444' : '#6b7280',
+                        background: campaign.status === 'pending' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : undefined,
+                        color: 'white',
+                        '& .MuiChip-label': {
+                          color: 'white'
+                        }
+                      }}
                     />
                   </Box>
                   <IconButton
@@ -421,11 +444,11 @@ const CampaignsPage = () => {
                   </Typography>
                   <LinearProgress
                     variant="determinate"
-                    value={(campaign.spent / campaign.budget) * 100}
+                    value={campaign.budget ? (campaign.spent / campaign.budget) * 100 : 0}
                     sx={{ mb: 1 }}
                   />
                   <Typography variant="body2">
-                    {campaign.spent.toLocaleString()} FCFA / {campaign.budget.toLocaleString()} FCFA
+                    {(campaign.spent || 0).toLocaleString()} FCFA / {(campaign.budget || 0).toLocaleString()} FCFA
                   </Typography>
                 </Box>
 
@@ -435,7 +458,7 @@ const CampaignsPage = () => {
                       Leads
                     </Typography>
                     <Typography variant="h6" fontWeight="600">
-                      {campaign.leads}
+                      {campaign.leads || 0}
                     </Typography>
                   </Grid>
                   <Grid item xs={6}>
@@ -443,7 +466,7 @@ const CampaignsPage = () => {
                       Conversions
                     </Typography>
                     <Typography variant="h6" fontWeight="600">
-                      {campaign.conversions}
+                      {campaign.conversions || 0}
                     </Typography>
                   </Grid>
                 </Grid>
@@ -459,15 +482,24 @@ const CampaignsPage = () => {
         open={Boolean(anchorEl)}
         onClose={() => setAnchorEl(null)}
       >
-        <MenuItem onClick={() => setAnchorEl(null)}>
+        <MenuItem onClick={() => {
+          handleEditCampaign(selectedCampaign.id, { status: 'active' });
+          setAnchorEl(null);
+        }}>
           <ViewIcon sx={{ mr: 1 }} />
-          View Details
+          Activate Campaign
         </MenuItem>
-        <MenuItem onClick={() => setAnchorEl(null)}>
+        <MenuItem onClick={() => {
+          handleEditCampaign(selectedCampaign.id, { status: 'paused' });
+          setAnchorEl(null);
+        }}>
           <EditIcon sx={{ mr: 1 }} />
-          Edit Campaign
+          Pause Campaign
         </MenuItem>
-        <MenuItem onClick={() => setAnchorEl(null)} sx={{ color: 'error.main' }}>
+        <MenuItem onClick={() => {
+          handleDeleteCampaign(selectedCampaign.id);
+          setAnchorEl(null);
+        }} sx={{ color: 'error.main' }}>
           <DeleteIcon sx={{ mr: 1 }} />
           Delete Campaign
         </MenuItem>
@@ -481,6 +513,21 @@ const CampaignsPage = () => {
         fields={campaignFields}
         onSave={handleAddCampaign}
       />
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

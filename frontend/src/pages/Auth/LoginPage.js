@@ -90,13 +90,23 @@ const LoginPage = () => {
       return;
     }
 
-    const result = await login(formData.email, formData.password);
+    try {
+      const result = await login(formData.email, formData.password);
 
-    if (result.success) {
-      navigate('/dashboard');
-    } else {
-      // Error is already handled in AuthContext and displayed via error state
-      logger.error('Login failed', result.error);
+      if (result.success) {
+        navigate('/dashboard');
+      } else {
+        // Error is already handled in AuthContext and displayed via error state
+        logger.error('Login failed', result.error);
+        
+        // Show user-friendly message for rate limiting
+        if (result.error?.includes('Too many')) {
+          // The error message is already user-friendly from AuthContext
+          console.log('Rate limiting detected, user will see appropriate message');
+        }
+      }
+    } catch (error) {
+      logger.error('Unexpected login error:', error);
     }
   };
 
@@ -232,15 +242,15 @@ const LoginPage = () => {
           {/* Demo Credentials */}
           <Box sx={{ mt: 2, p: 2, backgroundColor: 'grey.50', borderRadius: 1, width: '100%' }}>
             <Typography variant="subtitle2" gutterBottom>
-              Demo Credentials (ICTU System):
+              Test Credentials (ICTU System):
             </Typography>
             <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
-              <strong>ICT Faculty Coordinator:</strong> ict.coordinator@ictu.edu.cm / password123<br />
-              <strong>BMS Faculty Coordinator:</strong> bms.coordinator@ictu.edu.cm / password123<br />
-              <strong>CS Department Head:</strong> cs.head@ictu.edu.cm / password123<br />
-              <strong>IT Department Head:</strong> it.head@ictu.edu.cm / password123<br />
-              <strong>Management Head:</strong> mgmt.head@ictu.edu.cm / password123<br />
-              <strong>Marketing Head:</strong> marketing.head@ictu.edu.cm / password123
+              Admin: admin@ictu.edu.cm / admin123<br />
+              Faculty Coordinator: faculty.coordinator@ictu.edu.cm / coord123<br />
+              Lecturer: lecturer@ictu.edu.cm / lecturer123<br />
+              HR Staff: hr.staff@ictu.edu.cm / hr123<br />
+              Finance Staff: finance.staff@ictu.edu.cm / finance123<br />
+              Student: student@ictu.edu.cm / student123
             </Typography>
           </Box>
         </Paper>

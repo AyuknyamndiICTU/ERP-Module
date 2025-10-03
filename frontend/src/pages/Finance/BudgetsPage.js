@@ -317,7 +317,13 @@ const BudgetsPage = () => {
                         label={budget.category}
                         color="primary"
                         size="small"
-                        variant="outlined"
+                        sx={{ 
+                          fontWeight: 600,
+                          color: 'white',
+                          '& .MuiChip-label': {
+                            color: 'white'
+                          }
+                        }}
                       />
                     </TableCell>
                     <TableCell>{budget.department}</TableCell>
@@ -352,9 +358,19 @@ const BudgetsPage = () => {
                     <TableCell>
                       <Chip
                         label={budget.status.charAt(0).toUpperCase() + budget.status.slice(1)}
-                        color={getStatusColor(budget.status)}
                         size="small"
-                        sx={{ fontWeight: 600 }}
+                        sx={{ 
+                          fontWeight: 600,
+                          backgroundColor: budget.status === 'approved' ? '#10b981' : 
+                                         budget.status === 'pending' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 
+                                         budget.status === 'rejected' ? '#ef4444' : 
+                                         budget.status === 'draft' ? '#6b7280' : '#f59e0b',
+                          background: budget.status === 'pending' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : undefined,
+                          color: 'white',
+                          '& .MuiChip-label': {
+                            color: 'white'
+                          }
+                        }}
                       />
                     </TableCell>
                     <TableCell align="right">

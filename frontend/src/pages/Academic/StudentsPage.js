@@ -41,7 +41,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import FormDialog from '../../components/Common/FormDialog';
 import GlassCard, { FeatureCard, StatsCard } from '../../components/GlassCard';
-import axios from 'axios';
+import api, { academicAPI } from '../../services/api';
 
 // Enhanced Animation keyframes
 const fadeInUp = keyframes`
@@ -104,6 +104,13 @@ const StudentsPage = () => {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [error, setError] = useState(null);
+  const [programs, setPrograms] = useState([]);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 12,
+    total: 0,
+    totalPages: 0
+  });
 
   // Mock data for demonstration
   const mockStudents = [
@@ -223,7 +230,16 @@ const StudentsPage = () => {
 
   useEffect(() => {
     fetchStudents();
-  }, [searchTerm, selectedProgram, selectedYear, selectedStatus]);
+    fetchPrograms();
+  }, []);
+
+  useEffect(() => {
+    const delayedSearch = setTimeout(() => {
+      fetchStudents();
+    }, 300);
+
+    return () => clearTimeout(delayedSearch);
+  }, [searchTerm, selectedProgram, selectedYear, selectedStatus, pagination.page]);
 
   const fetchStudents = async () => {
     try {
@@ -231,48 +247,68 @@ const StudentsPage = () => {
       setError(null);
       
       const params = {
-        status: selectedStatus,
+        page: pagination.page,
+        limit: pagination.limit,
+        ...(selectedStatus && { status: selectedStatus }),
         ...(searchTerm && { search: searchTerm }),
         ...(selectedProgram && { program_id: selectedProgram }),
         ...(selectedYear && { year_level: selectedYear })
       };
 
-      const token = localStorage.getItem('token');
-      const response = await axios.get('/api/students', {
-        params,
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
+      const response = await academicAPI.getStudents({ params });
 
       if (response.data.students) {
         setStudents(response.data.students);
+        setPagination(prev => ({
+          ...prev,
+          total: response.data.pagination?.total || response.data.students.length,
+          totalPages: response.data.pagination?.totalPages || 1
+        }));
       } else {
         // Fallback to mock data if API fails
         setStudents(mockStudents);
+        setPagination(prev => ({
+          ...prev,
+          total: mockStudents.length,
+          totalPages: 1
+        }));
       }
     } catch (error) {
       console.error('Error fetching students:', error);
       setError('Failed to load students. Using sample data.');
       // Use mock data as fallback
       setStudents(mockStudents);
+      setPagination(prev => ({
+        ...prev,
+        total: mockStudents.length,
+        totalPages: 1
+      }));
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredStudents = students.filter(student => {
-    const matchesSearch = student.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         student.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         student.student_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         student.email.toLowerCase().includes(searchTerm.toLowerCase());
+  const fetchPrograms = async () => {
+    try {
+      const response = await academicAPI.getPrograms();
+      if (response.data.programs) {
+        setPrograms(response.data.programs);
+      }
+    } catch (error) {
+      console.error('Error fetching programs:', error);
+      // Use fallback programs
+      setPrograms([
+        { id: 1, name: 'Computer Science' },
+        { id: 2, name: 'Mathematics' },
+        { id: 3, name: 'Physics' },
+        { id: 4, name: 'English Literature' },
+        { id: 5, name: 'Business Administration' }
+      ]);
+    }
+  };
 
-    const matchesProgram = !selectedProgram || student.program_name === selectedProgram;
-    const matchesYear = !selectedYear || student.year_level.toString() === selectedYear;
-    const matchesStatus = !selectedStatus || student.status === selectedStatus;
-
-    return matchesSearch && matchesProgram && matchesYear && matchesStatus;
-  });
+  // Remove client-side filtering since we're doing server-side filtering
+  const filteredStudents = students;
 
   const handleFilterClick = (event) => {
     setFilterAnchorEl(event.currentTarget);
@@ -290,15 +326,14 @@ const StudentsPage = () => {
   const handleAddStudent = async (formData) => {
     try {
       const studentData = {
-        student_id: `STU2024${String(students.length + 1).padStart(3, '0')}`,
         first_name: formData.firstName,
         last_name: formData.lastName,
         email: formData.email,
         phone: formData.phone,
         date_of_birth: formData.dateOfBirth,
         gender: formData.gender,
-        enrollment_date: new Date().toISOString().split('T')[0],
-        program_id: 1, // Default program ID
+        program_name: formData.program,
+        degree_type: formData.degreeType,
         year_level: parseInt(formData.yearLevel),
         address: {
           street: formData.street || '',
@@ -313,13 +348,7 @@ const StudentsPage = () => {
         }
       };
 
-      const token = localStorage.getItem('token');
-      const response = await axios.post('/api/students', studentData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await academicAPI.createStudent(studentData);
 
       if (response.data.student) {
         setSnackbar({
@@ -343,13 +372,7 @@ const StudentsPage = () => {
 
   const handleEditStudent = async (studentId, updateData) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.put(`/api/students/${studentId}`, updateData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await academicAPI.updateStudent(studentId, updateData);
 
       if (response.data.student) {
         setSnackbar({
@@ -358,6 +381,7 @@ const StudentsPage = () => {
           severity: 'success'
         });
         fetchStudents(); // Refresh the list
+        setStudentDialogOpen(false);
       }
     } catch (error) {
       console.error('Error updating student:', error);
@@ -370,17 +394,12 @@ const StudentsPage = () => {
   };
 
   const handleDeleteStudent = async (studentId) => {
-    if (!window.confirm('Are you sure you want to delete this student?')) {
+    if (!window.confirm('Are you sure you want to delete this student? This action cannot be undone.')) {
       return;
     }
 
     try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`/api/students/${studentId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
+      await api.delete(`/students/${studentId}`);
 
       setSnackbar({
         open: true,
@@ -388,6 +407,7 @@ const StudentsPage = () => {
         severity: 'success'
       });
       fetchStudents(); // Refresh the list
+      setStudentDialogOpen(false);
     } catch (error) {
       console.error('Error deleting student:', error);
       setSnackbar({
@@ -453,9 +473,18 @@ const StudentsPage = () => {
           </Box>
           <Chip
             label={student.status}
-            color={getStatusColor(student.status)}
             size="small"
-            sx={{ fontWeight: 600 }}
+            sx={{ 
+              fontWeight: 600,
+              backgroundColor: student.status === 'active' ? '#10b981' : 
+                             student.status === 'inactive' ? '#ef4444' : 
+                             student.status === 'graduated' ? '#3b82f6' : 
+                             student.status === 'suspended' ? '#f59e0b' : '#6b7280',
+              color: 'white',
+              '& .MuiChip-label': {
+                color: 'white'
+              }
+            }}
           />
         </Box>
 
@@ -837,6 +866,20 @@ const StudentsPage = () => {
           </Box>
         </GlassCard>
 
+        {/* Loading State */}
+        {loading && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <LinearProgress sx={{ width: '50%', borderRadius: 2 }} />
+          </Box>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <Alert severity="warning" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+        )}
+
         {/* Enhanced Students Grid */}
         <Grid container spacing={3}>
           {filteredStudents.map((student, index) => (
@@ -845,6 +888,18 @@ const StudentsPage = () => {
             </Grid>
           ))}
         </Grid>
+
+        {/* No Results */}
+        {!loading && filteredStudents.length === 0 && (
+          <Box sx={{ textAlign: 'center', py: 8 }}>
+            <Typography variant="h6" color="text.secondary" gutterBottom>
+              No students found
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Try adjusting your search criteria or filters
+            </Typography>
+          </Box>
+        )}
       </Box>
 
       {/* Filter Menu */}
@@ -862,10 +917,11 @@ const StudentsPage = () => {
               label="Program"
             >
               <MenuItem value="">All Programs</MenuItem>
-              <MenuItem value="Computer Science">Computer Science</MenuItem>
-              <MenuItem value="Mathematics">Mathematics</MenuItem>
-              <MenuItem value="English Literature">English Literature</MenuItem>
-              <MenuItem value="Physics">Physics</MenuItem>
+              {programs.map((program) => (
+                <MenuItem key={program.id} value={program.name}>
+                  {program.name}
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
         </MenuItem>
@@ -938,8 +994,17 @@ const StudentsPage = () => {
                 </Box>
                 <Chip
                   label={selectedStudent.status}
-                  color={getStatusColor(selectedStudent.status)}
-                  sx={{ fontWeight: 600 }}
+                  sx={{ 
+                    fontWeight: 600,
+                    backgroundColor: selectedStudent.status === 'active' ? '#10b981' : 
+                                   selectedStudent.status === 'inactive' ? '#ef4444' : 
+                                   selectedStudent.status === 'graduated' ? '#3b82f6' : 
+                                   selectedStudent.status === 'suspended' ? '#f59e0b' : '#6b7280',
+                    color: 'white',
+                    '& .MuiChip-label': {
+                      color: 'white'
+                    }
+                  }}
                 />
               </Box>
             </DialogTitle>
@@ -1068,9 +1133,29 @@ const StudentsPage = () => {
                 Download Transcript
               </Button>
               {(user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'lecturer' || user?.role === 'faculty_coordinator' || user?.role === 'major_coordinator') && (
-                <Button variant="contained" startIcon={<EditIcon />}>
-                  Edit Student
-                </Button>
+                <>
+                  <Button 
+                    variant="contained" 
+                    startIcon={<EditIcon />}
+                    onClick={() => {
+                      // TODO: Implement edit functionality
+                      setSnackbar({
+                        open: true,
+                        message: 'Edit functionality coming soon',
+                        severity: 'info'
+                      });
+                    }}
+                  >
+                    Edit Student
+                  </Button>
+                  <Button 
+                    variant="outlined" 
+                    color="error"
+                    onClick={() => handleDeleteStudent(selectedStudent.id)}
+                  >
+                    Delete Student
+                  </Button>
+                </>
               )}
             </DialogActions>
           </>
@@ -1114,6 +1199,21 @@ const StudentsPage = () => {
         ]}
         onSave={handleAddStudent}
       />
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

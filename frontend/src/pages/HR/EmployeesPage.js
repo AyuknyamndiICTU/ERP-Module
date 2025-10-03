@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -21,6 +21,8 @@ import {
   Card,
   CardContent,
   CircularProgress,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -30,10 +32,14 @@ import {
   Work as WorkIcon,
   Email as EmailIcon,
   Phone as PhoneIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import FormDialog from '../../components/Common/FormDialog';
 import GlassCard from '../../components/GlassCard';
+import { hrAPI } from '../../services/api';
+import { debounce } from 'lodash';
 
 const EmployeesPage = () => {
   const { user } = useAuth();
@@ -43,6 +49,10 @@ const EmployeesPage = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [departments, setDepartments] = useState([]);
+  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0 });
 
   // Mock data
   const mockEmployees = [
@@ -100,31 +110,174 @@ const EmployeesPage = () => {
     }
   ];
 
-  useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
+  // Fetch employees from backend
+  const fetchEmployees = useCallback(async (search = '', page = 1) => {
+    try {
+      setLoading(true);
+      const response = await hrAPI.getEmployees({ 
+        search, 
+        page, 
+        limit: pagination.limit 
+      });
+      
+      if (response.data && response.data.employees) {
+        setEmployees(response.data.employees);
+        setPagination(prev => ({
+          ...prev,
+          page: response.data.currentPage || page,
+          total: response.data.total || response.data.employees.length
+        }));
+      } else {
+        // Fallback to mock data if API fails
+        console.warn('API response invalid, using fallback data');
+        setEmployees(mockEmployees);
+        setPagination(prev => ({ ...prev, total: mockEmployees.length }));
+      }
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+      // Use fallback mock data
       setEmployees(mockEmployees);
+      setPagination(prev => ({ ...prev, total: mockEmployees.length }));
+      setSnackbar({
+        open: true,
+        message: 'Failed to load employees. Using offline data.',
+        severity: 'warning'
+      });
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
+  }, [pagination.limit]);
+
+  // Fetch departments for dropdown
+  const fetchDepartments = useCallback(async () => {
+    try {
+      const response = await hrAPI.getDepartments();
+      if (response.data) {
+        setDepartments(response.data.map(dept => ({
+          value: dept.name || dept.departmentName,
+          label: dept.name || dept.departmentName
+        })));
+      }
+    } catch (error) {
+      console.error('Error fetching departments:', error);
+      // Use fallback departments
+      setDepartments([
+        { value: 'Computer Science', label: 'Computer Science' },
+        { value: 'Mathematics', label: 'Mathematics' },
+        { value: 'Physics', label: 'Physics' },
+        { value: 'Administration', label: 'Administration' },
+        { value: 'Finance', label: 'Finance' },
+        { value: 'Human Resources', label: 'Human Resources' }
+      ]);
+    }
   }, []);
 
-  const handleAddEmployee = (formData) => {
-    const newEmployee = {
-      id: employees.length + 1,
-      employeeId: `EMP${String(employees.length + 1).padStart(3, '0')}`,
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      email: formData.email,
-      phone: formData.phone,
-      department: formData.department,
-      position: formData.position,
-      status: 'active',
-      hireDate: new Date().toISOString().split('T')[0],
-      salary: parseFloat(formData.salary)
-    };
-    
-    setEmployees([...employees, newEmployee]);
-    setShowAddDialog(false);
+  // Debounced search
+  const debouncedSearch = useCallback(
+    debounce((searchValue) => {
+      fetchEmployees(searchValue, 1);
+    }, 500),
+    [fetchEmployees]
+  );
+
+  useEffect(() => {
+    fetchEmployees();
+    fetchDepartments();
+  }, [fetchEmployees, fetchDepartments]);
+
+  useEffect(() => {
+    if (searchTerm) {
+      debouncedSearch(searchTerm);
+    } else {
+      fetchEmployees('', 1);
+    }
+  }, [searchTerm, debouncedSearch, fetchEmployees]);
+
+  const handleAddEmployee = async (formData) => {
+    try {
+      const response = await hrAPI.createEmployee({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        department: formData.department,
+        position: formData.position,
+        salary: parseFloat(formData.salary),
+        hireDate: formData.hireDate || new Date().toISOString().split('T')[0],
+        status: 'active'
+      });
+
+      if (response.data) {
+        setSnackbar({
+          open: true,
+          message: 'Employee added successfully!',
+          severity: 'success'
+        });
+        setShowAddDialog(false);
+        fetchEmployees(searchTerm, pagination.page);
+      }
+    } catch (error) {
+      console.error('Error adding employee:', error);
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.message || 'Failed to add employee',
+        severity: 'error'
+      });
+    }
+  };
+
+  const handleEditEmployee = async (formData) => {
+    try {
+      const response = await hrAPI.updateEmployee(selectedEmployee.id, {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        department: formData.department,
+        position: formData.position,
+        salary: parseFloat(formData.salary),
+        status: formData.status
+      });
+
+      if (response.data) {
+        setSnackbar({
+          open: true,
+          message: 'Employee updated successfully!',
+          severity: 'success'
+        });
+        setShowEditDialog(false);
+        setSelectedEmployee(null);
+        fetchEmployees(searchTerm, pagination.page);
+      }
+    } catch (error) {
+      console.error('Error updating employee:', error);
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.message || 'Failed to update employee',
+        severity: 'error'
+      });
+    }
+  };
+
+  const handleDeleteEmployee = async (employeeId) => {
+    if (window.confirm('Are you sure you want to delete this employee?')) {
+      try {
+        await hrAPI.deleteEmployee(employeeId);
+        setSnackbar({
+          open: true,
+          message: 'Employee deleted successfully!',
+          severity: 'success'
+        });
+        fetchEmployees(searchTerm, pagination.page);
+      } catch (error) {
+        console.error('Error deleting employee:', error);
+        setSnackbar({
+          open: true,
+          message: error.response?.data?.message || 'Failed to delete employee',
+          severity: 'error'
+        });
+      }
+    }
   };
 
   const getStatusColor = (status) => {
@@ -136,12 +289,8 @@ const EmployeesPage = () => {
     }
   };
 
-  const filteredEmployees = employees.filter(employee => 
-    `${employee.firstName} ${employee.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.employeeId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.department.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Use employees directly since filtering is handled by backend API
+  const filteredEmployees = employees;
 
   if (loading) {
     return (
@@ -307,9 +456,18 @@ const EmployeesPage = () => {
                   <TableCell>
                     <Chip
                       label={employee.status.charAt(0).toUpperCase() + employee.status.slice(1)}
-                      color={getStatusColor(employee.status)}
                       size="small"
-                      sx={{ fontWeight: 600 }}
+                      sx={{ 
+                        fontWeight: 600,
+                        backgroundColor: employee.status === 'active' ? '#10b981' : 
+                                       employee.status === 'inactive' ? '#ef4444' : 
+                                       employee.status === 'on_leave' ? '#f59e0b' : 
+                                       employee.status === 'terminated' ? '#dc2626' : '#6b7280',
+                        color: 'white',
+                        '& .MuiChip-label': {
+                          color: 'white'
+                        }
+                      }}
                     />
                   </TableCell>
                   <TableCell align="right">
@@ -336,17 +494,19 @@ const EmployeesPage = () => {
         open={Boolean(anchorEl)}
         onClose={() => setAnchorEl(null)}
       >
-        <MenuItem onClick={() => setAnchorEl(null)}>
-          <PersonIcon sx={{ mr: 1 }} />
-          View Profile
+        <MenuItem onClick={() => {
+          setShowEditDialog(true);
+          setAnchorEl(null);
+        }}>
+          <EditIcon sx={{ mr: 1 }} />
+          Edit Employee
         </MenuItem>
-        <MenuItem onClick={() => setAnchorEl(null)}>
-          <WorkIcon sx={{ mr: 1 }} />
-          Edit Details
-        </MenuItem>
-        <MenuItem onClick={() => setAnchorEl(null)}>
-          <EmailIcon sx={{ mr: 1 }} />
-          Send Message
+        <MenuItem onClick={() => {
+          handleDeleteEmployee(selectedEmployee.id);
+          setAnchorEl(null);
+        }}>
+          <DeleteIcon sx={{ mr: 1 }} />
+          Delete Employee
         </MenuItem>
       </Menu>
 
@@ -360,19 +520,54 @@ const EmployeesPage = () => {
           { name: 'lastName', label: 'Last Name', type: 'text', required: true, width: 6 },
           { name: 'email', label: 'Email Address', type: 'email', required: true },
           { name: 'phone', label: 'Phone Number', type: 'tel', required: true },
-          { name: 'department', label: 'Department', type: 'select', required: true, options: [
-            { value: 'Computer Science', label: 'Computer Science' },
-            { value: 'Mathematics', label: 'Mathematics' },
-            { value: 'Physics', label: 'Physics' },
-            { value: 'Administration', label: 'Administration' },
-            { value: 'Finance', label: 'Finance' },
-            { value: 'Human Resources', label: 'Human Resources' }
-          ]},
+          { name: 'department', label: 'Department', type: 'select', required: true, options: departments },
           { name: 'position', label: 'Position', type: 'text', required: true },
           { name: 'salary', label: 'Annual Salary (FCFA)', type: 'number', required: true, min: 0 }
         ]}
         onSave={handleAddEmployee}
       />
+
+      {/* Edit Employee Dialog */}
+      <FormDialog
+        open={showEditDialog}
+        onClose={() => {
+          setShowEditDialog(false);
+          setSelectedEmployee(null);
+        }}
+        title="Edit Employee"
+        initialData={selectedEmployee}
+        fields={[
+          { name: 'firstName', label: 'First Name', type: 'text', required: true, width: 6 },
+          { name: 'lastName', label: 'Last Name', type: 'text', required: true, width: 6 },
+          { name: 'email', label: 'Email Address', type: 'email', required: true },
+          { name: 'phone', label: 'Phone Number', type: 'tel', required: true },
+          { name: 'department', label: 'Department', type: 'select', required: true, options: departments },
+          { name: 'position', label: 'Position', type: 'text', required: true },
+          { name: 'salary', label: 'Annual Salary (FCFA)', type: 'number', required: true, min: 0 },
+          { name: 'status', label: 'Status', type: 'select', required: true, options: [
+            { value: 'active', label: 'Active' },
+            { value: 'inactive', label: 'Inactive' },
+            { value: 'on_leave', label: 'On Leave' },
+            { value: 'terminated', label: 'Terminated' }
+          ]}
+        ]}
+        onSave={handleEditEmployee}
+      />
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

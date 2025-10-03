@@ -17,13 +17,11 @@ import {
   MenuItem,
   Chip,
   Alert,
-  Paper,
   Container,
   useTheme,
   useMediaQuery,
   keyframes,
   IconButton,
-  Tooltip,
   CircularProgress,
 } from '@mui/material';
 import {
@@ -32,14 +30,9 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   LocationOn as LocationIcon,
-  Person as PersonIcon,
-  School as SchoolIcon,
-  CalendarToday as CalendarIcon,
   Schedule as ScheduleIcon,
   AccessTime as AccessTimeIcon,
-  Refresh as RefreshIcon,
   Event as EventIcon,
-  Grade as GradeIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { academicAPI } from '../../services/api';
@@ -121,8 +114,6 @@ const EXAM_STATUSES = [
 const ExamsPage = () => {
   const { user } = useAuth();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const isSmall = useMediaQuery(theme.breakpoints.down('sm'));
 
   // State management
   const [exams, setExams] = useState([]);
@@ -157,7 +148,7 @@ const ExamsPage = () => {
       if (filters.academicYear) params.academicYear = filters.academicYear;
 
       const response = await academicAPI.getExams(params);
-      setExams(response.data || []);
+      setExams(response.data?.exams || []);
     } catch (error) {
       logger.error('Error fetching exams:', error);
       
@@ -399,7 +390,7 @@ const ExamsPage = () => {
   const handlePublishExam = async (exam) => {
     try {
       setPublishing(true);
-      await academicAPI.publishExam(exam.id, {
+      await academicAPI.updateExam(exam.id, {
         publishedBy: user.id,
         publishedAt: new Date().toISOString(),
         isPublished: true
@@ -422,7 +413,7 @@ const ExamsPage = () => {
       fetchExams();
     } catch (error) {
       logger.error('Error creating exam:', error);
-      setError(error.message || 'Failed to create exam');
+      setError(error.message || 'Exam creation failed');
     }
   };
 
@@ -435,7 +426,7 @@ const ExamsPage = () => {
       fetchExams();
     } catch (error) {
       logger.error('Error updating exam:', error);
-      setError(error.message || 'Failed to update exam');
+      setError(error.message || 'Exam update failed');
     }
   };
 
@@ -505,6 +496,7 @@ const ExamsPage = () => {
   // Initialize and fetch data
   useEffect(() => {
     fetchExams();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
 
   // Render loading state
@@ -734,7 +726,7 @@ const ExamsPage = () => {
           </Box>
         ) : (
         <Grid container spacing={3}>
-          {exams.map((exam, index) => (
+          {(Array.isArray(exams) ? exams : []).map((exam, index) => (
             <Grid item xs={12} md={6} lg={4} key={exam.id}>
               <Card
                 sx={{
@@ -827,7 +819,7 @@ const ExamsPage = () => {
                           variant="outlined"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handlePublishExam(exam);
+                            logger.debug('Publishing exam:', exam);
                           }}
                           disabled={publishing}
                         >

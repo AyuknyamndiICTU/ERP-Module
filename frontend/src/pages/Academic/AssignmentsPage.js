@@ -14,8 +14,6 @@ import {
   Chip,
   Alert,
   Container,
-  useTheme,
-  useMediaQuery,
   keyframes,
   IconButton,
   CircularProgress,
@@ -31,6 +29,7 @@ import {
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
 import logger from '../../utils/logger';
 
 // Enhanced Animation keyframes
@@ -66,63 +65,35 @@ const float = keyframes`
   }
 `;
 
-// Assignment API functions (using raw axios calls since assignments aren't in main API)
+// Assignment API functions using centralized API service
 const getAssignments = async (params = {}) => {
-  const token = localStorage.getItem('token');
-  const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/assignments`, {
-    method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch assignments: ${response.status}`);
-  }
-
-  return response.json();
+  const response = await api.get('/assignments', { params });
+  return response.data;
 };
 
 const submitAssignment = async (id, data) => {
-  const token = localStorage.getItem('token');
-  const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/assignments/${id}/submit`, {
-    method: 'PUT',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to submit assignment: ${response.status}`);
-  }
-
-  return response.json();
+  const response = await api.put(`/assignments/${id}/submit`, data);
+  return response.data;
 };
 
 const createAssignment = async (data) => {
-  const token = localStorage.getItem('token');
-  const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/assignments`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-  });
+  const response = await api.post('/assignments', data);
+  return response.data;
+};
 
-  if (!response.ok) {
-    throw new Error(`Failed to create assignment: ${response.status}`);
-  }
+const gradeAssignment = async (id, data) => {
+  const response = await api.put(`/assignments/${id}/grade`, data);
+  return response.data;
+};
 
-  return response.json();
+const deleteAssignment = async (id) => {
+  const response = await api.delete(`/assignments/${id}`);
+  return response.data;
 };
 
 const AssignmentsPage = () => {
   const { user } = useAuth();
-  const theme = useTheme();
+  // const theme = useTheme();
 
   // State management
   const [assignments, setAssignments] = useState([]);
@@ -146,98 +117,16 @@ const AssignmentsPage = () => {
       setError(null);
 
       const data = await getAssignments(filters);
-      setAssignments(data.assignments || []);
+      if (data.success) {
+        setAssignments(data.assignments || []);
+        logger.debug('Assignments fetched successfully:', data.assignments?.length || 0);
+      } else {
+        throw new Error(data.message || 'Failed to fetch assignments');
+      }
     } catch (error) {
       logger.error('Error fetching assignments:', error);
-      
-      // Provide fallback mock data
-      const mockAssignments = [
-        {
-          id: 1,
-          title: 'Programming Assignment 1',
-          description: 'Create a simple calculator application using JavaScript. The calculator should support basic arithmetic operations.',
-          course_name: 'Introduction to Computer Science',
-          course_code: 'CS101',
-          due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-          max_score: 100,
-          score: null,
-          submitted_at: null,
-          first_name: 'Dr. John',
-          last_name: 'Smith',
-          lecturer_id: 1
-        },
-        {
-          id: 2,
-          title: 'Mathematics Problem Set 3',
-          description: 'Solve the provided calculus problems focusing on derivatives and integrals.',
-          course_name: 'PhD Mathematics',
-          course_code: 'MATH201',
-          due_date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-          max_score: 80,
-          score: 75,
-          submitted_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          first_name: 'Prof. Jane',
-          last_name: 'Doe',
-          lecturer_id: 2
-        },
-        {
-          id: 3,
-          title: 'Technical Writing Essay',
-          description: 'Write a 1500-word essay on the impact of artificial intelligence in modern education.',
-          course_name: 'Technical English',
-          course_code: 'ENG101',
-          due_date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-          max_score: 50,
-          score: null,
-          submitted_at: null,
-          first_name: 'Ms. Sarah',
-          last_name: 'Johnson',
-          lecturer_id: 3
-        },
-        {
-          id: 4,
-          title: 'Data Structures Lab Report',
-          description: 'Implement and analyze different sorting algorithms. Submit your code and performance analysis.',
-          course_name: 'Data Structures',
-          course_code: 'CS102',
-          due_date: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
-          max_score: 120,
-          score: null,
-          submitted_at: null,
-          first_name: 'Dr. Michael',
-          last_name: 'Brown',
-          lecturer_id: 4
-        },
-        {
-          id: 5,
-          title: 'Business Case Study Analysis',
-          description: 'Analyze the provided business case and propose strategic solutions.',
-          course_name: 'Business Management',
-          course_code: 'BUS201',
-          due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-          max_score: 90,
-          score: 85,
-          submitted_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-          first_name: 'Prof. David',
-          last_name: 'Wilson',
-          lecturer_id: 5
-        }
-      ];
-      
-      // Filter mock data based on filters
-      let filteredAssignments = mockAssignments;
-      if (filters.courseId) {
-        filteredAssignments = filteredAssignments.filter(assignment => 
-          assignment.course_code.toLowerCase().includes(filters.courseId.toLowerCase())
-        );
-      }
-      if (filters.studentId) {
-        // For demo purposes, show all assignments for any student filter
-        filteredAssignments = mockAssignments;
-      }
-      
-      setAssignments(filteredAssignments);
-      logger.debug('Using fallback assignments data:', filteredAssignments.length);
+      setError('Failed to load assignments. Please try again.');
+      setAssignments([]);
     } finally {
       setLoading(false);
     }
@@ -299,13 +188,51 @@ const AssignmentsPage = () => {
   const onCreateAssignment = async () => {
     try {
       setError(null);
-      await createAssignment(formData);
-      setDialogOpen(false);
-      // Refresh assignments
-      fetchAssignments();
+      const data = await createAssignment(formData);
+      if (data.success) {
+        setDialogOpen(false);
+        fetchAssignments();
+        logger.debug('Assignment created successfully');
+      } else {
+        throw new Error(data.message || 'Failed to create assignment');
+      }
     } catch (error) {
       logger.error('Error creating assignment:', error);
-      setError(error.message || 'Failed to create assignment');
+      setError(error.response?.data?.message || error.message || 'Failed to create assignment');
+    }
+  };
+
+  // Delete assignment handler
+  const handleDeleteAssignment = async (assignmentId) => {
+    try {
+      setError(null);
+      const data = await deleteAssignment(assignmentId);
+      if (data.success) {
+        fetchAssignments();
+        logger.debug('Assignment deleted successfully');
+      } else {
+        throw new Error(data.message || 'Failed to delete assignment');
+      }
+    } catch (error) {
+      logger.error('Error deleting assignment:', error);
+      setError(error.response?.data?.message || error.message || 'Failed to delete assignment');
+    }
+  };
+
+  // Grade assignment handler
+  const handleGradeAssignment = async (assignmentId, gradeData) => {
+    try {
+      setError(null);
+      const data = await gradeAssignment(assignmentId, gradeData);
+      if (data.success) {
+        fetchAssignments();
+        logger.debug('Assignment graded successfully');
+      } else {
+        throw new Error(data.message || 'Failed to grade assignment');
+      }
+    } catch (error) {
+      logger.error('Error grading assignment:', error);
+      setError(error.response?.data?.message || error.message || 'Failed to grade assignment');
     }
   };
 
@@ -353,7 +280,13 @@ const AssignmentsPage = () => {
   // Initialize and fetch data
   useEffect(() => {
     fetchAssignments();
-  }, [fetchAssignments, filters]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    fetchAssignments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters]);
 
   // Render loading state
   if (loading && assignments.length === 0) {
@@ -573,8 +506,18 @@ const AssignmentsPage = () => {
                           <Chip
                             label={status.replace('_', ' ').toUpperCase()}
                             size="small"
-                            color={getSubmissionStatusColor(status)}
-                            variant="outlined"
+                            sx={{ 
+                              fontWeight: 600,
+                              backgroundColor: status === 'submitted' ? '#10b981' : 
+                                             status === 'pending' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 
+                                             status === 'late' ? '#f59e0b' : 
+                                             status === 'not_submitted' ? '#ef4444' : '#6b7280',
+                              background: status === 'pending' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : undefined,
+                              color: 'white',
+                              '& .MuiChip-label': {
+                                color: 'white'
+                              }
+                            }}
                           />
                         </Box>
                       );
@@ -589,9 +532,15 @@ const AssignmentsPage = () => {
                       <Chip
                         label="OVERDUE"
                         size="small"
-                        color="error"
-                        variant="filled"
-                        sx={{ fontSize: '0.7rem' }}
+                        sx={{ 
+                          fontWeight: 600,
+                          backgroundColor: '#ef4444',
+                          color: 'white',
+                          fontSize: '0.7rem',
+                          '& .MuiChip-label': {
+                            color: 'white'
+                          }
+                        }}
                       />
                     )}
                   </Box>

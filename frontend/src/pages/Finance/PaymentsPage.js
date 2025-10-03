@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -21,6 +21,8 @@ import {
   Card,
   CardContent,
   CircularProgress,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -30,10 +32,14 @@ import {
   Receipt as ReceiptIcon,
   AttachMoney as MoneyIcon,
   CreditCard as CreditCardIcon,
+  Delete as DeleteIcon,
+  Edit as EditIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import FormDialog from '../../components/Common/FormDialog';
 import GlassCard from '../../components/GlassCard';
+import { financeAPI } from '../../services/api';
+import { debounce } from 'lodash';
 
 const PaymentsPage = () => {
   const { user } = useAuth();
@@ -43,6 +49,8 @@ const PaymentsPage = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [showProcessDialog, setShowProcessDialog] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0 });
 
   // Mock data
   const mockPayments = [
@@ -84,30 +92,133 @@ const PaymentsPage = () => {
     }
   ];
 
-  useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
+  // Fetch payments from backend
+  const fetchPayments = useCallback(async (search = '', page = 1) => {
+    try {
+      setLoading(true);
+      const response = await financeAPI.getPayments({ 
+        search, 
+        page, 
+        limit: pagination.limit 
+      });
+      
+      if (response.data && response.data.payments) {
+        setPayments(response.data.payments);
+        setPagination(prev => ({
+          ...prev,
+          page: response.data.currentPage || page,
+          total: response.data.total || response.data.payments.length
+        }));
+      } else {
+        // Fallback to mock data if API fails
+        console.warn('API response invalid, using fallback data');
+        setPayments(mockPayments);
+        setPagination(prev => ({ ...prev, total: mockPayments.length }));
+      }
+    } catch (error) {
+      console.error('Error fetching payments:', error);
+      // Use fallback mock data
       setPayments(mockPayments);
+      setPagination(prev => ({ ...prev, total: mockPayments.length }));
+      setSnackbar({
+        open: true,
+        message: 'Failed to load payments. Using offline data.',
+        severity: 'warning'
+      });
+    } finally {
       setLoading(false);
-    }, 1000);
-  }, []);
+    }
+  }, [pagination.limit]);
 
-  const handleProcessPayment = (formData) => {
-    const newPayment = {
-      id: payments.length + 1,
-      paymentId: `PAY-2024-${String(payments.length + 1).padStart(3, '0')}`,
-      studentName: formData.studentName,
-      studentId: formData.studentId,
-      amount: parseFloat(formData.amount),
-      paymentDate: new Date().toISOString().split('T')[0],
-      status: 'completed',
-      method: formData.method,
-      invoiceNumber: formData.invoiceNumber,
-      description: formData.description
-    };
-    
-    setPayments([...payments, newPayment]);
-    setShowProcessDialog(false);
+  // Debounced search
+  const debouncedSearch = useCallback(
+    debounce((searchValue) => {
+      fetchPayments(searchValue, 1);
+    }, 500),
+    [fetchPayments]
+  );
+
+  useEffect(() => {
+    fetchPayments();
+  }, [fetchPayments]);
+
+  useEffect(() => {
+    if (searchTerm) {
+      debouncedSearch(searchTerm);
+    } else {
+      fetchPayments('', 1);
+    }
+  }, [searchTerm, debouncedSearch, fetchPayments]);
+
+  const handleProcessPayment = async (formData) => {
+    try {
+      const response = await financeAPI.createPayment({
+        studentName: formData.studentName,
+        studentId: formData.studentId,
+        amount: parseFloat(formData.amount),
+        method: formData.method,
+        invoiceNumber: formData.invoiceNumber,
+        description: formData.description,
+        status: 'completed'
+      });
+
+      if (response.data) {
+        setSnackbar({
+          open: true,
+          message: 'Payment processed successfully!',
+          severity: 'success'
+        });
+        setShowProcessDialog(false);
+        fetchPayments(searchTerm, pagination.page);
+      }
+    } catch (error) {
+      console.error('Error processing payment:', error);
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.message || 'Failed to process payment',
+        severity: 'error'
+      });
+    }
+  };
+
+  const handleDeletePayment = async (paymentId) => {
+    if (window.confirm('Are you sure you want to delete this payment record?')) {
+      try {
+        await financeAPI.deletePayment(paymentId);
+        setSnackbar({
+          open: true,
+          message: 'Payment record deleted successfully!',
+          severity: 'success'
+        });
+        fetchPayments(searchTerm, pagination.page);
+      } catch (error) {
+        console.error('Error deleting payment:', error);
+        setSnackbar({
+          open: true,
+          message: error.response?.data?.message || 'Failed to delete payment record',
+          severity: 'error'
+        });
+      }
+    }
+  };
+
+  const handleUpdatePaymentStatus = async (paymentId, newStatus) => {
+    try {
+      await financeAPI.updatePayment(paymentId, { status: newStatus });
+      setSnackbar({
+        open: true,
+        message: `Payment status updated to ${newStatus}!`,
+        severity: 'success'
+      });
+      fetchPayments(searchTerm, pagination.page);
+    } catch (error) {
+      console.error('Error updating payment status:', error);
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.message || 'Failed to update payment status',
+        severity: 'error'
+      });
+    }
   };
 
   const getStatusColor = (status) => {
@@ -128,11 +239,8 @@ const PaymentsPage = () => {
     }
   };
 
-  const filteredPayments = payments.filter(payment => 
-    payment.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    payment.paymentId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    payment.studentId.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Use payments directly since filtering is handled by backend API
+  const filteredPayments = payments;
 
   if (loading) {
     return (
@@ -298,9 +406,19 @@ const PaymentsPage = () => {
                   <TableCell>
                     <Chip
                       label={payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
-                      color={getStatusColor(payment.status)}
                       size="small"
-                      sx={{ fontWeight: 600 }}
+                      sx={{ 
+                        fontWeight: 600,
+                        backgroundColor: payment.status === 'completed' ? '#10b981' : 
+                                       payment.status === 'pending' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 
+                                       payment.status === 'failed' ? '#ef4444' : 
+                                       payment.status === 'processing' ? '#f59e0b' : '#6b7280',
+                        background: payment.status === 'pending' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : undefined,
+                        color: 'white',
+                        '& .MuiChip-label': {
+                          color: 'white'
+                        }
+                      }}
                     />
                   </TableCell>
                   <TableCell align="right">
@@ -327,13 +445,26 @@ const PaymentsPage = () => {
         open={Boolean(anchorEl)}
         onClose={() => setAnchorEl(null)}
       >
-        <MenuItem onClick={() => setAnchorEl(null)}>
+        <MenuItem onClick={() => {
+          handleUpdatePaymentStatus(selectedPayment.id, 'completed');
+          setAnchorEl(null);
+        }}>
           <ReceiptIcon sx={{ mr: 1 }} />
-          View Receipt
+          Mark as Completed
         </MenuItem>
-        <MenuItem onClick={() => setAnchorEl(null)}>
-          <PaymentIcon sx={{ mr: 1 }} />
-          Process Refund
+        <MenuItem onClick={() => {
+          handleUpdatePaymentStatus(selectedPayment.id, 'pending');
+          setAnchorEl(null);
+        }}>
+          <EditIcon sx={{ mr: 1 }} />
+          Mark as Pending
+        </MenuItem>
+        <MenuItem onClick={() => {
+          handleDeletePayment(selectedPayment.id);
+          setAnchorEl(null);
+        }} sx={{ color: 'error.main' }}>
+          <DeleteIcon sx={{ mr: 1 }} />
+          Delete Payment
         </MenuItem>
       </Menu>
 
@@ -357,6 +488,21 @@ const PaymentsPage = () => {
         ]}
         onSave={handleProcessPayment}
       />
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

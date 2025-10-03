@@ -34,7 +34,6 @@ import {
   Grade as GradeIcon,
   TrendingUp as TrendingUpIcon,
   Assessment as AssessmentIcon,
-  School as SchoolIcon,
   Person as PersonIcon,
   Edit as EditIcon,
   Save as SaveIcon,
@@ -42,9 +41,9 @@ import {
   Download as DownloadIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
-import GlassCard, { StatsCard } from '../../components/GlassCard';
+import GlassCard from '../../components/GlassCard';
 import TranscriptGenerator from '../../components/Transcript/TranscriptGenerator';
-import { academicAPI } from '../../services/api';
+import api, { academicAPI } from '../../services/api';
 import logger from '../../utils/logger';
 
 // Enhanced Animation keyframes
@@ -97,6 +96,7 @@ const GradesPage = () => {
   const { user } = useAuth();
   const [courses, setCourses] = useState([]);
   const [students, setStudents] = useState([]);
+  const [grades, setGrades] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tabValue, setTabValue] = useState(0);
@@ -107,7 +107,71 @@ const GradesPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [gradeDistribution, setGradeDistribution] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState(null);
-  const [grades, setGrades] = useState([]);
+
+  // Fetch student's own grades if they are a student
+  const fetchStudentGrades = async () => {
+    try {
+      const response = await academicAPI.getGrades('/academic/grades', {
+        params: { studentId: user.id }
+      });
+      if (response.data.success) {
+        setGrades(response.data.grades);
+      }
+    } catch (error) {
+      logger.error('Error fetching student grades:', error);
+    }
+  };
+
+  // Handle course change
+  const handleCourseChange = async (courseId) => {
+    const course = courses.find(c => c.id === courseId);
+    setSelectedCourse(course);
+    if (course) {
+      setLoading(true);
+      await fetchCourseData(course.id);
+      setLoading(false);
+    }
+  };
+
+  // Handle grade submission
+  const handleSubmitGrade = async (gradeData) => {
+    try {
+      if (editingGrade) {
+        // Update existing grade
+        await academicAPI.updateGrade(editingGrade.id, gradeData);
+      } else {
+        // Create new grade
+        const response = await academicAPI.bulkCreateGrades(gradeData);
+      }
+      
+      // Refresh data
+      await fetchCourseData(selectedCourse.id);
+      setGradeDialogOpen(false);
+      setEditingGrade(null);
+    } catch (error) {
+      logger.error('Error submitting grade:', error);
+    }
+  };
+
+  // Calculate grade distribution
+  const calculateGradeDistribution = (studentsData) => {
+    const distribution = { A: 0, B: 0, C: 0, D: 0, F: 0 };
+    
+    studentsData.forEach(student => {
+      student.grades.forEach(grade => {
+        const letter = grade.letter_grade || 'F';
+        if (distribution.hasOwnProperty(letter)) {
+          distribution[letter]++;
+        }
+      });
+    });
+    
+    setGradeDistribution(Object.entries(distribution).map(([grade, count]) => ({
+      grade,
+      count,
+      percentage: studentsData.length > 0 ? (count / studentsData.length) * 100 : 0
+    })));
+  };
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -124,10 +188,12 @@ const GradesPage = () => {
         }
 
         logger.debug('Fetching courses with params:', coursesParams);
-        const coursesResponse = await academicAPI.getCourses(coursesParams);
+        const coursesResponse = await api.get('/academic/courses', { params: coursesParams });
 
         let courses = [];
-        if (coursesResponse.data?.courses) {
+        if (coursesResponse.data?.success && coursesResponse.data?.data) {
+          courses = coursesResponse.data.data;
+        } else if (coursesResponse.data?.courses) {
           courses = coursesResponse.data.courses;
         } else if (Array.isArray(coursesResponse.data)) {
           courses = coursesResponse.data;
@@ -167,7 +233,7 @@ const GradesPage = () => {
         gradesParams.studentId = user.id;
       }
 
-      const gradesResponse = await academicAPI.getGrades(gradesParams);
+      const gradesResponse = await api.get('/academic/grades', { params: gradesParams });
       const grades = gradesResponse.data?.grades || [];
       setGrades(grades);
 
@@ -249,67 +315,6 @@ const GradesPage = () => {
     }
   };
 
-  const fetchStudentGrades = async () => {
-    try {
-      // Fetch grades for current student
-      const gradesResponse = await academicAPI.getGrades();
-      const grades = gradesResponse.data?.grades || [];
-      setGrades(grades);
-
-      // Transform grades to student format
-      const studentGrades = grades.map(grade => ({
-        id: grade.id,
-        assignment_type: grade.componentType || 'exam',
-        assignment_name: grade.componentName || 'Final Exam',
-        points_earned: grade.caMarks || grade.totalMarks || 0,
-        points_possible: 100,
-        percentage: grade.caMarks || grade.totalMarks || 0,
-        letter_grade: grade.letterGrade || 'F',
-        grade_points: grade.gradePoints || 0,
-        weight: 1.0,
-        due_date: grade.createdAt || new Date().toISOString(),
-        status: grade.status || 'published'
-      }));
-
-      const mockStudentData = [{
-        student_id: user.id,
-        student_number: user.matricule || `STU${user.id}`,
-        first_name: user.firstName || 'Student',
-        last_name: user.lastName || '',
-        email: user.email || '',
-        enrollment_id: user.id,
-        current_grade: grades.length > 0 ? (grades[0].gradePoints || 0) : 0.0,
-        grades: studentGrades
-      }];
-
-      setStudents(mockStudentData);
-
-    } catch (error) {
-      logger.error('Error fetching student grades:', error);
-    }
-  };
-
-  const calculateGradeDistribution = (studentsList) => {
-    const distribution = [
-      { letter_grade: 'A', count: 0, min: 3.7 },
-      { letter_grade: 'B', count: 0, min: 3.0 },
-      { letter_grade: 'C', count: 0, min: 2.0 },
-      { letter_grade: 'D', count: 0, min: 1.0 },
-      { letter_grade: 'F', count: 0, min: 0.0 }
-    ];
-
-    studentsList.forEach(student => {
-      const grade = student.current_grade;
-      if (grade >= 3.7) distribution[0].count++;
-      else if (grade >= 3.0) distribution[1].count++;
-      else if (grade >= 2.0) distribution[2].count++;
-      else if (grade >= 1.0) distribution[3].count++;
-      else distribution[4].count++;
-    });
-
-    setGradeDistribution(distribution);
-  };
-
   const filteredStudents = students.filter(student =>
     student?.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     student?.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -329,14 +334,6 @@ const GradesPage = () => {
     if (letter.startsWith('C')) return '#f59e0b';
     if (letter.startsWith('D')) return '#ef4444';
     return '#6b7280';
-  };
-
-  const handleCourseChange = async (courseId) => {
-    const course = courses.find(c => c.id === courseId);
-    setSelectedCourse(course);
-
-    // Fetch students and grades for this course
-    await fetchCourseData(courseId);
   };
 
   const handleAddGrade = () => {
@@ -401,7 +398,7 @@ const GradesPage = () => {
           status: editingGrade.status
         };
         gradeData.totalMarks = gradeData.caMarks + gradeData.examMarks;
-        await academicAPI.createGrade(gradeData);
+        const response = await academicAPI.bulkCreateGrades(gradeData);
       }
 
       // Refresh course data

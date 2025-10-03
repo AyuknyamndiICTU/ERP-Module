@@ -128,7 +128,7 @@ const SettingsPage = () => {
       setError(null);
 
       // Make real API call to update profile
-      const response = await api.put('/profile', {
+      const response = await api.put('/users/profile', {
         firstName: profileData.firstName,
         lastName: profileData.lastName,
         email: profileData.email,
@@ -163,7 +163,7 @@ const SettingsPage = () => {
       }
 
       // Make real API call to change password
-      const response = await api.put('/profile/change-password', {
+      const response = await api.put('/users/change-password', {
         currentPassword: security.password,
         newPassword: security.newPassword
       });
@@ -191,7 +191,7 @@ const SettingsPage = () => {
       setError(null);
 
       // Save preferences to API and localStorage as backup
-      const response = await api.put('/profile/preferences', preferences);
+      const response = await api.put('/users/profile/preferences', preferences);
       
       if (response.data.success) {
         localStorage.setItem('userPreferences', JSON.stringify(preferences));
@@ -225,7 +225,7 @@ const SettingsPage = () => {
             const avatarData = reader.result;
             
             // Make API call to upload avatar
-            const response = await api.post('/profile/avatar', {
+            const response = await api.post('/users/profile/avatar', {
               avatarData: avatarData
             });
             
@@ -287,7 +287,7 @@ const SettingsPage = () => {
       // Load user profile data
       if (user) {
         try {
-          const profileResponse = await api.get('/profile');
+          const profileResponse = await api.get('/users/profile');
           if (profileResponse.data.success) {
             const userData = profileResponse.data.user;
             setProfileData({
@@ -315,7 +315,7 @@ const SettingsPage = () => {
 
       // Load user preferences from API
       try {
-        const prefsResponse = await api.get('/profile/preferences');
+        const prefsResponse = await api.get('/users/profile/preferences');
         if (prefsResponse.data.success) {
           setPreferences(prefsResponse.data.preferences);
         } else {

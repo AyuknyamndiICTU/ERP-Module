@@ -306,9 +306,18 @@ const PayrollPage = () => {
                   <TableCell>
                     <Chip
                       label={payroll.status.charAt(0).toUpperCase() + payroll.status.slice(1)}
-                      color={getStatusColor(payroll.status)}
                       size="small"
-                      sx={{ fontWeight: 600 }}
+                      sx={{ 
+                        fontWeight: 600,
+                        backgroundColor: payroll.status === 'paid' ? '#10b981' : 
+                                       payroll.status === 'pending' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 
+                                       payroll.status === 'processing' ? '#f59e0b' : '#6b7280',
+                        background: payroll.status === 'pending' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : undefined,
+                        color: 'white',
+                        '& .MuiChip-label': {
+                          color: 'white'
+                        }
+                      }}
                     />
                   </TableCell>
                   <TableCell align="right">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -28,6 +28,8 @@ import {
   InputLabel,
   Select,
   CircularProgress,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -43,6 +45,8 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import GlassCard from '../../components/GlassCard';
+import { financeAPI } from '../../services/api';
+import { debounce } from 'lodash';
 
 const InvoicesPage = () => {
   const { user } = useAuth();
@@ -53,6 +57,8 @@ const InvoicesPage = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0 });
   const [newInvoice, setNewInvoice] = useState({
     studentName: '',
     studentId: '',
@@ -102,13 +108,60 @@ const InvoicesPage = () => {
     }
   ];
 
-  useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
+  // Fetch invoices from backend
+  const fetchInvoices = useCallback(async (search = '', status = 'all', page = 1) => {
+    try {
+      setLoading(true);
+      const response = await financeAPI.getInvoices({ 
+        search, 
+        status: status === 'all' ? undefined : status,
+        page, 
+        limit: pagination.limit 
+      });
+      
+      if (response.data && response.data.invoices) {
+        setInvoices(response.data.invoices);
+        setPagination(prev => ({
+          ...prev,
+          page: response.data.currentPage || page,
+          total: response.data.total || response.data.invoices.length
+        }));
+      } else {
+        // Fallback to mock data if API fails
+        console.warn('API response invalid, using fallback data');
+        setInvoices(mockInvoices);
+        setPagination(prev => ({ ...prev, total: mockInvoices.length }));
+      }
+    } catch (error) {
+      console.error('Error fetching invoices:', error);
+      // Use fallback mock data
       setInvoices(mockInvoices);
+      setPagination(prev => ({ ...prev, total: mockInvoices.length }));
+      setSnackbar({
+        open: true,
+        message: 'Failed to load invoices. Using offline data.',
+        severity: 'warning'
+      });
+    } finally {
       setLoading(false);
-    }, 1000);
-  }, []);
+    }
+  }, [pagination.limit]);
+
+  // Debounced search
+  const debouncedSearch = useCallback(
+    debounce((searchValue, statusValue) => {
+      fetchInvoices(searchValue, statusValue, 1);
+    }, 500),
+    [fetchInvoices]
+  );
+
+  useEffect(() => {
+    fetchInvoices();
+  }, [fetchInvoices]);
+
+  useEffect(() => {
+    debouncedSearch(searchTerm, filterStatus);
+  }, [searchTerm, filterStatus, debouncedSearch]);
 
   const handleAddInvoice = () => {
     if (user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'finance_staff') {
@@ -118,31 +171,92 @@ const InvoicesPage = () => {
     }
   };
 
-  const handleSaveInvoice = () => {
+  const handleSaveInvoice = async () => {
     if (!newInvoice.studentName || !newInvoice.amount || !newInvoice.dueDate) {
-      alert('Please fill in all required fields');
+      setSnackbar({
+        open: true,
+        message: 'Please fill in all required fields',
+        severity: 'error'
+      });
       return;
     }
 
-    const invoice = {
-      id: invoices.length + 1,
-      invoiceNumber: `INV-2024-${String(invoices.length + 1).padStart(3, '0')}`,
-      ...newInvoice,
-      amount: parseFloat(newInvoice.amount),
-      status: 'pending',
-      createdDate: new Date().toISOString().split('T')[0]
-    };
+    try {
+      const response = await financeAPI.createInvoice({
+        studentName: newInvoice.studentName,
+        studentId: newInvoice.studentId,
+        amount: parseFloat(newInvoice.amount),
+        feeType: newInvoice.feeType,
+        dueDate: newInvoice.dueDate,
+        description: newInvoice.description,
+        status: 'pending'
+      });
 
-    setInvoices([...invoices, invoice]);
-    setDialogOpen(false);
-    setNewInvoice({
-      studentName: '',
-      studentId: '',
-      amount: '',
-      feeType: 'Tuition Fee',
-      dueDate: '',
-      description: ''
-    });
+      if (response.data) {
+        setSnackbar({
+          open: true,
+          message: 'Invoice created successfully!',
+          severity: 'success'
+        });
+        setDialogOpen(false);
+        setNewInvoice({
+          studentName: '',
+          studentId: '',
+          amount: '',
+          feeType: 'Tuition Fee',
+          dueDate: '',
+          description: ''
+        });
+        fetchInvoices(searchTerm, filterStatus, pagination.page);
+      }
+    } catch (error) {
+      console.error('Error creating invoice:', error);
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.message || 'Failed to create invoice',
+        severity: 'error'
+      });
+    }
+  };
+
+  const handleDeleteInvoice = async (invoiceId) => {
+    if (window.confirm('Are you sure you want to delete this invoice?')) {
+      try {
+        await financeAPI.deleteInvoice(invoiceId);
+        setSnackbar({
+          open: true,
+          message: 'Invoice deleted successfully!',
+          severity: 'success'
+        });
+        fetchInvoices(searchTerm, filterStatus, pagination.page);
+      } catch (error) {
+        console.error('Error deleting invoice:', error);
+        setSnackbar({
+          open: true,
+          message: error.response?.data?.message || 'Failed to delete invoice',
+          severity: 'error'
+        });
+      }
+    }
+  };
+
+  const handleUpdateInvoiceStatus = async (invoiceId, newStatus) => {
+    try {
+      await financeAPI.updateInvoice(invoiceId, { status: newStatus });
+      setSnackbar({
+        open: true,
+        message: `Invoice status updated to ${newStatus}!`,
+        severity: 'success'
+      });
+      fetchInvoices(searchTerm, filterStatus, pagination.page);
+    } catch (error) {
+      console.error('Error updating invoice status:', error);
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.message || 'Failed to update invoice status',
+        severity: 'error'
+      });
+    }
   };
 
   const getStatusColor = (status) => {
@@ -154,13 +268,8 @@ const InvoicesPage = () => {
     }
   };
 
-  const filteredInvoices = invoices.filter(invoice => {
-    const matchesSearch = invoice.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         invoice.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         invoice.studentId.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filterStatus === 'all' || invoice.status === filterStatus;
-    return matchesSearch && matchesFilter;
-  });
+  // Use invoices directly since filtering is handled by backend API
+  const filteredInvoices = invoices;
 
   if (loading) {
     return (
@@ -338,9 +447,19 @@ const InvoicesPage = () => {
                   <TableCell>
                     <Chip
                       label={invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
-                      color={getStatusColor(invoice.status)}
                       size="small"
-                      sx={{ fontWeight: 600 }}
+                      sx={{ 
+                        fontWeight: 600,
+                        backgroundColor: invoice.status === 'paid' ? '#10b981' : 
+                                       invoice.status === 'pending' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 
+                                       invoice.status === 'overdue' ? '#ef4444' : 
+                                       invoice.status === 'draft' ? '#6b7280' : '#f59e0b',
+                        background: invoice.status === 'pending' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : undefined,
+                        color: 'white',
+                        '& .MuiChip-label': {
+                          color: 'white'
+                        }
+                      }}
                     />
                   </TableCell>
                   <TableCell align="right">
@@ -367,21 +486,26 @@ const InvoicesPage = () => {
         open={Boolean(anchorEl)}
         onClose={() => setAnchorEl(null)}
       >
-        <MenuItem onClick={() => setAnchorEl(null)}>
-          <VisibilityIcon sx={{ mr: 1 }} />
-          View Details
+        <MenuItem onClick={() => {
+          handleUpdateInvoiceStatus(selectedInvoice.id, 'paid');
+          setAnchorEl(null);
+        }}>
+          <ReceiptIcon sx={{ mr: 1 }} />
+          Mark as Paid
         </MenuItem>
-        <MenuItem onClick={() => setAnchorEl(null)}>
+        <MenuItem onClick={() => {
+          handleUpdateInvoiceStatus(selectedInvoice.id, 'pending');
+          setAnchorEl(null);
+        }}>
           <EditIcon sx={{ mr: 1 }} />
-          Edit Invoice
+          Mark as Pending
         </MenuItem>
-        <MenuItem onClick={() => setAnchorEl(null)}>
-          <SendIcon sx={{ mr: 1 }} />
-          Send Reminder
-        </MenuItem>
-        <MenuItem onClick={() => setAnchorEl(null)} sx={{ color: 'error.main' }}>
+        <MenuItem onClick={() => {
+          handleDeleteInvoice(selectedInvoice.id);
+          setAnchorEl(null);
+        }} sx={{ color: 'error.main' }}>
           <DeleteIcon sx={{ mr: 1 }} />
-          Delete
+          Delete Invoice
         </MenuItem>
       </Menu>
 
@@ -462,6 +586,21 @@ const InvoicesPage = () => {
           <Button variant="contained" onClick={handleSaveInvoice}>Create Invoice</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

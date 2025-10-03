@@ -393,9 +393,18 @@ const LeavePage = () => {
                   <TableCell>
                     <Chip
                       label={leave.status.charAt(0).toUpperCase() + leave.status.slice(1)}
-                      color={getStatusColor(leave.status)}
                       size="small"
-                      sx={{ fontWeight: 600 }}
+                      sx={{ 
+                        fontWeight: 600,
+                        backgroundColor: leave.status === 'approved' ? '#10b981' : 
+                                       leave.status === 'rejected' ? '#ef4444' : 
+                                       leave.status === 'pending' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : '#6b7280',
+                        background: leave.status === 'pending' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : undefined,
+                        color: 'white',
+                        '& .MuiChip-label': {
+                          color: 'white'
+                        }
+                      }}
                     />
                   </TableCell>
                   <TableCell align="right">

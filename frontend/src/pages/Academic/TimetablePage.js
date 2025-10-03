@@ -388,29 +388,58 @@ const TimetablePage = () => {
                 onChange={(e) => handleFilterChange('academicYear', e.target.value)}
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    background: 'rgba(255,255,255,0.1)',
+                    background: 'rgba(255,255,255,0.2)',
                     color: 'white',
-                    '& fieldset': { borderColor: 'rgba(255,255,255,0.3)' },
-                    '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.5)' },
-                    '&.Mui-focused fieldset': { borderColor: 'white' },
+                    fontWeight: 600,
+                    fontSize: '1rem',
+                    '& fieldset': { borderColor: 'rgba(255,255,255,0.5)' },
+                    '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.8)' },
+                    '&.Mui-focused fieldset': { borderColor: 'white', borderWidth: 2 },
+                    '& input': { 
+                      color: 'white',
+                      fontWeight: 700,
+                      textShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                      fontSize: '1.1rem'
+                    }
                   },
-                  '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.8)' },
-                  '& .MuiInputLabel-root.Mui-focused': { color: 'white' },
+                  '& .MuiInputLabel-root': { 
+                    color: 'white',
+                    fontWeight: 700,
+                    fontSize: '1.1rem',
+                    textShadow: '0 1px 3px rgba(0,0,0,0.5)'
+                  },
+                  '& .MuiInputLabel-root.Mui-focused': { 
+                    color: 'white',
+                    fontWeight: 800
+                  },
                 }}
               />
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
               <FormControl fullWidth>
-                <InputLabel sx={{ color: 'rgba(255,255,255,0.8)' }}>Semester</InputLabel>
+                <InputLabel sx={{ 
+                  color: 'white',
+                  fontWeight: 700,
+                  fontSize: '1.1rem',
+                  textShadow: '0 1px 3px rgba(0,0,0,0.5)'
+                }}>Semester</InputLabel>
                 <Select
                   value={filters.semester}
                   onChange={(e) => handleFilterChange('semester', e.target.value)}
                   sx={{
-                    background: 'rgba(255,255,255,0.1)',
+                    background: 'rgba(255,255,255,0.2)',
                     color: 'white',
-                    '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.3)' },
-                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.5)' },
-                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'white' },
+                    fontWeight: 700,
+                    fontSize: '1.1rem',
+                    textShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                    '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.5)' },
+                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.8)' },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'white', borderWidth: 2 },
+                    '& .MuiSelect-select': {
+                      color: 'white',
+                      fontWeight: 700,
+                      textShadow: '0 1px 3px rgba(0,0,0,0.5)'
+                    }
                   }}
                 >
                   <MenuItem value="">
@@ -430,14 +459,30 @@ const TimetablePage = () => {
                 placeholder="Enter Faculty ID"
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    background: 'rgba(255,255,255,0.1)',
+                    background: 'rgba(255,255,255,0.2)',
                     color: 'white',
-                    '& fieldset': { borderColor: 'rgba(255,255,255,0.3)' },
-                    '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.5)' },
-                    '&.Mui-focused fieldset': { borderColor: 'white' },
+                    fontWeight: 600,
+                    fontSize: '1rem',
+                    '& fieldset': { borderColor: 'rgba(255,255,255,0.5)' },
+                    '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.8)' },
+                    '&.Mui-focused fieldset': { borderColor: 'white', borderWidth: 2 },
+                    '& input': { 
+                      color: 'white',
+                      fontWeight: 700,
+                      textShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                      fontSize: '1.1rem'
+                    }
                   },
-                  '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.8)' },
-                  '& .MuiInputLabel-root.Mui-focused': { color: 'white' },
+                  '& .MuiInputLabel-root': { 
+                    color: 'white',
+                    fontWeight: 700,
+                    fontSize: '1.1rem',
+                    textShadow: '0 1px 3px rgba(0,0,0,0.5)'
+                  },
+                  '& .MuiInputLabel-root.Mui-focused': { 
+                    color: 'white',
+                    fontWeight: 800
+                  },
                 }}
               />
             </Grid>
@@ -548,17 +593,26 @@ const TimetablePage = () => {
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
                             <Box sx={{ flex: 1 }}>
                               <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
-                                {entry.course?.courseName || 'Unknown Course'}
+                                {entry.course?.name || entry.course?.courseName || 'Unknown Course'}
                               </Typography>
                               <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
-                                {entry.course?.courseCode || 'N/A'}
+                                {entry.course?.code || entry.course?.courseCode || 'N/A'}
                               </Typography>
                             </Box>
                             <Chip
                               label={entry.status}
                               size="small"
-                              color={getStatusColor(entry.status)}
-                              variant="outlined"
+                              sx={{ 
+                                fontWeight: 600,
+                                backgroundColor: entry.status === 'scheduled' ? '#10b981' : 
+                                               entry.status === 'ongoing' ? '#f59e0b' : 
+                                               entry.status === 'completed' ? '#3b82f6' : 
+                                               entry.status === 'cancelled' ? '#ef4444' : '#6b7280',
+                                color: 'white',
+                                '& .MuiChip-label': {
+                                  color: 'white'
+                                }
+                              }}
                             />
                           </Box>
 
@@ -642,10 +696,10 @@ const TimetablePage = () => {
           {selectedEntry && dialogType === 'view' ? (
             <Box sx={{ mt: 2 }}>
               <Typography variant="h6" gutterBottom>
-                {selectedEntry.course?.courseName || 'Unknown Course'}
+                {selectedEntry.course?.name || selectedEntry.course?.courseName || 'Unknown Course'}
               </Typography>
               <Typography variant="body2" color="text.secondary" gutterBottom>
-                {selectedEntry.course?.courseCode || 'N/A'}
+                {selectedEntry.course?.code || selectedEntry.course?.courseCode || 'N/A'}
               </Typography>
 
               <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -684,8 +738,18 @@ const TimetablePage = () => {
                     <strong>Status:</strong> {' '}
                     <Chip
                       label={selectedEntry.status}
-                      color={getStatusColor(selectedEntry.status)}
                       size="small"
+                      sx={{ 
+                        fontWeight: 600,
+                        backgroundColor: selectedEntry.status === 'scheduled' ? '#10b981' : 
+                                       selectedEntry.status === 'ongoing' ? '#f59e0b' : 
+                                       selectedEntry.status === 'completed' ? '#3b82f6' : 
+                                       selectedEntry.status === 'cancelled' ? '#ef4444' : '#6b7280',
+                        color: 'white',
+                        '& .MuiChip-label': {
+                          color: 'white'
+                        }
+                      }}
                     />
                   </Typography>
                   {selectedEntry.notes && (

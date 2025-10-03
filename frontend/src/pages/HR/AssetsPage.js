@@ -360,9 +360,17 @@ const AssetsPage = () => {
                   <TableCell>
                     <Chip
                       label={asset.status.charAt(0).toUpperCase() + asset.status.slice(1)}
-                      color={getStatusColor(asset.status)}
                       size="small"
-                      sx={{ fontWeight: 600 }}
+                      sx={{ 
+                        fontWeight: 600,
+                        backgroundColor: asset.status === 'active' ? '#10b981' : 
+                                       asset.status === 'inactive' ? '#ef4444' : 
+                                       asset.status === 'maintenance' ? '#f59e0b' : '#6b7280',
+                        color: 'white',
+                        '& .MuiChip-label': {
+                          color: 'white'
+                        }
+                      }}
                     />
                   </TableCell>
                   <TableCell>
@@ -379,9 +387,18 @@ const AssetsPage = () => {
                   <TableCell>
                     <Chip
                       label={asset.condition.replace('_', ' ').charAt(0).toUpperCase() + asset.condition.replace('_', ' ').slice(1)}
-                      color={getConditionColor(asset.condition)}
                       size="small"
-                      variant="outlined"
+                      sx={{ 
+                        fontWeight: 600,
+                        backgroundColor: asset.condition === 'excellent' ? '#10b981' : 
+                                       asset.condition === 'good' ? '#3b82f6' : 
+                                       asset.condition === 'fair' ? '#f59e0b' : 
+                                       asset.condition === 'poor' ? '#ef4444' : '#6b7280',
+                        color: 'white',
+                        '& .MuiChip-label': {
+                          color: 'white'
+                        }
+                      }}
                     />
                   </TableCell>
                   <TableCell align="right">
