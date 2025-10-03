@@ -7,7 +7,8 @@ const logger = require('../utils/logger');
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 const roleAuth = require('../middleware/roleAuth');
 const { sendRegistrationApprovalEmail, sendRegistrationRejectionEmail } = require('../utils/emailService');
-const { Op } = require('sequelize');
+const { Op, sequelize } = require('sequelize');
+const { sequelize: dbSequelize } = require('../config/database');
 const { generateMatricule } = require('../utils/matriculeGenerator');
 
 /**
@@ -423,32 +424,73 @@ router.post('/',
         });
       }
 
+      // Convert level string to integer if needed
+      const levelMap = {
+        'undergraduate': 1,
+        'masters': 2,
+        'master': 2,
+        'phd': 3
+      };
+      const levelInt = typeof level === 'string' ? (levelMap[level.toLowerCase()] || 1) : level;
+
       // Create new student with ICTU requirements (pending approval)
-      const newStudent = await Student.create({
+      // Use raw SQL to avoid Sequelize model association conflicts
+      const studentId = require('crypto').randomUUID();
+      await dbSequelize.query(`
+        INSERT INTO students (
+          id, matricule, student_id, first_name, last_name, email, phone,
+          date_of_birth, region_of_origin, place_of_origin, gender, age, blood_group,
+          address, faculty_id, department_id, major_id, semester, student_type,
+          level, enrollment_date, registration_year, status, registration_locked,
+          created_at, updated_at
+        ) VALUES (
+          :id, :matricule, :studentId, :firstName, :lastName, :email, :phone,
+          :dateOfBirth, :regionOfOrigin, :placeOfOrigin, :gender, :age, :bloodGroup,
+          :address, :facultyId, :departmentId, :majorId, :semester, :studentType,
+          :level, :enrollmentDate, :registrationYear, :status, :registrationLocked,
+          NOW(), NOW()
+        )
+      `, {
+        replacements: {
+          id: studentId,
+          matricule,
+          studentId: matricule,
+          firstName: first_name,
+          lastName: last_name,
+          email,
+          phone,
+          dateOfBirth: date_of_birth,
+          regionOfOrigin: region_of_origin,
+          placeOfOrigin: place_of_origin,
+          gender: typeof gender === 'string' ? gender.toLowerCase() : gender,
+          age: age || null,
+          bloodGroup: blood_group || null,
+          address: JSON.stringify({
+            ...(address || {}),
+            emergencyContact: emergency_contact || null
+          }),
+          facultyId: faculty_id,
+          departmentId: department_id,
+          majorId: major_id,
+          semester,
+          studentType: student_type || 'regular',
+          level: levelInt,
+          enrollmentDate: enrollment_date || new Date(),
+          registrationYear,
+          status: 'pending',
+          registrationLocked: false
+        }
+      });
+
+      // Create a student object for response
+      const newStudent = {
+        id: studentId,
         matricule,
         firstName: first_name,
         lastName: last_name,
         email,
-        phone,
-        dateOfBirth: date_of_birth,
-        regionOfOrigin: region_of_origin,
-        placeOfOrigin: place_of_origin,
-        gender,
-        age,
-        bloodGroup: blood_group,
-        address,
-        emergencyContact: emergency_contact,
-        facultyId: faculty_id,
-        departmentId: department_id,
-        majorId: major_id,
-        semester,
-        studentType: student_type,
-        level,
-        enrollmentDate: enrollment_date,
-        registrationYear,
-        status: 'pending',
-        registrationLocked: false
-      });
+        status: 'pending'
+      };
 
       logger.info(`Student ${matricule} created by user ${req.user.id}`);
 
