@@ -150,7 +150,7 @@ router.get('/:id/courses', authenticateToken, async (req, res) => {
 
     const courses = await Course.findAll({
       where: whereClause,
-      order: [['year', 'ASC'], ['semester', 'ASC'], ['name', 'ASC']]
+      order: [['academicYear', 'ASC'], ['semester', 'ASC'], ['courseName', 'ASC']]
     });
 
     res.json({
