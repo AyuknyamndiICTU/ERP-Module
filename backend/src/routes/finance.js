@@ -915,4 +915,368 @@ router.post('/overdue-notifications',
   }
 );
 
+/**
+ * @swagger
+ * /api/finance/invoices:
+ *   get:
+ *     summary: Get all invoices
+ *     tags: [Finance]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *         description: Number of items per page
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, paid, overdue, cancelled]
+ *         description: Filter by invoice status
+ *     responses:
+ *       200:
+ *         description: List of invoices
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 invoices:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                 pagination:
+ *                   type: object
+ */
+router.get('/invoices',
+  authenticateToken,
+  roleAuth(['admin', 'finance_staff', 'system_admin']),
+  [
+    query('page').optional().isInt({ min: 1 }),
+    query('limit').optional().isInt({ min: 1, max: 100 }),
+    query('status').optional().isIn(['pending', 'paid', 'overdue', 'cancelled'])
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const {
+        page = 1,
+        limit = 10,
+        status
+      } = req.query;
+
+      const offset = (page - 1) * limit;
+      const whereConditions = {};
+
+      if (status) {
+        whereConditions.status = status;
+      }
+
+      // For now, return mock data since we don't have an Invoice model yet
+      const mockInvoices = [];
+      
+      res.json({
+        success: true,
+        invoices: mockInvoices,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: 0,
+          totalItems: 0,
+          itemsPerPage: parseInt(limit)
+        }
+      });
+
+    } catch (error) {
+      logger.error('Error fetching invoices:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Error fetching invoices'
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/finance/invoices:
+ *   post:
+ *     summary: Create a new invoice
+ *     tags: [Finance]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - studentId
+ *               - amount
+ *               - description
+ *             properties:
+ *               studentId:
+ *                 type: string
+ *                 format: uuid
+ *               amount:
+ *                 type: number
+ *               description:
+ *                 type: string
+ *               dueDate:
+ *                 type: string
+ *                 format: date
+ *     responses:
+ *       201:
+ *         description: Invoice created successfully
+ *       400:
+ *         description: Validation error
+ */
+router.post('/invoices',
+  authenticateToken,
+  roleAuth(['admin', 'finance_staff', 'system_admin']),
+  [
+    body('studentId').isUUID().withMessage('Valid student ID is required'),
+    body('amount').isFloat({ min: 0 }).withMessage('Amount must be a positive number'),
+    body('description').notEmpty().withMessage('Description is required'),
+    body('dueDate').optional().isISO8601().withMessage('Due date must be a valid date')
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { studentId, amount, description, dueDate } = req.body;
+
+      // For now, return mock response since we don't have an Invoice model yet
+      const mockInvoice = {
+        id: 'mock-invoice-id',
+        studentId,
+        amount,
+        description,
+        dueDate: dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+        status: 'pending',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      res.status(201).json({
+        success: true,
+        message: 'Invoice created successfully',
+        invoice: mockInvoice
+      });
+
+    } catch (error) {
+      logger.error('Error creating invoice:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Error creating invoice'
+      });
+    }
+  }
+);
+
+// Payments Management Routes
+/**
+ * @swagger
+ * /api/finance/payments:
+ *   get:
+ *     summary: Get payments with filtering
+ *     tags: [Finance]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get('/payments',
+  authenticateToken,
+  roleAuth(['admin', 'finance_staff', 'system_admin']),
+  async (req, res) => {
+    try {
+      const { search = '', page = 1, limit = 10 } = req.query;
+
+      // TODO: Payments table not yet created, return mock data for now
+      const payments = [
+        {
+          id: 1,
+          studentId: 'ICTU20250001',
+          studentName: 'John Doe',
+          amount: 150000,
+          paymentMethod: 'Bank Transfer',
+          paymentDate: '2025-01-15T10:30:00Z',
+          status: 'completed',
+          reference: 'PAY-2025-001',
+          description: 'Tuition Fee Payment - Semester 1'
+        },
+        {
+          id: 2,
+          studentId: 'ICTU20250002',
+          studentName: 'Jane Smith',
+          amount: 75000,
+          paymentMethod: 'Mobile Money',
+          paymentDate: '2025-01-14T14:20:00Z',
+          status: 'completed',
+          reference: 'PAY-2025-002',
+          description: 'Registration Fee Payment'
+        },
+        {
+          id: 3,
+          studentId: 'ICTU20250003',
+          studentName: 'Mike Johnson',
+          amount: 200000,
+          paymentMethod: 'Cash',
+          paymentDate: '2025-01-13T09:15:00Z',
+          status: 'pending',
+          reference: 'PAY-2025-003',
+          description: 'Full Year Tuition Payment'
+        }
+      ].filter(payment => {
+        if (search) {
+          return payment.studentName.toLowerCase().includes(search.toLowerCase()) ||
+                 payment.reference.toLowerCase().includes(search.toLowerCase());
+        }
+        return true;
+      });
+
+      const total = payments.length;
+      const startIndex = (page - 1) * limit;
+      const paginatedPayments = payments.slice(startIndex, startIndex + parseInt(limit));
+
+      res.json({
+        success: true,
+        payments: paginatedPayments,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          pages: Math.ceil(total / limit)
+        },
+        message: 'Payments retrieved successfully'
+      });
+
+    } catch (error) {
+      logger.error('Get payments error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Server error retrieving payments',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      });
+    }
+  }
+);
+
+// Campaigns Management Routes
+/**
+ * @swagger
+ * /api/finance/campaigns:
+ *   get:
+ *     summary: Get campaigns with filtering
+ *     tags: [Finance]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get('/campaigns',
+  authenticateToken,
+  roleAuth(['admin', 'finance_staff', 'system_admin']),
+  async (req, res) => {
+    try {
+      const { search = '', page = 1, limit = 10 } = req.query;
+
+      // TODO: Campaigns table not yet created, return mock data for now
+      const campaigns = [
+        {
+          id: 1,
+          name: 'Early Bird Registration 2025',
+          description: 'Special discount for students who register early for the 2025 academic year',
+          type: 'discount',
+          status: 'active',
+          budget: 5000000,
+          spent: 3200000,
+          leads: 245,
+          conversions: 89,
+          startDate: '2024-12-01T00:00:00Z',
+          endDate: '2025-01-31T23:59:59Z',
+          targetAudience: 'New Students',
+          createdBy: 'Finance Team'
+        },
+        {
+          id: 2,
+          name: 'Merit Scholarship Program',
+          description: 'Scholarship program for students with excellent academic performance',
+          type: 'scholarship',
+          status: 'active',
+          budget: 15000000,
+          spent: 8500000,
+          leads: 156,
+          conversions: 67,
+          startDate: '2025-01-01T00:00:00Z',
+          endDate: '2025-12-31T23:59:59Z',
+          targetAudience: 'Continuing Students',
+          createdBy: 'Academic Affairs'
+        },
+        {
+          id: 3,
+          name: 'Alumni Referral Bonus',
+          description: 'Discount for new students referred by ICTU alumni',
+          type: 'referral',
+          status: 'pending',
+          budget: 2500000,
+          spent: 0,
+          leads: 34,
+          conversions: 12,
+          startDate: '2025-02-01T00:00:00Z',
+          endDate: '2025-06-30T23:59:59Z',
+          targetAudience: 'Referred Students',
+          createdBy: 'Alumni Relations'
+        }
+      ].filter(campaign => {
+        if (search) {
+          return campaign.name.toLowerCase().includes(search.toLowerCase()) ||
+                 campaign.description.toLowerCase().includes(search.toLowerCase());
+        }
+        return true;
+      });
+
+      const total = campaigns.length;
+      const startIndex = (page - 1) * limit;
+      const paginatedCampaigns = campaigns.slice(startIndex, startIndex + parseInt(limit));
+
+      res.json({
+        success: true,
+        campaigns: paginatedCampaigns,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          pages: Math.ceil(total / limit)
+        },
+        message: 'Campaigns retrieved successfully'
+      });
+
+    } catch (error) {
+      logger.error('Get campaigns error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Server error retrieving campaigns',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      });
+    }
+  }
+);
+
 module.exports = router;
