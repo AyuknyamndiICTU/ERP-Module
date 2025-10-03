@@ -20,17 +20,17 @@ import ProfilePage from './pages/Profile/ProfilePage';
 import ICTUStudentRegistration from './components/student/ICTUStudentRegistration';
 
 // Academic Pages
-import ICTUCoursesPage from './pages/Academic/ICTUCoursesPage';
+import CoursesPage from './pages/Academic/CoursesPage';
 import StudentsPage from './pages/Academic/StudentsPage';
 import GradesPage from './pages/Academic/GradesPage';
 import AttendancePage from './pages/Academic/AttendancePage';
 import TimetablePage from './pages/Academic/TimetablePage';
 import AssignmentsPage from './pages/Academic/AssignmentsPage';
 import ExamsPage from './pages/Academic/ExamsPage';
+import NotificationCenter from './components/NotificationSystem/NotificationCenter';
 
 // Settings and Notifications
 import SettingsPage from './pages/SettingsPage';
-import NotificationCenter from './components/NotificationSystem/NotificationCenter';
 
 // Finance Pages
 import InvoicesPage from './pages/Finance/InvoicesPage';
@@ -142,13 +142,14 @@ function AppContent() {
                     {/* Dashboard */}
                     <Route path="/dashboard" element={<DashboardPage />} />
                     <Route path="/profile" element={<ProfilePage />} />
+                    <Route path="/notifications" element={<NotificationCenter />} />
 
                     {/* Academic Module */}
                     <Route 
                       path="/academic/courses" 
                       element={
                         <ProtectedRoute requiredRoles={["admin", "system_admin", "lecturer", "faculty_coordinator", "major_coordinator", "student"]}>
-                          <ICTUCoursesPage />
+                          <CoursesPage />
                         </ProtectedRoute>
                       } 
                     />

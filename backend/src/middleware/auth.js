@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { logger } = require('../utils/logger');
+const logger = require('../utils/logger');
 
 /**
  * Middleware to verify JWT token and authenticate user

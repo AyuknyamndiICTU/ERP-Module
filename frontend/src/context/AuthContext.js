@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { authAPI } from '../services/api';
 import { logger } from '../utils/logger';
+import { addApiDelay, isRateLimitError, getRateLimitMessage } from '../utils/rateLimitHelper';
 
 // Initial state
 const initialState = {
@@ -192,13 +193,21 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Login function
-  const login = async (email, password) => {
+  // Login function with rate limiting handling
+  const login = async (email, password, retryCount = 0) => {
     try {
       dispatch({ type: AUTH_ACTIONS.LOGIN_START });
 
+      // Add delay to prevent rate limiting
+      await addApiDelay('login');
+
+      // Add additional delay for retries
+      if (retryCount > 0) {
+        await new Promise(resolve => setTimeout(resolve, 2000 * retryCount));
+      }
+
       const response = await authAPI.login({ email, password });
-      const { user, token } = response.data.data;
+      const { user, token } = response.data;
 
       // Store user data and token in localStorage
       localStorage.setItem('token', token);
@@ -209,13 +218,25 @@ export const AuthProvider = ({ children }) => {
         payload: { user, token },
       });
 
-
       logger.info('Login successful');
       return { success: true };
 
     } catch (error) {
       logger.error('Login error:', error);
-      const errorMessage = error.response?.data?.error || 'Login failed';
+      
+      // Handle rate limiting using helper
+      if (isRateLimitError(error) && retryCount < 2) {
+        logger.info(`Rate limited, retrying login in ${(retryCount + 1) * 2} seconds...`);
+        return await login(email, password, retryCount + 1);
+      }
+      
+      let errorMessage = 'Login failed';
+      
+      if (isRateLimitError(error)) {
+        errorMessage = 'Too many login attempts. Please wait a few minutes and try again.';
+      } else {
+        errorMessage = getRateLimitMessage(error);
+      }
 
       dispatch({
         type: AUTH_ACTIONS.LOGIN_FAILURE,

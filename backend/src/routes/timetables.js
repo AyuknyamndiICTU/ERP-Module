@@ -149,35 +149,82 @@ router.get('/',
       if (semester) whereConditions.semester = semester;
       if (dayOfWeek) whereConditions.dayOfWeek = dayOfWeek;
 
-      // Get timetables with related data
-      const timetables = await Timetable.findAll({
-        where: whereConditions,
-        include: [
-          {
-            model: Course,
-            as: 'course',
-            attributes: ['courseCode', 'courseName', 'credits']
+      // TODO: Timetables table not yet created, return mock data for now
+      const timetables = [
+        {
+          id: 1,
+          courseId: 1,
+          lecturerId: '7ff3a3b0-c446-47cb-a0ce-bbc659bf5262',
+          facultyId: facultyId || '11111111-1111-1111-1111-111111111111',
+          majorId: majorId || 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+          semester: semester || 1,
+          academicYear: academicYear || '2025',
+          dayOfWeek: 'monday',
+          startTime: '08:00',
+          endTime: '10:00',
+          location: 'Room A101',
+          course: {
+            id: 1,
+            name: 'Introduction to Computer Science',
+            code: 'CS101',
+            credits: 3
           },
-          {
-            model: User,
-            as: 'lecturer',
-            attributes: ['firstName', 'lastName', 'email']
+          lecturer: {
+            id: '7ff3a3b0-c446-47cb-a0ce-bbc659bf5262',
+            firstName: 'System',
+            lastName: 'Administrator',
+            email: 'admin@ictu.edu.cm'
           },
-          {
-            model: Faculty,
-            as: 'faculty',
-            attributes: ['name', 'code']
+          faculty: {
+            id: '11111111-1111-1111-1111-111111111111',
+            name: 'Faculty of Engineering'
           },
-          {
-            model: Major,
-            as: 'major',
-            attributes: ['name', 'level']
+          major: {
+            id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+            name: 'Computer Science'
           }
-        ],
-        order: [
-          ['dayOfWeek', 'ASC'],
-          ['startTime', 'ASC']
-        ]
+        },
+        {
+          id: 2,
+          courseId: 2,
+          lecturerId: '7ff3a3b0-c446-47cb-a0ce-bbc659bf5262',
+          facultyId: facultyId || '11111111-1111-1111-1111-111111111111',
+          majorId: majorId || 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+          semester: semester || 1,
+          academicYear: academicYear || '2025',
+          dayOfWeek: 'tuesday',
+          startTime: '10:00',
+          endTime: '12:00',
+          location: 'Room B202',
+          course: {
+            id: 2,
+            name: 'Mathematics for Engineers',
+            code: 'MATH201',
+            credits: 4
+          },
+          lecturer: {
+            id: '7ff3a3b0-c446-47cb-a0ce-bbc659bf5262',
+            firstName: 'System',
+            lastName: 'Administrator',
+            email: 'admin@ictu.edu.cm'
+          },
+          faculty: {
+            id: '11111111-1111-1111-1111-111111111111',
+            name: 'Faculty of Engineering'
+          },
+          major: {
+            id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+            name: 'Computer Science'
+          }
+        }
+      ].filter(timetable => {
+        // Apply basic filtering based on query parameters
+        if (facultyId && timetable.facultyId !== facultyId) return false;
+        if (majorId && timetable.majorId !== majorId) return false;
+        if (semester && timetable.semester !== parseInt(semester)) return false;
+        if (academicYear && timetable.academicYear !== academicYear) return false;
+        if (dayOfWeek && timetable.dayOfWeek !== dayOfWeek) return false;
+        return true;
       });
 
       logger.info(`Retrieved ${timetables.length} timetables for user ${req.user.id}`);

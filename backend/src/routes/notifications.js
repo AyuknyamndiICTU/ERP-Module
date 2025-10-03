@@ -6,7 +6,8 @@ const roleAuth = require('../middleware/roleAuth');
 const logger = require('../utils/logger');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
-const { Op } = require('sequelize');
+const { Op, QueryTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
 
 /**
  * @swagger
@@ -120,7 +121,7 @@ router.get('/',
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const recipientId = req.user.id;
+      const userId = req.user.userId;
       const {
         isRead,
         category,
@@ -129,65 +130,135 @@ router.get('/',
         offset = 0
       } = req.query;
 
-      // Build WHERE conditions
-      const whereConditions = {
-        recipientId,
-        [Op.or]: [
-          { expiresAt: null },
-          { expiresAt: { [Op.gt]: new Date() } }
-        ]
-      };
+      // Build WHERE conditions for raw SQL query
+      let whereClause = 'WHERE user_id = :userId';
+      const replacements = { userId };
 
-      if (isRead !== undefined) whereConditions.isRead = isRead;
-      if (category) whereConditions.category = category;
-      if (priority) whereConditions.priority = priority;
+      if (isRead !== undefined) {
+        whereClause += ' AND is_read = :isRead';
+        replacements.isRead = isRead === 'true';
+      }
 
-      // Get notifications with sender info
-      const notifications = await Notification.findAll({
-        where: whereConditions,
-        include: [
-          {
-            model: User,
-            as: 'sender',
-            attributes: ['firstName', 'lastName', 'email'],
-            required: false
-          }
-        ],
-        limit: parseInt(limit),
-        offset: parseInt(offset),
-        order: [
-          ['priority', 'DESC'],
-          ['createdAt', 'DESC']
-        ]
+      // Parse metadata for category and priority filters
+      if (category) {
+        whereClause += " AND metadata->>'category' = :category";
+        replacements.category = category;
+      }
+
+      if (priority) {
+        whereClause += " AND metadata->>'priority' = :priority";
+        replacements.priority = priority;
+      }
+
+      // Add expiration filter
+      whereClause += ' AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)';
+
+      // Get notifications using raw SQL - build the full query
+      let fullQuery = `
+        SELECT 
+          id,
+          user_id as recipientId,
+          title,
+          message,
+          type,
+          is_read as isRead,
+          read_at as readAt,
+          action_url as actionUrl,
+          action_text as actionText,
+          expires_at as expiresAt,
+          metadata,
+          created_at as createdAt
+        FROM notifications 
+        WHERE user_id = '${userId}'
+      `;
+      
+      if (isRead !== undefined) {
+        fullQuery += ` AND is_read = ${isRead === 'true'}`;
+      }
+      
+      if (category) {
+        fullQuery += ` AND metadata->>'category' = '${category}'`;
+      }
+      
+      if (priority) {
+        fullQuery += ` AND metadata->>'priority' = '${priority}'`;
+      }
+      
+      fullQuery += ` AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+        ORDER BY 
+          CASE 
+            WHEN metadata->>'priority' = 'urgent' THEN 4
+            WHEN metadata->>'priority' = 'high' THEN 3
+            WHEN metadata->>'priority' = 'medium' THEN 2
+            ELSE 1
+          END DESC,
+          created_at DESC
+        LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}
+      `;
+
+      const notifications = await sequelize.query(fullQuery, {
+        type: QueryTypes.SELECT
+      });
+
+      // Parse metadata for each notification
+      const formattedNotifications = notifications.map(notif => {
+        let parsedMetadata = {};
+        try {
+          parsedMetadata = typeof notif.metadata === 'string' ? JSON.parse(notif.metadata) : (notif.metadata || {});
+        } catch (e) {
+          parsedMetadata = {};
+        }
+        
+        return {
+          ...notif,
+          metadata: parsedMetadata,
+          category: parsedMetadata?.category || 'general',
+          priority: parsedMetadata?.priority || 'medium'
+        };
       });
 
       // Get unread count
-      const unreadCount = await Notification.count({
-        where: {
-          recipientId,
-          isRead: false,
-          [Op.or]: [
-            { expiresAt: null },
-            { expiresAt: { [Op.gt]: new Date() } }
-          ]
-        }
+      const [unreadResult] = await sequelize.query(`
+        SELECT COUNT(*) as count 
+        FROM notifications 
+        WHERE user_id = '${userId}' 
+        AND is_read = false 
+        AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+      `, {
+        type: QueryTypes.SELECT
       });
 
-      // Get total count
-      const totalCount = await Notification.count({
-        where: whereConditions
+      // Get total count - build count query
+      let countQuery = `SELECT COUNT(*) as count FROM notifications WHERE user_id = '${userId}'`;
+      
+      if (isRead !== undefined) {
+        countQuery += ` AND is_read = ${isRead === 'true'}`;
+      }
+      
+      if (category) {
+        countQuery += ` AND metadata->>'category' = '${category}'`;
+      }
+      
+      if (priority) {
+        countQuery += ` AND metadata->>'priority' = '${priority}'`;
+      }
+      
+      countQuery += ` AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)`;
+
+      const [totalResult] = await sequelize.query(countQuery, {
+        type: QueryTypes.SELECT
       });
 
-      logger.info(`Retrieved ${notifications.length} notifications for user ${recipientId}`);
+      logger.info(`Retrieved ${formattedNotifications.length} notifications for user ${userId}`);
 
       res.json({
-        notifications,
-        unreadCount,
-        totalCount,
+        notifications: formattedNotifications,
+        unreadCount: parseInt(unreadResult.count),
+        totalCount: parseInt(totalResult.count),
         pagination: {
           limit: parseInt(limit),
           offset: parseInt(offset),
-          hasMore: (parseInt(offset) + parseInt(limit)) < totalCount
+          hasMore: (parseInt(offset) + parseInt(limit)) < parseInt(totalResult.count)
         }
       });
 
@@ -235,35 +306,32 @@ router.put('/:id/read',
       }
 
       const { id } = req.params;
-      const userId = req.user.id;
+      const userId = req.user.userId;
 
-      // Find notification
-      const notification = await Notification.findByPk(id);
-      if (!notification) {
-        return res.status(404).json({ message: 'Notification not found' });
-      }
+      // Update notification using raw SQL
+      const [result] = await sequelize.query(`
+        UPDATE notifications 
+        SET is_read = true, read_at = CURRENT_TIMESTAMP 
+        WHERE id = '${id}' AND user_id = '${userId}'
+        RETURNING id, is_read, read_at
+      `, {
+        type: sequelize.QueryTypes.UPDATE
+      });
 
-      // Check if user owns this notification
-      if (notification.recipientId !== userId) {
-        return res.status(403).json({
-          message: 'You are not authorized to update this notification'
+      if (!result || result.length === 0) {
+        return res.status(404).json({ 
+          message: 'Notification not found or you are not authorized to update it' 
         });
       }
-
-      // Mark as read and popup shown
-      await notification.update({
-        isRead: true,
-        popupShown: true
-      });
 
       logger.info(`Notification ${id} marked as read by user ${userId}`);
 
       res.json({
         message: 'Notification marked as read',
         notification: {
-          id: notification.id,
-          isRead: notification.isRead,
-          popupShown: notification.popupShown
+          id: result[0].id,
+          isRead: result[0].is_read,
+          readAt: result[0].read_at
         }
       });
 
@@ -293,25 +361,20 @@ router.put('/read-all',
   authenticateToken,
   async (req, res) => {
     try {
-      const userId = req.user.id;
+      const userId = req.user.userId;
 
-      // Mark all unread notifications as read
-      const [affectedRows] = await Notification.update(
-        {
-          isRead: true,
-          popupShown: true
-        },
-        {
-          where: {
-            recipientId: userId,
-            isRead: false,
-            [Op.or]: [
-              { expiresAt: null },
-              { expiresAt: { [Op.gt]: new Date() } }
-            ]
-          }
-        }
-      );
+      // Mark all unread notifications as read using raw SQL
+      const [result] = await sequelize.query(`
+        UPDATE notifications 
+        SET is_read = true, read_at = CURRENT_TIMESTAMP 
+        WHERE user_id = '${userId}' 
+        AND is_read = false 
+        AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+      `, {
+        type: sequelize.QueryTypes.UPDATE
+      });
+
+      const affectedRows = result.rowCount || 0;
 
       logger.info(`${affectedRows} notifications marked as read by user ${userId}`);
 
@@ -364,23 +427,24 @@ router.delete('/:id',
       }
 
       const { id } = req.params;
-      const userId = req.user.id;
+      const userId = req.user.userId;
 
-      // Find notification
-      const notification = await Notification.findByPk(id);
-      if (!notification) {
-        return res.status(404).json({ message: 'Notification not found' });
-      }
+      // Delete notification using raw SQL
+      const result = await sequelize.query(`
+        DELETE FROM notifications 
+        WHERE id = '${id}' AND user_id = '${userId}'
+      `, {
+        type: sequelize.QueryTypes.DELETE
+      });
 
-      // Check if user owns this notification
-      if (notification.recipientId !== userId) {
-        return res.status(403).json({
-          message: 'You are not authorized to delete this notification'
+      // For DELETE queries, check the result metadata
+      const deletedRows = (result && result[1] && result[1].rowCount) ? result[1].rowCount : 0;
+      
+      if (deletedRows === 0) {
+        return res.status(404).json({ 
+          message: 'Notification not found or you are not authorized to delete it' 
         });
       }
-
-      // Delete notification
-      await notification.destroy();
 
       logger.info(`Notification ${id} deleted by user ${userId}`);
 
@@ -708,7 +772,7 @@ router.get('/unread-count',
   authenticateToken,
   async (req, res) => {
     try {
-      const userId = req.user.id;
+      const userId = req.user.userId;
 
       // Get total unread count
       const unreadCount = await Notification.count({
@@ -722,18 +786,20 @@ router.get('/unread-count',
         }
       });
 
-      // Get urgent unread count
-      const urgentCount = await Notification.count({
-        where: {
-          recipientId: userId,
-          isRead: false,
-          priority: 'urgent',
-          [Op.or]: [
-            { expiresAt: null },
-            { expiresAt: { [Op.gt]: new Date() } }
-          ]
-        }
+      // Get urgent unread count from metadata
+      const [urgentResult] = await sequelize.query(`
+        SELECT COUNT(*) as count 
+        FROM notifications 
+        WHERE user_id = :userId 
+        AND is_read = false 
+        AND metadata->>'priority' = 'urgent'
+        AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+      `, {
+        replacements: { userId },
+        type: QueryTypes.SELECT
       });
+      
+      const urgentCount = parseInt(urgentResult.count) || 0;
 
       res.json({
         unreadCount,

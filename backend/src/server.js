@@ -46,6 +46,7 @@ const majorRoutes = require('./routes/majors');
 const timetableRoutes = require('./routes/timetables');
 const complaintRoutes = require('./routes/complaints');
 const notificationRoutes = require('./routes/notifications');
+const assignmentRoutes = require('./routes/assignments');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -121,6 +122,7 @@ app.use('/api/majors', majorRoutes);
 app.use('/api/timetables', timetableRoutes);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/assignments', assignmentRoutes);
 
 // API documentation
 if (process.env.NODE_ENV !== 'production') {
