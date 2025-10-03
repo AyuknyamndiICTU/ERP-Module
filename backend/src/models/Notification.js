@@ -10,16 +10,7 @@ const Notification = sequelize.define('Notification', {
   recipientId: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    field: 'recipient_id',
-    references: {
-      model: 'users',
-      key: 'id'
-    }
-  },
-  senderId: {
-    type: DataTypes.INTEGER,
-    allowNull: true,
-    field: 'sender_id',
+    field: 'user_id',
     references: {
       model: 'users',
       key: 'id'
@@ -37,28 +28,25 @@ const Notification = sequelize.define('Notification', {
     type: DataTypes.ENUM('info', 'warning', 'error', 'success', 'reminder'),
     defaultValue: 'info'
   },
-  category: {
-    type: DataTypes.ENUM('academic', 'finance', 'system', 'complaint', 'deadline', 'general'),
-    defaultValue: 'general'
-  },
   isRead: {
     type: DataTypes.BOOLEAN,
     defaultValue: false,
     field: 'is_read'
   },
-  isPopup: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: false,
-    field: 'is_popup'
+  readAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'read_at'
   },
-  popupShown: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: false,
-    field: 'popup_shown'
+  actionUrl: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'action_url'
   },
-  priority: {
-    type: DataTypes.ENUM('low', 'medium', 'high', 'urgent'),
-    defaultValue: 'medium'
+  actionText: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'action_text'
   },
   expiresAt: {
     type: DataTypes.DATE,
