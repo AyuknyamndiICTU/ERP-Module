@@ -81,7 +81,6 @@ StudentFinance.belongsTo(User, { foreignKey: 'blockedBy', as: 'blocker' });
 
 // Notification associations
 Notification.belongsTo(User, { foreignKey: 'recipientId', as: 'recipient' });
-Notification.belongsTo(User, { foreignKey: 'senderId', as: 'sender' });
 
 // Complaint associations
 Complaint.belongsTo(User, { foreignKey: 'studentId', as: 'student' });
@@ -90,6 +89,8 @@ Complaint.belongsTo(User, { foreignKey: 'handlerId', as: 'handler' });
 // Timetable associations
 Timetable.belongsTo(Course, { foreignKey: 'courseId', as: 'course' });
 Timetable.belongsTo(User, { foreignKey: 'lecturerId', as: 'lecturer' });
+Timetable.belongsTo(Faculty, { foreignKey: 'facultyId', as: 'faculty' });
+Timetable.belongsTo(Major, { foreignKey: 'majorId', as: 'major' });
 
 // Enrollment associations
 Enrollment.belongsTo(Student, { foreignKey: 'studentId', as: 'student' });
