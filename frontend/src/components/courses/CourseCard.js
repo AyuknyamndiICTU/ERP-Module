@@ -20,7 +20,7 @@ import {
   Visibility
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
-import RoleGuard from '../common/RoleGuard';
+import RoleGuard from '../Common/RoleGuard';
 
 const CourseCard = ({ course, onEdit, onDelete, onView }) => {
   const { user } = useAuth();

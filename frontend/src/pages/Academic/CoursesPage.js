@@ -1,39 +1,120 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
   Grid,
   Button,
   TextField,
-  InputAdornment,
-  Chip,
-  Avatar,
-
-  Menu,
-  MenuItem,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
+  Chip,
+  Snackbar,
+  Alert,
+  CircularProgress,
   FormControl,
   InputLabel,
   Select,
+  MenuItem,
+  InputAdornment,
+  Avatar,
+  LinearProgress,
+  Card,
+  CardContent,
+  CardActions,
+  Menu,
   keyframes,
+  Tooltip,
+  IconButton,
 } from '@mui/material';
 import {
-  Add as AddIcon,
   Search as SearchIcon,
   FilterList as FilterIcon,
+  Add as AddIcon,
   School as SchoolIcon,
+  Code as CodeIcon,
+  Science as ScienceIcon,
+  Business as BusinessIcon,
+  Engineering as EngineeringIcon,
+  Computer as ComputerIcon,
+  Psychology as PsychologyIcon,
+  Star as StarIcon,
   Person as PersonIcon,
   Schedule as ScheduleIcon,
+  LocationOn as LocationIcon,
   Group as GroupIcon,
+  TrendingUp as TrendingUpIcon,
+  Assignment as AssignmentIcon,
   Edit as EditIcon,
+  Visibility as VisibilityIcon,
+  Delete as DeleteIcon,
+  PlayArrow as PlayIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
-import GlassCard, { FeatureCard } from '../../components/GlassCard';
+import { academicAPI } from '../../services/api';
 
-// Enhanced Animation keyframes
+// Mock data for fallback when API is unavailable
+const mockCourses = [
+  {
+    id: 1,
+    courseCode: 'CS101',
+    courseName: 'Introduction to Computer Science',
+    description: 'Basic concepts of computer science and programming fundamentals',
+    instructorName: 'Dr. John Smith',
+    credits: 3,
+    department: 'Computer Science',
+    semester: 'Fall',
+    academicYear: 2024,
+    difficulty: 'Undergraduate',
+    status: 'active',
+    category: 'core',
+    maxEnrollment: 50,
+    currentEnrollment: 35,
+    prerequisites: 'None',
+    faculty: 'Faculty of Engineering and Technology',
+    schedule: 'MWF 10:00-11:00 AM'
+  },
+  {
+    id: 2,
+    courseCode: 'MATH201',
+    courseName: 'Advanced Mathematics',
+    description: 'Advanced mathematical concepts for engineering students',
+    instructorName: 'Prof. Jane Doe',
+    credits: 4,
+    department: 'Mathematics',
+    semester: 'Spring',
+    academicYear: 2024,
+    difficulty: 'Undergraduate',
+    status: 'active',
+    category: 'core',
+    maxEnrollment: 40,
+    currentEnrollment: 28,
+    prerequisites: 'MATH101',
+    faculty: 'Faculty of Sciences',
+    schedule: 'TTH 2:00-3:30 PM'
+  },
+  {
+    id: 3,
+    courseCode: 'BA301',
+    courseName: 'Principles of Management',
+    description: 'Introduction to business management principles and practices',
+    instructorName: 'Dr. Sarah Wilson',
+    credits: 3,
+    department: 'Business Administration',
+    semester: 'Fall',
+    academicYear: 2024,
+    difficulty: 'Undergraduate',
+    status: 'active',
+    category: 'core',
+    maxEnrollment: 45,
+    currentEnrollment: 32,
+    prerequisites: 'BA101',
+    faculty: 'Faculty of Business and Management',
+    schedule: 'MWF 1:00-2:00 PM'
+  }
+];
+// Animation keyframes
 const fadeInUp = keyframes`
   from {
     opacity: 0;
@@ -45,7 +126,7 @@ const fadeInUp = keyframes`
   }
 `;
 
-const slideIn = keyframes`
+const slideInLeft = keyframes`
   from {
     opacity: 0;
     transform: translateX(-30px);
@@ -56,32 +137,19 @@ const slideIn = keyframes`
   }
 `;
 
-const scaleIn = keyframes`
-  from {
-    opacity: 0;
-    transform: scale(0.9);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-`;
-
-const pulse = keyframes`
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-  100% {
-    transform: scale(1);
-  }
-`;
-
 const CoursesPage = () => {
   const { user } = useAuth();
+
+  // Development logging helper
+  const devLog = (message, ...args) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(message, ...args);
+    }
+  };
+  
+  // State management
   const [courses, setCourses] = useState([]);
+  const [filteredCourses, setFilteredCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterAnchorEl, setFilterAnchorEl] = useState(null);
@@ -89,227 +157,380 @@ const CoursesPage = () => {
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [courseDialogOpen, setCourseDialogOpen] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState(null);
-  const [addCourseDialog, setAddCourseDialog] = useState(false);
-  const [restrictionDialog, setRestrictionDialog] = useState(false);
-  const [newCourse, setNewCourse] = useState({
-    code: '',
+  const [addCourseDialogOpen, setAddCourseDialogOpen] = useState(false);
+  const [editingCourse, setEditingCourse] = useState(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  
+  // Form state for adding/editing courses
+  const [courseForm, setCourseForm] = useState({
     name: '',
+    code: '',
     description: '',
-    lecturer: '',
+    instructor: '',
     credits: '',
-    semester: '',
     department: '',
-    maxStudents: ''
+    semester: '',
+    schedule: '',
+    category: 'core',
+    difficulty: 'Undergraduate',
+    academicYear: new Date().getFullYear().toString(),
+    maxEnrollment: '50',
+    prerequisites: '',
+    status: 'active',
+    faculty: ''
   });
 
-  // Mock data for demonstration
-  const mockCourses = [
-    {
-      id: 1,
-      code: 'CS101',
-      name: 'Introduction to Computer Science',
-      description: 'Fundamental concepts of computer science and programming',
-      credits: 3,
-      semester: 'Fall',
-      year: 2024,
-      instructor_name: 'Dr. John Smith',
-      department_name: 'Computer Science',
-      enrolled_count: 45,
-      capacity: 50,
+  // Permission check
+  const canManageCourses = user?.role === 'admin' || user?.role === 'system_admin' || 
+                          user?.role === 'lecturer' || user?.role === 'faculty_coordinator' || 
+                          user?.role === 'major_coordinator';
+
+  // Helper function to get category icon
+  const getCategoryIcon = (category) => {
+    switch (category) {
+      case 'Programming': return <CodeIcon fontSize="small" />;
+      case 'Business': return <BusinessIcon fontSize="small" />;
+      case 'Engineering': return <EngineeringIcon fontSize="small" />;
+      case 'Web Development': return <ComputerIcon fontSize="small" />;
+      case 'Networking': return <SchoolIcon fontSize="small" />;
+      case 'Database': return <SchoolIcon fontSize="small" />;
+      case 'Artificial Intelligence': return <TrendingUpIcon fontSize="small" />;
+      default: return <SchoolIcon fontSize="small" />;
+    }
+  };
+
+  // Helper function to get course color based on difficulty
+  const getCourseColor = (difficulty) => {
+    switch (difficulty?.toLowerCase()) {
+      case 'undergraduate':
+        return 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+      case 'master':
+        return 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)';
+      case 'phd':
+        return 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)';
+      default:
+        return 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+    }
+  };
+
+  // Transform course data to match ICTUCoursesPage format
+  const transformCourseData = (course) => {
+    return {
+      id: course.id,
+      code: course.courseCode || course.code,
+      name: course.courseName || course.name,
+      description: course.description || 'No description available',
+      credits: course.credits || 3,
+      semester: course.semester || 'Fall',
+      year: course.academicYear || new Date().getFullYear(),
+      instructor_name: course.instructorName || 'To Be Assigned',
+      instructor_avatar: course.instructorName ? course.instructorName.split(' ').map(n => n[0]).join('').toUpperCase() : 'TBA',
+      department_name: course.department || 'General',
+      faculty: course.faculty || 'Faculty of Engineering and Technology',
+      enrolled_count: course.currentEnrollment || 0,
+      capacity: course.maxEnrollment || 50,
+      progress: Math.floor(Math.random() * 100), // Mock progress for now
+      difficulty: course.difficulty || 'Undergraduate',
+      rating: 4.5 + Math.random() * 0.5, // Mock rating
+      color: getCourseColor(course.difficulty),
       schedule: {
         days: ['Monday', 'Wednesday', 'Friday'],
         time: '10:00 AM - 11:00 AM',
-        room: 'CS-101'
+        room: 'Room TBA'
       },
-      status: 'active'
-    },
-    {
-      id: 2,
-      code: 'MATH201',
-      name: 'Calculus II',
-      description: 'PhD calculus including integration techniques and series',
-      credits: 4,
-      semester: 'Fall',
-      year: 2024,
-      instructor_name: 'Dr. Sarah Johnson',
-      department_name: 'Mathematics',
-      enrolled_count: 38,
-      capacity: 40,
-      schedule: {
-        days: ['Tuesday', 'Thursday'],
-        time: '2:00 PM - 3:30 PM',
-        room: 'MATH-205'
-      },
-      status: 'active'
-    },
-    {
-      id: 3,
-      code: 'ENG102',
-      name: 'English Composition',
-      description: 'PhD writing and composition skills',
-      credits: 3,
-      semester: 'Spring',
-      year: 2024,
-      instructor_name: 'Prof. Emily Davis',
-      department_name: 'English',
-      enrolled_count: 28,
-      capacity: 30,
-      schedule: {
-        days: ['Monday', 'Wednesday'],
-        time: '1:00 PM - 2:30 PM',
-        room: 'ENG-110'
-      },
-      status: 'active'
-    },
-    {
-      id: 4,
-      code: 'PHYS301',
-      name: 'Quantum Physics',
-      description: 'Introduction to quantum mechanics and modern physics',
-      credits: 4,
-      semester: 'Fall',
-      year: 2024,
-      instructor_name: 'Dr. Michael Chen',
-      department_name: 'Physics',
-      enrolled_count: 22,
-      capacity: 25,
-      schedule: {
-        days: ['Monday', 'Wednesday', 'Friday'],
-        time: '11:00 AM - 12:00 PM',
-        room: 'PHYS-201'
-      },
-      status: 'active'
+      status: course.status || 'active',
+      category: course.category || 'General',
+      prerequisites: course.prerequisites || 'None',
+      objectives: [
+        'Master fundamental concepts',
+        'Apply practical skills',
+        'Develop problem-solving abilities'
+      ]
+    };
+  };
+
+  // Fetch courses from API with rate limiting handling
+  const fetchCourses = useCallback(async (retryCount = 0) => {
+    try {
+      setLoading(true);
+      devLog('Fetching courses...');
+      
+      // Add a small delay to prevent rate limiting
+      if (retryCount > 0) {
+        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+      }
+      
+      const response = await academicAPI.getCourses();
+      devLog('Courses response:', response);
+      
+      // Handle different response structures
+      const success = response?.data?.success || response?.success || (response?.status >= 200 && response?.status < 300);
+      const coursesData = response?.data?.data || response?.data?.courses || response?.data || [];
+      
+      if (success && Array.isArray(coursesData)) {
+        setCourses(coursesData);
+        setFilteredCourses(coursesData);
+        devLog('Courses loaded successfully:', coursesData.length, 'courses');
+      } else {
+        // Fallback to mock data if API fails
+        setCourses(mockCourses);
+        setFilteredCourses(mockCourses);
+      }
+    } catch (error) {
+      devLog('Error fetching courses:', error);
+      
+      // Handle rate limiting specifically
+      if (error?.response?.status === 429 && retryCount < 2) {
+        devLog(`Rate limited, retrying in ${(retryCount + 1) * 2} seconds...`);
+        setTimeout(() => fetchCourses(retryCount + 1), (retryCount + 1) * 2000);
+        return;
+      }
+      
+      // For other errors or max retries reached, use fallback data
+      setCourses(mockCourses);
+      setFilteredCourses(mockCourses);
+      
+      const errorMessage = error?.response?.data?.error || 
+                          error?.response?.data?.message || 
+                          error?.message || 
+                          'API error';
+      
+      // Only show warning for non-rate-limit errors or after max retries
+      if (error?.response?.status !== 429 || retryCount >= 2) {
+        showSnackbar(`Using sample data - ${errorMessage}`, 'warning');
+      }
+    } finally {
+      setLoading(false);
     }
-  ];
+  }, [devLog]);
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setCourses(mockCourses);
-      setLoading(false);
-    }, 1000);
-  }, []);
+    // Only fetch courses once when component mounts
+    const timeoutId = setTimeout(() => {
+      fetchCourses();
+    }, 100); // Small delay to prevent rapid API calls
 
-  const filteredCourses = courses.filter(course => {
-    const matchesSearch = course.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         course.instructor_name.toLowerCase().includes(searchTerm.toLowerCase());
+    return () => clearTimeout(timeoutId);
+  }, []); // Empty dependency array to run only once
 
-    const matchesSemester = !selectedSemester || course.semester === selectedSemester;
-    const matchesDepartment = !selectedDepartment || course.department_name === selectedDepartment;
+  // Filter courses
+  useEffect(() => {
+    let filtered = courses.filter(course => {
+      const matchesSearch =
+        course.courseCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        course.courseName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        course.instructorName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        course.department?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    return matchesSearch && matchesSemester && matchesDepartment;
-  });
+      const matchesSemester = !selectedSemester || course.semester === selectedSemester;
+      const matchesDepartment = !selectedDepartment || course.department === selectedDepartment;
 
-  const handleFilterClick = (event) => {
-    setFilterAnchorEl(event.currentTarget);
-  };
+      return matchesSearch && matchesSemester && matchesDepartment;
+    });
+    setFilteredCourses(filtered);
+  }, [courses, searchTerm, selectedSemester, selectedDepartment]);
 
-  const handleFilterClose = () => {
-    setFilterAnchorEl(null);
-  };
-
-  const handleCourseClick = (course) => {
-    setSelectedCourse(course);
-    setCourseDialogOpen(true);
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'active': return 'success';
-      case 'inactive': return 'warning';
-      case 'archived': return 'default';
-      default: return 'default';
-    }
-  };
-
-  const handleAddCourse = () => {
-    if (user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'lecturer' || user?.role === 'faculty_coordinator' || user?.role === 'major_coordinator') {
-      setAddCourseDialog(true);
-    } else {
-      setRestrictionDialog(true);
-    }
-  };
-
-  const handleSaveCourse = () => {
-    // Validate required fields
-    if (!newCourse.code || !newCourse.name || !newCourse.lecturer) {
-      alert('Please fill in all required fields');
-      return;
-    }
-
-    // Add the new course to the list
-    const courseToAdd = {
-      id: courses.length + 1,
-      code: newCourse.code,
-      name: newCourse.name,
-      description: newCourse.description,
-      instructor_name: newCourse.lecturer,
-      credits: parseInt(newCourse.credits) || 3,
-      semester: newCourse.semester || 'Fall 2024',
-      department_name: newCourse.department || 'Computer Science',
-      enrolled_students: 0,
-      max_students: parseInt(newCourse.maxStudents) || 30,
-      status: 'active'
-    };
-
-    setCourses([...courses, courseToAdd]);
-    setAddCourseDialog(false);
-    setNewCourse({
-      code: '',
-      name: '',
-      description: '',
-      lecturer: '',
-      credits: '',
-      semester: '',
-      department: '',
-      maxStudents: ''
+  // Utility functions
+  const showSnackbar = (message, severity = 'success') => {
+    setSnackbar({
+      open: true,
+      message,
+      severity
     });
   };
 
-  const handleCourseInputChange = (field, value) => {
-    setNewCourse(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  const handleFilterClick = (event) => setFilterAnchorEl(event.currentTarget);
+  const handleFilterClose = () => setFilterAnchorEl(null);
+
+  const handleCourseClick = (course) => {
+    setSelectedCourse(transformCourseData(course));
+    setCourseDialogOpen(true);
   };
 
-  const getEnrollmentColor = (enrolled, capacity) => {
-    const percentage = (enrolled / capacity) * 100;
-    if (percentage >= 90) return '#ef4444';
-    if (percentage >= 75) return '#f59e0b';
-    return '#10b981';
+  const handleAddCourse = () => {
+    setAddCourseDialogOpen(true);
   };
 
-  const getRandomGradient = (index) => {
-    const gradients = [
-      'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-      'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-      'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-      'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-      'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
-      'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
-      'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)'
-    ];
-    return gradients[index % gradients.length];
+  const handleEditCourse = (course) => {
+    setEditingCourse(course);
+    setCourseForm({
+      name: course.courseName || course.name || '',
+      code: course.courseCode || course.code || '',
+      description: course.description || '',
+      instructor: course.instructorName || course.instructor || '',
+      credits: course.credits?.toString() || '',
+      department: course.department || '',
+      semester: course.semester || '',
+      schedule: course.schedule || '',
+      category: course.category || 'core',
+      difficulty: course.difficulty || 'Undergraduate',
+      academicYear: course.academicYear?.toString() || new Date().getFullYear().toString(),
+      maxEnrollment: course.maxEnrollment?.toString() || '50',
+      prerequisites: course.prerequisites || '',
+      status: course.status || 'active',
+      faculty: course.faculty || ''
+    });
+    setAddCourseDialogOpen(true);
   };
 
+  const handleDeleteCourse = async (courseId) => {
+    if (window.confirm('Are you sure you want to delete this course? This action cannot be undone.')) {
+      try {
+        devLog('Deleting course with ID:', courseId);
+        const response = await academicAPI.deleteCourse(courseId);
+        devLog('Delete response:', response);
+        
+        // Handle different response structures
+        const success = response?.data?.success || response?.success || (response?.status >= 200 && response?.status < 300);
+        
+        if (success) {
+          showSnackbar('Course deleted successfully', 'success');
+          fetchCourses();
+        } else {
+          const errorMessage = response?.data?.error || response?.data?.message || response?.message || 'Failed to delete course';
+          showSnackbar(errorMessage, 'error');
+        }
+      } catch (error) {
+        devLog('Error deleting course:', error);
+        const errorMessage = error?.response?.data?.error || 
+                            error?.response?.data?.message || 
+                            error?.message || 
+                            'Error deleting course';
+        showSnackbar(errorMessage, 'error');
+      }
+    }
+  };
+
+  const handleSaveCourse = async () => {
+    try {
+      // Validate required fields
+      if (!courseForm.name || !courseForm.code || !courseForm.instructor || !courseForm.credits) {
+        showSnackbar('Please fill in all required fields', 'error');
+        return;
+      }
+
+      // Prepare course data with proper field mapping
+      const courseData = {
+        courseName: courseForm.name.trim(),
+        courseCode: courseForm.code.trim().toUpperCase(),
+        description: courseForm.description.trim(),
+        instructorName: courseForm.instructor.trim(),
+        credits: parseInt(courseForm.credits) || 3,
+        department: courseForm.department,
+        semester: courseForm.semester,
+        schedule: courseForm.schedule.trim(),
+        category: courseForm.category,
+        difficulty: courseForm.difficulty,
+        academicYear: parseInt(courseForm.academicYear) || new Date().getFullYear(),
+        maxEnrollment: parseInt(courseForm.maxEnrollment) || 50,
+        prerequisites: courseForm.prerequisites?.trim() || '',
+        status: courseForm.status || 'active',
+        faculty: courseForm.faculty?.trim() || ''
+      };
+
+      devLog('Saving course data:', courseData);
+
+      let response;
+      try {
+        if (editingCourse) {
+          devLog('Updating course with ID:', editingCourse.id);
+          // Try different API endpoint patterns
+          response = await academicAPI.updateCourse(editingCourse.id, courseData);
+        } else {
+          devLog('Creating new course');
+          response = await academicAPI.createCourse(courseData);
+        }
+      } catch (apiError) {
+        devLog('API call failed:', apiError);
+        
+        // If API fails, show a more specific error message
+        if (apiError.response) {
+          // Server responded with error status
+          const status = apiError.response.status;
+          const errorData = apiError.response.data;
+          
+          if (status === 429) {
+            showSnackbar('Too many requests. Please wait a moment and try again.', 'warning');
+          } else if (status === 404) {
+            showSnackbar('API endpoint not found. Please check if the backend server is running.', 'error');
+          } else if (status === 401) {
+            showSnackbar('Authentication required. Please log in again.', 'error');
+          } else if (status === 403) {
+            showSnackbar('You do not have permission to perform this action.', 'error');
+          } else if (status === 500) {
+            showSnackbar(`Server error: ${errorData?.error || errorData?.message || 'Internal server error'}`, 'error');
+          } else {
+            showSnackbar(`Error ${status}: ${errorData?.error || errorData?.message || 'Unknown error'}`, 'error');
+          }
+        } else if (apiError.request) {
+          // Network error
+          showSnackbar('Network error. Please check your connection and ensure the backend server is running.', 'error');
+        } else {
+          // Other error
+          showSnackbar(`Request error: ${apiError.message}`, 'error');
+        }
+        return;
+      }
+
+      devLog('API Response:', response);
+
+      // Handle different response structures
+      const success = response?.data?.success !== false && (response?.status >= 200 && response?.status < 300);
+      
+      if (success) {
+        showSnackbar(
+          editingCourse ? 'Course updated successfully' : 'Course created successfully',
+          'success'
+        );
+        setAddCourseDialogOpen(false);
+        setEditingCourse(null);
+        setCourseForm({
+          name: '',
+          code: '',
+          description: '',
+          instructor: '',
+          credits: '',
+          department: '',
+          semester: '',
+          schedule: '',
+          category: 'core',
+          difficulty: 'Undergraduate',
+          academicYear: new Date().getFullYear().toString(),
+          maxEnrollment: '50',
+          prerequisites: '',
+          status: 'active',
+          faculty: ''
+        });
+        fetchCourses();
+      } else {
+        const errorMessage = response?.data?.error || response?.data?.message || response?.message || 'Failed to save course';
+        showSnackbar(errorMessage, 'error');
+      }
+    } catch (error) {
+      devLog('Unexpected error saving course:', error);
+      showSnackbar('An unexpected error occurred while saving the course', 'error');
+    }
+  };
+
+  // ICTUCoursesPage-style CourseCard component
   const CourseCard = ({ course, index }) => (
-    <Box
+    <Card
       sx={{
-        animation: `${fadeInUp} 0.6s ease-out ${index * 0.1}s both`,
-        cursor: 'pointer',
         height: '100%',
-        borderRadius: 3,
+        borderRadius: 4,
         overflow: 'hidden',
-        background: 'rgba(255, 255, 255, 0.1)',
-        backdropFilter: 'blur(10px)',
-        border: '1px solid rgba(255, 255, 255, 0.2)',
-        transition: 'all 0.3s ease',
+        background: 'rgba(255, 255, 255, 0.98)',
+        backdropFilter: 'blur(20px)',
+        border: '1px solid rgba(0, 0, 0, 0.08)',
+        transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+        animation: `${fadeInUp} 0.6s ease-out ${index * 0.08}s both`,
+        cursor: 'pointer',
+        position: 'relative',
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
         '&:hover': {
-          transform: 'translateY(-8px)',
-          boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+          transform: 'translateY(-10px) scale(1.01)',
+          boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
+          border: '1px solid rgba(25, 118, 210, 0.2)',
         }
       }}
       onClick={() => handleCourseClick(course)}
@@ -317,7 +538,7 @@ const CoursesPage = () => {
       {/* Header with gradient */}
       <Box
         sx={{
-          background: getRandomGradient(index),
+          background: course.color,
           p: 3,
           color: 'white',
           position: 'relative',
@@ -326,31 +547,75 @@ const CoursesPage = () => {
       >
         <Box sx={{ position: 'relative', zIndex: 2 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-            <Typography variant="h5" fontWeight="700" sx={{ color: 'white' }}>
-              {course.code}
-            </Typography>
-            <Chip
-              label={course.status}
-              sx={{
-                bgcolor: 'rgba(255,255,255,0.2)',
-                color: 'white',
-                fontWeight: 600,
-                border: '1px solid rgba(255,255,255,0.3)'
-              }}
-              size="small"
-            />
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="h5" fontWeight="700" sx={{ color: 'white' }}>
+                {course.code}
+              </Typography>
+              {getCategoryIcon(course.category)}
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Chip
+                label={course.difficulty}
+                size="small"
+                sx={{
+                  bgcolor: 'rgba(255,255,255,0.2)',
+                  color: 'white',
+                  fontWeight: 600,
+                  border: '1px solid rgba(255,255,255,0.3)'
+                }}
+              />
+              {canManageCourses && (
+                <Tooltip title="Edit Course">
+                  <IconButton 
+                    size="small" 
+                    sx={{ color: 'white' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditCourse(course);
+                    }}
+                  >
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </Box>
           </Box>
 
           <Typography variant="h6" sx={{ mb: 1, fontWeight: 600, color: 'white' }}>
             {course.name}
           </Typography>
 
-          <Typography variant="body2" sx={{ opacity: 0.9, lineHeight: 1.5 }}>
-            {course.description?.substring(0, 80)}...
+          <Typography variant="body2" sx={{ opacity: 0.9, lineHeight: 1.5, mb: 2 }}>
+            {course.description?.substring(0, 100)}...
           </Typography>
+
+          {/* Progress bar */}
+          <Box sx={{ mb: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.85)' }}>
+                Course Progress
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'white', fontWeight: 600 }}>
+                {course.progress}%
+              </Typography>
+            </Box>
+            <LinearProgress
+              variant="determinate"
+              value={course.progress}
+              sx={{
+                height: 6,
+                borderRadius: 3,
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                '& .MuiLinearProgress-bar': {
+                  backgroundColor: 'rgba(255,255,255,0.85)',
+                  borderRadius: 3,
+                },
+              }}
+            />
+          </Box>
         </Box>
 
-        {/* Decorative elements */}
+        {/* Decorative bubble */}
         <Box
           sx={{
             position: 'absolute',
@@ -359,19 +624,18 @@ const CoursesPage = () => {
             width: 80,
             height: 80,
             borderRadius: '50%',
-            background: 'rgba(255,255,255,0.1)',
+            background: 'rgba(255,255,255,0.15)',
             zIndex: 1
           }}
         />
       </Box>
 
-      {/* Content */}
-      <Box sx={{ p: 3 }}>
+      <CardContent sx={{ p: 3 }}>
         {/* Instructor */}
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
           <Avatar
             sx={{
-              background: getRandomGradient(index),
+              background: course.color,
               width: 40,
               height: 40,
               mr: 2,
@@ -379,22 +643,28 @@ const CoursesPage = () => {
               fontWeight: 600
             }}
           >
-            {course.instructor_name?.split(' ').map(n => n[0]).join('')}
+            {course.instructor_avatar}
           </Avatar>
-          <Box>
+          <Box sx={{ flex: 1 }}>
             <Typography variant="body2" fontWeight="600" color="text.primary">
               {course.instructor_name}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Instructor
+              {course.department_name}
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <StarIcon sx={{ color: '#fbbf24', fontSize: '1rem', mr: 0.5 }} />
+            <Typography variant="caption" fontWeight="600">
+              {course.rating?.toFixed(1)}
             </Typography>
           </Box>
         </Box>
 
         {/* Course Details */}
         <Grid container spacing={2} sx={{ mb: 3 }}>
-          <Grid item xs={6}>
-            <Box sx={{ textAlign: 'center', p: 1.5, bgcolor: 'rgba(0,0,0,0.02)', borderRadius: 2 }}>
+          <Grid item xs={4}>
+            <Box sx={{ textAlign: 'center', p: 1.5, bgcolor: 'rgba(25, 118, 210, 0.05)', borderRadius: 2 }}>
               <Typography variant="h6" fontWeight="700" color="primary.main">
                 {course.credits}
               </Typography>
@@ -403,176 +673,192 @@ const CoursesPage = () => {
               </Typography>
             </Box>
           </Grid>
-          <Grid item xs={6}>
-            <Box sx={{ textAlign: 'center', p: 1.5, bgcolor: 'rgba(0,0,0,0.02)', borderRadius: 2 }}>
+          <Grid item xs={4}>
+            <Box sx={{ textAlign: 'center', p: 1.5, bgcolor: 'rgba(25, 118, 210, 0.05)', borderRadius: 2 }}>
               <Typography variant="h6" fontWeight="700" color="primary.main">
-                {course.enrolled_count || 0}
+                {course.enrolled_count}
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 Students
               </Typography>
             </Box>
           </Grid>
+          <Grid item xs={4}>
+            <Box sx={{ textAlign: 'center', p: 1.5, bgcolor: 'rgba(25, 118, 210, 0.05)', borderRadius: 2 }}>
+              <Typography variant="h6" fontWeight="700" color="primary.main">
+                {Math.max(1, Math.floor(course.progress / 10))}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Modules
+              </Typography>
+            </Box>
+          </Grid>
         </Grid>
 
-        {/* Progress and Status */}
+        {/* Enrollment Progress */}
         <Box sx={{ mb: 2 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
             <Typography variant="body2" color="text.secondary">
               Enrollment
             </Typography>
             <Typography variant="body2" fontWeight="600">
-              {course.enrolled_count || 0}/{course.max_students || course.capacity || 30}
+              {course.enrolled_count}/{course.capacity}
             </Typography>
           </Box>
-          <Box
+          <LinearProgress
+            variant="determinate"
+            value={(course.enrolled_count / course.capacity) * 100}
             sx={{
-              width: '100%',
               height: 8,
               borderRadius: 4,
-              background: '#f3f4f6',
-              position: 'relative',
-              overflow: 'hidden',
-            }}
-          >
-            <Box
-              sx={{
-                width: `${((course.enrolled_count || 0) / (course.max_students || course.capacity || 30)) * 100}%`,
-                height: '100%',
-                background: getRandomGradient(index),
+              backgroundColor: '#f3f4f6',
+              '& .MuiLinearProgress-bar': {
+                background: course.color,
                 borderRadius: 4,
-                transition: 'width 0.3s ease',
-              }}
-            />
-          </Box>
-        </Box>
-
-        {/* Footer */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="caption" color="text.secondary">
-            {course.semester} • {course.department_name}
-          </Typography>
-          <Chip
-            label="View Details"
-            size="small"
-            variant="outlined"
-            sx={{
-              borderColor: 'primary.main',
-              color: 'primary.main',
-              '&:hover': {
-                bgcolor: 'primary.main',
-                color: 'white'
-              }
+              },
             }}
           />
         </Box>
-      </Box>
-    </Box>
+
+        {/* Faculty and Prerequisites */}
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+            Faculty: {course.faculty}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Prerequisites: {course.prerequisites}
+          </Typography>
+        </Box>
+      </CardContent>
+
+      <CardActions sx={{ p: 3, pt: 0, justifyContent: 'space-between' }}>
+        <Box>
+          <Typography variant="caption" color="text.secondary">
+            {course.semester} {course.year} • {course.category}
+          </Typography>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          {canManageCourses && (
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<DeleteIcon />}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteCourse(course.id);
+              }}
+              color="error"
+              sx={{ textTransform: 'none' }}
+            >
+              Delete
+            </Button>
+          )}
+          <Button
+            variant="contained"
+            size="small"
+            startIcon={<PlayIcon />}
+            sx={{
+              background: course.color,
+              borderRadius: 2,
+              textTransform: 'none',
+              fontWeight: 600,
+              '&:hover': {
+                background: course.color,
+                opacity: 0.9,
+              },
+            }}
+          >
+            View Details
+          </Button>
+        </Box>
+      </CardActions>
+    </Card>
   );
 
   return (
-    <Box sx={{ 
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      p: 0
-    }}>
-      {/* Enhanced Header with Floating Elements */}
-      <Box sx={{ 
-        position: 'relative',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        borderRadius: '0 0 50px 50px',
-        p: 4,
-        mb: 4,
-        overflow: 'hidden',
-        '&::before': {
-          content: '""',
-          position: 'absolute',
-          top: '-50%',
-          right: '-10%',
-          width: '300px',
-          height: '300px',
-          background: 'rgba(255, 255, 255, 0.1)',
-          borderRadius: '50%',
-          animation: `${pulse} 4s ease-in-out infinite`,
-        },
-        '&::after': {
-          content: '""',
-          position: 'absolute',
-          bottom: '-30%',
-          left: '-5%',
-          width: '200px',
-          height: '200px',
-          background: 'rgba(255, 255, 255, 0.08)',
-          borderRadius: '50%',
-          animation: `${pulse} 3s ease-in-out infinite reverse`,
-        }
-      }}>
-        <Box sx={{ position: 'relative', zIndex: 1, animation: `${slideIn} 0.8s ease-out` }}>
-          <Typography
-            variant="h2"
-            component="h1"
-            sx={{
-              color: 'white',
-              fontWeight: 900,
-              mb: 2,
-              fontSize: { xs: '2.5rem', md: '3.5rem' },
-              textShadow: '0 4px 20px rgba(0,0,0,0.3)',
-              letterSpacing: '-0.02em'
-            }}
-          >
-            📚 Course Management
-          </Typography>
-          <Typography 
-            variant="h5" 
-            sx={{ 
-              color: 'rgba(255,255,255,0.9)',
-              fontWeight: 400,
-              fontSize: { xs: '1.1rem', md: '1.3rem' },
-              maxWidth: '600px'
-            }}
-          >
-            Manage courses, schedules, and enrollments
-          </Typography>
+    <Box sx={{ p: { xs: 2, sm: 3 } }}>
+      {/* Header */}
+      <Box sx={{ mb: 4, animation: `${slideInLeft} 0.8s ease-out` }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+          <Box>
+            <Typography
+              variant="h3"
+              component="h1"
+              sx={{
+                background: 'linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                fontWeight: 800,
+                mb: 1,
+                fontSize: { xs: '2rem', sm: '3rem' },
+              }}
+            >
+              Course Management
+            </Typography>
+            <Typography variant="h6" color="text.secondary">
+              Explore our comprehensive course catalog and manage academic programs
+            </Typography>
+          </Box>
+          
+          {canManageCourses && (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={handleAddCourse}
+              sx={{
+                background: 'linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)',
+                borderRadius: 3,
+                px: 3,
+                py: 1.5,
+                textTransform: 'none',
+                fontWeight: 600,
+                boxShadow: '0 8px 25px rgba(25, 118, 210, 0.3)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #1565c0 0%, #1976d2 100%)',
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 12px 35px rgba(25, 118, 210, 0.4)',
+                },
+                transition: 'all 0.3s ease',
+              }}
+            >
+              Add Course
+            </Button>
+          )}
         </Box>
       </Box>
 
-      <Box sx={{ px: 3 }}>
-        {/* Enhanced Search and Filter Bar */}
-        <GlassCard sx={{ 
-          mb: 4, 
-          animation: `${fadeInUp} 0.8s ease-out 0.2s both`,
-          background: 'rgba(255, 255, 255, 0.95)',
+      {/* Search and Filter Bar */}
+      <Card
+        sx={{
+          mb: 4,
+          borderRadius: 4,
+          background: 'rgba(255, 255, 255, 0.98)',
           backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
-          borderRadius: '20px',
-          p: 3
-        }}>
-          <Box sx={{ display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'wrap' }}>
+          border: '1px solid rgba(0, 0, 0, 0.08)',
+          animation: `${fadeInUp} 0.8s ease-out 0.2s both`,
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+        }}
+      >
+        <CardContent sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
             <TextField
-              placeholder="🔍 Search courses by name, code, or instructor..."
+              placeholder="Search courses, instructors, departments..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <SearchIcon sx={{ color: '#667eea' }} />
+                    <SearchIcon />
                   </InputAdornment>
                 ),
               }}
               sx={{ 
                 flexGrow: 1, 
-                minWidth: 350,
+                minWidth: 300,
                 '& .MuiOutlinedInput-root': {
-                  borderRadius: '15px',
-                  background: 'rgba(102, 126, 234, 0.05)',
-                  '&:hover': {
-                    background: 'rgba(102, 126, 234, 0.08)',
-                  },
-                  '&.Mui-focused': {
-                    background: 'rgba(102, 126, 234, 0.1)',
-                  }
-                }
+                  borderRadius: 3,
+                },
               }}
             />
 
@@ -581,62 +867,90 @@ const CoursesPage = () => {
               startIcon={<FilterIcon />}
               onClick={handleFilterClick}
               sx={{ 
-                minWidth: 140,
-                height: 56,
-                borderRadius: '15px',
-                fontWeight: 600,
-                borderColor: '#667eea',
-                color: '#667eea',
+                minWidth: 120,
+                borderRadius: 3,
+                borderWidth: 2,
                 '&:hover': {
-                  borderColor: '#5a67d8',
-                  background: 'rgba(102, 126, 234, 0.1)',
-                }
-              }}
-            >
-              🔧 Filters
-            </Button>
-
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleAddCourse}
-              sx={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                minWidth: 160,
-                height: 56,
-                borderRadius: '15px',
-                fontWeight: 700,
-                fontSize: '1rem',
-                textTransform: 'none',
-                boxShadow: '0 10px 30px rgba(102, 126, 234, 0.4)',
-                '&:hover': {
-                  background: 'linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%)',
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 15px 35px rgba(102, 126, 234, 0.5)',
+                  borderWidth: 2,
                 },
-                transition: 'all 0.3s ease'
               }}
             >
-              ➕ Add Course
+              Filters
             </Button>
           </Box>
-        </GlassCard>
+        </CardContent>
+      </Card>
 
-        {/* Enhanced Courses Grid */}
-        <Grid container spacing={3}>
-          {filteredCourses.map((course, index) => (
-            <Grid item xs={12} sm={6} lg={4} key={course.id}>
-              <CourseCard course={course} index={index} />
-            </Grid>
-          ))}
-        </Grid>
-      </Box>
+      {/* Loading State */}
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+          <CircularProgress size={60} />
+        </Box>
+      ) : (
+        <>
+          {/* Featured Courses Section */}
+          {filteredCourses.length > 0 && (
+            <Box sx={{ mb: 4 }}>
+              <Typography variant="h5" fontWeight="700" sx={{ mb: 3, color: 'text.primary' }}>
+                Featured Courses
+              </Typography>
+              
+              <Grid container spacing={3}>
+                {filteredCourses.slice(0, 2).map((course, index) => (
+                  <Grid item xs={12} md={6} key={course.id}>
+                    <CourseCard course={transformCourseData(course)} index={index} />
+                  </Grid>
+                ))}
+              </Grid>
+            </Box>
+          )}
+
+          {/* All Courses Section */}
+          <Box>
+            <Typography variant="h5" fontWeight="700" sx={{ mb: 3, color: 'text.primary' }}>
+              All Courses ({filteredCourses.length})
+            </Typography>
+            
+            {filteredCourses.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 8 }}>
+                <SchoolIcon sx={{ fontSize: 80, color: 'text.secondary', mb: 2 }} />
+                <Typography variant="h5" color="text.secondary" gutterBottom>
+                  No courses found
+                </Typography>
+                <Typography variant="body1" color="text.secondary">
+                  {searchTerm || selectedSemester || selectedDepartment 
+                    ? 'Try adjusting your search filters'
+                    : 'Start by adding your first course'
+                  }
+                </Typography>
+              </Box>
+            ) : (
+              <Grid container spacing={3}>
+                {filteredCourses.map((course, index) => (
+                  <Grid item xs={12} sm={6} lg={4} key={course.id}>
+                    <CourseCard course={transformCourseData(course)} index={index + 2} />
+                  </Grid>
+                ))}
+              </Grid>
+            )}
+          </Box>
+        </>
+      )}
 
       {/* Filter Menu */}
       <Menu
         anchorEl={filterAnchorEl}
         open={Boolean(filterAnchorEl)}
         onClose={handleFilterClose}
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            minWidth: 200,
+            background: 'rgba(255, 255, 255, 0.98)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(0, 0, 0, 0.08)',
+          },
+        }}
       >
         <MenuItem>
           <FormControl fullWidth size="small">
@@ -663,9 +977,12 @@ const CoursesPage = () => {
             >
               <MenuItem value="">All Departments</MenuItem>
               <MenuItem value="Computer Science">Computer Science</MenuItem>
-              <MenuItem value="Mathematics">Mathematics</MenuItem>
-              <MenuItem value="English">English</MenuItem>
-              <MenuItem value="Physics">Physics</MenuItem>
+              <MenuItem value="Software Engineering">Software Engineering</MenuItem>
+              <MenuItem value="Business Administration">Business Administration</MenuItem>
+              <MenuItem value="Network Engineering">Network Engineering</MenuItem>
+              <MenuItem value="Information Systems">Information Systems</MenuItem>
+              <MenuItem value="Web Technologies">Web Technologies</MenuItem>
+              <MenuItem value="Artificial Intelligence">Artificial Intelligence</MenuItem>
             </Select>
           </FormControl>
         </MenuItem>
@@ -677,13 +994,36 @@ const CoursesPage = () => {
         onClose={() => setCourseDialogOpen(false)}
         maxWidth="md"
         fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 4,
+            background: 'rgba(255, 255, 255, 0.98)',
+            backdropFilter: 'blur(20px)',
+          },
+        }}
       >
         {selectedCourse && (
           <>
             <DialogTitle>
-              <Typography variant="h5" fontWeight="700">
-                {selectedCourse.code} - {selectedCourse.name}
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Avatar
+                  sx={{
+                    background: selectedCourse.color,
+                    width: 50,
+                    height: 50,
+                  }}
+                >
+                  {selectedCourse.instructor_avatar}
+                </Avatar>
+                <Box>
+                  <Typography variant="h5" fontWeight="700">
+                    {selectedCourse.code} - {selectedCourse.name}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Instructor: {selectedCourse.instructor_name} • {selectedCourse.department_name}
+                  </Typography>
+                </Box>
+              </Box>
             </DialogTitle>
             <DialogContent>
               <Grid container spacing={3}>
@@ -698,10 +1038,13 @@ const CoursesPage = () => {
                     <strong>Credits:</strong> {selectedCourse.credits}
                   </Typography>
                   <Typography variant="body2" paragraph>
-                    <strong>Department:</strong> {selectedCourse.department_name}
+                    <strong>Faculty:</strong> {selectedCourse.faculty}
                   </Typography>
                   <Typography variant="body2" paragraph>
-                    <strong>Instructor:</strong> {selectedCourse.instructor_name}
+                    <strong>Difficulty:</strong> {selectedCourse.difficulty}
+                  </Typography>
+                  <Typography variant="body2" paragraph>
+                    <strong>Rating:</strong> {selectedCourse.rating?.toFixed(1)}/5.0
                   </Typography>
                 </Grid>
                 <Grid item xs={12} md={6}>
@@ -723,15 +1066,47 @@ const CoursesPage = () => {
                   <Typography variant="body2" paragraph>
                     <strong>Enrollment:</strong> {selectedCourse.enrolled_count}/{selectedCourse.capacity}
                   </Typography>
+                  <Typography variant="body2" paragraph>
+                    <strong>Progress:</strong> {selectedCourse.progress}%
+                  </Typography>
+                  <Typography variant="body2" paragraph>
+                    <strong>Prerequisites:</strong> {selectedCourse.prerequisites}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12}>
+                  <Typography variant="subtitle1" fontWeight="600" gutterBottom>
+                    Learning Objectives
+                  </Typography>
+                  <Box component="ul" sx={{ pl: 2, mt: 0 }}>
+                    {selectedCourse.objectives?.map((objective, idx) => (
+                      <Typography component="li" variant="body2" key={idx} sx={{ mb: 0.5 }}>
+                        {objective}
+                      </Typography>
+                    ))}
+                  </Box>
                 </Grid>
               </Grid>
             </DialogContent>
-            <DialogActions>
+            <DialogActions sx={{ p: 3 }}>
               <Button onClick={() => setCourseDialogOpen(false)}>
                 Close
               </Button>
-              {(user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'lecturer' || user?.role === 'faculty_coordinator' || user?.role === 'major_coordinator') && (
-                <Button variant="contained" startIcon={<EditIcon />}>
+              {canManageCourses && (
+                <Button 
+                  variant="contained" 
+                  startIcon={<EditIcon />}
+                  onClick={() => {
+                    setCourseDialogOpen(false);
+                    handleEditCourse(selectedCourse);
+                  }}
+                  sx={{
+                    background: selectedCourse.color,
+                    '&:hover': {
+                      background: selectedCourse.color,
+                      opacity: 0.9,
+                    },
+                  }}
+                >
                   Edit Course
                 </Button>
               )}
@@ -740,124 +1115,304 @@ const CoursesPage = () => {
         )}
       </Dialog>
 
-      {/* Add Course Dialog */}
-      <Dialog open={addCourseDialog} onClose={() => setAddCourseDialog(false)} maxWidth="md" fullWidth>
+      {/* Add/Edit Course Dialog */}
+      <Dialog
+        open={addCourseDialogOpen}
+        onClose={() => {
+          setAddCourseDialogOpen(false);
+          setEditingCourse(null);
+          setCourseForm({
+            name: '',
+            code: '',
+            description: '',
+            instructor: '',
+            credits: '',
+            department: '',
+            semester: '',
+            schedule: '',
+            category: 'core',
+            difficulty: 'Undergraduate',
+            academicYear: new Date().getFullYear().toString(),
+            maxEnrollment: '50',
+            prerequisites: '',
+            status: 'active',
+            faculty: ''
+          });
+        }}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 4,
+            background: 'rgba(255, 255, 255, 0.98)',
+            backdropFilter: 'blur(20px)',
+          },
+        }}
+      >
         <DialogTitle>
           <Typography variant="h5" fontWeight="700">
-            Add New Course
+            {editingCourse ? 'Edit Course' : 'Add New Course'}
           </Typography>
         </DialogTitle>
         <DialogContent>
-          <Grid container spacing={3} sx={{ mt: 1 }}>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Course Code"
-                value={newCourse.code}
-                onChange={(e) => handleCourseInputChange('code', e.target.value)}
-                required
-                placeholder="e.g., CS101"
-              />
+          <Box sx={{ mt: 2 }}>
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Course Name"
+                  value={courseForm.name}
+                  onChange={(e) => setCourseForm({ ...courseForm, name: e.target.value })}
+                  required
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Course Code"
+                  value={courseForm.code}
+                  onChange={(e) => setCourseForm({ ...courseForm, code: e.target.value })}
+                  required
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Description"
+                  value={courseForm.description}
+                  onChange={(e) => setCourseForm({ ...courseForm, description: e.target.value })}
+                  multiline
+                  rows={3}
+                  required
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Instructor Name"
+                  value={courseForm.instructor}
+                  onChange={(e) => setCourseForm({ ...courseForm, instructor: e.target.value })}
+                  required
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Credits"
+                  type="number"
+                  value={courseForm.credits}
+                  onChange={(e) => setCourseForm({ ...courseForm, credits: e.target.value })}
+                  required
+                  inputProps={{ min: 1, max: 6 }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <FormControl fullWidth required>
+                  <InputLabel>Department</InputLabel>
+                  <Select
+                    value={courseForm.department}
+                    onChange={(e) => setCourseForm({ ...courseForm, department: e.target.value })}
+                    label="Department"
+                    sx={{ borderRadius: 2 }}
+                  >
+                    <MenuItem value="Computer Science">Computer Science</MenuItem>
+                    <MenuItem value="Software Engineering">Software Engineering</MenuItem>
+                    <MenuItem value="Business Administration">Business Administration</MenuItem>
+                    <MenuItem value="Network Engineering">Network Engineering</MenuItem>
+                    <MenuItem value="Information Systems">Information Systems</MenuItem>
+                    <MenuItem value="Web Technologies">Web Technologies</MenuItem>
+                    <MenuItem value="Artificial Intelligence">Artificial Intelligence</MenuItem>
+                    <MenuItem value="Mathematics">Mathematics</MenuItem>
+                    <MenuItem value="Physics">Physics</MenuItem>
+                    <MenuItem value="Chemistry">Chemistry</MenuItem>
+                    <MenuItem value="Biology">Biology</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <FormControl fullWidth required>
+                  <InputLabel>Semester</InputLabel>
+                  <Select
+                    value={courseForm.semester}
+                    onChange={(e) => setCourseForm({ ...courseForm, semester: e.target.value })}
+                    label="Semester"
+                    sx={{ borderRadius: 2 }}
+                  >
+                    <MenuItem value="Fall">Fall</MenuItem>
+                    <MenuItem value="Spring">Spring</MenuItem>
+                    <MenuItem value="Summer">Summer</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Schedule"
+                  value={courseForm.schedule}
+                  onChange={(e) => setCourseForm({ ...courseForm, schedule: e.target.value })}
+                  placeholder="e.g., MWF 10:00-11:00 AM"
+                  required
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Category</InputLabel>
+                  <Select
+                    value={courseForm.category}
+                    onChange={(e) => setCourseForm({ ...courseForm, category: e.target.value })}
+                    label="Category"
+                    sx={{ borderRadius: 2 }}
+                  >
+                    <MenuItem value="core">Core</MenuItem>
+                    <MenuItem value="elective">Elective</MenuItem>
+                    <MenuItem value="lab">Lab</MenuItem>
+                    <MenuItem value="seminar">Seminar</MenuItem>
+                    <MenuItem value="project">Project</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <FormControl fullWidth required>
+                  <InputLabel>Difficulty Level</InputLabel>
+                  <Select
+                    value={courseForm.difficulty}
+                    onChange={(e) => setCourseForm({ ...courseForm, difficulty: e.target.value })}
+                    label="Difficulty Level"
+                    sx={{ borderRadius: 2 }}
+                  >
+                    <MenuItem value="Undergraduate">Undergraduate</MenuItem>
+                    <MenuItem value="Master">Master</MenuItem>
+                    <MenuItem value="PhD">PhD</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Academic Year"
+                  type="number"
+                  value={courseForm.academicYear}
+                  onChange={(e) => setCourseForm({ ...courseForm, academicYear: e.target.value })}
+                  placeholder="e.g., 2024"
+                  inputProps={{ min: 2020, max: 2030 }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Maximum Enrollment"
+                  type="number"
+                  value={courseForm.maxEnrollment}
+                  onChange={(e) => setCourseForm({ ...courseForm, maxEnrollment: e.target.value })}
+                  placeholder="e.g., 50"
+                  inputProps={{ min: 1, max: 200 }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Prerequisites"
+                  value={courseForm.prerequisites}
+                  onChange={(e) => setCourseForm({ ...courseForm, prerequisites: e.target.value })}
+                  placeholder="e.g., CSC101, MATH201"
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Status</InputLabel>
+                  <Select
+                    value={courseForm.status}
+                    onChange={(e) => setCourseForm({ ...courseForm, status: e.target.value })}
+                    label="Status"
+                    sx={{ borderRadius: 2 }}
+                  >
+                    <MenuItem value="active">Active</MenuItem>
+                    <MenuItem value="inactive">Inactive</MenuItem>
+                    <MenuItem value="draft">Draft</MenuItem>
+                    <MenuItem value="archived">Archived</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Faculty"
+                  value={courseForm.faculty}
+                  onChange={(e) => setCourseForm({ ...courseForm, faculty: e.target.value })}
+                  placeholder="e.g., Faculty of Engineering and Technology"
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                />
+              </Grid>
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Course Name"
-                value={newCourse.name}
-                onChange={(e) => handleCourseInputChange('name', e.target.value)}
-                required
-                placeholder="e.g., Introduction to Computer Science"
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Description"
-                value={newCourse.description}
-                onChange={(e) => handleCourseInputChange('description', e.target.value)}
-                multiline
-                rows={3}
-                placeholder="Course description..."
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Lecturer"
-                value={newCourse.lecturer}
-                onChange={(e) => handleCourseInputChange('lecturer', e.target.value)}
-                required
-                placeholder="e.g., Dr. John Smith"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Credits"
-                type="number"
-                value={newCourse.credits}
-                onChange={(e) => handleCourseInputChange('credits', e.target.value)}
-                placeholder="e.g., 3"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Semester"
-                value={newCourse.semester}
-                onChange={(e) => handleCourseInputChange('semester', e.target.value)}
-                placeholder="e.g., Fall 2024"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Department"
-                value={newCourse.department}
-                onChange={(e) => handleCourseInputChange('department', e.target.value)}
-                placeholder="e.g., Computer Science"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Max Students"
-                type="number"
-                value={newCourse.maxStudents}
-                onChange={(e) => handleCourseInputChange('maxStudents', e.target.value)}
-                placeholder="e.g., 30"
-              />
-            </Grid>
-          </Grid>
+          </Box>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setAddCourseDialog(false)}>
+        <DialogActions sx={{ p: 3, gap: 2 }}>
+          <Button
+            onClick={() => {
+              setAddCourseDialogOpen(false);
+              setEditingCourse(null);
+              setCourseForm({
+                name: '',
+                code: '',
+                description: '',
+                instructor: '',
+                credits: '',
+                department: '',
+                semester: '',
+                schedule: '',
+                category: 'core',
+                difficulty: 'Undergraduate',
+                academicYear: new Date().getFullYear().toString(),
+                maxEnrollment: '50',
+                prerequisites: '',
+                status: 'active',
+                faculty: ''
+              });
+            }}
+            sx={{ borderRadius: 2 }}
+          >
             Cancel
           </Button>
-          <Button variant="contained" onClick={handleSaveCourse}>
-            Add Course
+          <Button
+            onClick={handleSaveCourse}
+            variant="contained"
+            disabled={!courseForm.name || !courseForm.code || !courseForm.instructor || !courseForm.credits || !courseForm.department || !courseForm.semester}
+            sx={{
+              borderRadius: 2,
+              background: 'linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #1565c0 0%, #1976d2 100%)',
+              },
+            }}
+          >
+            {editingCourse ? 'Update Course' : 'Add Course'}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Restriction Dialog */}
-      <Dialog open={restrictionDialog} onClose={() => setRestrictionDialog(false)}>
-        <DialogTitle>
-          <Typography variant="h6" color="error">
-            Access Restricted
-          </Typography>
-        </DialogTitle>
-        <DialogContent>
-          <Typography variant="body1">
-            You do not have permission to add courses. Only administrators and academic staff can add new courses.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setRestrictionDialog(false)} variant="contained">
-            OK
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert 
+          onClose={() => setSnackbar({ ...snackbar, open: false })} 
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
