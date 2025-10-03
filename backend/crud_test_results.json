@@ -1,0 +1,209 @@
+{
+  "timestamp": "2025-09-16T00:19:13.129Z",
+  "summary": {
+    "total": 12,
+    "passed": 7,
+    "failed": 5,
+    "successRate": "58.33%"
+  },
+  "modules": {
+    "Academic": {
+      "total": 2,
+      "passed": 1,
+      "failed": 1,
+      "tests": [
+        {
+          "operation": "Get Students",
+          "method": "GET",
+          "endpoint": "/students",
+          "success": true,
+          "timestamp": "2025-09-16T00:19:17.208Z",
+          "error": null,
+          "responseData": {
+            "students": [],
+            "pagination": {
+              "page": 1,
+              "limit": 10,
+              "total": 0,
+              "pages": 0
+            }
+          }
+        },
+        {
+          "operation": "Get Student by ID",
+          "method": "GET",
+          "endpoint": "/students/1",
+          "success": false,
+          "timestamp": "2025-09-16T00:19:17.488Z",
+          "error": "Request failed with status code 500",
+          "responseData": null
+        }
+      ]
+    },
+    "HR": {
+      "total": 2,
+      "passed": 1,
+      "failed": 1,
+      "tests": [
+        {
+          "operation": "Get Employees",
+          "method": "GET",
+          "endpoint": "/hr/employees",
+          "success": true,
+          "timestamp": "2025-09-16T00:19:18.000Z",
+          "error": null,
+          "responseData": {
+            "success": true,
+            "employees": [],
+            "message": "Employees retrieved successfully"
+          }
+        },
+        {
+          "operation": "Get Employee by ID",
+          "method": "GET",
+          "endpoint": "/hr/employees/1",
+          "success": false,
+          "timestamp": "2025-09-16T00:19:18.007Z",
+          "error": "Request failed with status code 500",
+          "responseData": null
+        }
+      ]
+    },
+    "Finance": {
+      "total": 2,
+      "passed": 1,
+      "failed": 1,
+      "tests": [
+        {
+          "operation": "Get Invoices",
+          "method": "GET",
+          "endpoint": "/finance/invoices",
+          "success": true,
+          "timestamp": "2025-09-16T00:19:18.521Z",
+          "error": null,
+          "responseData": {
+            "success": true,
+            "invoices": [],
+            "pagination": {
+              "currentPage": 1,
+              "totalPages": 0,
+              "totalItems": 0,
+              "itemsPerPage": 10
+            }
+          }
+        },
+        {
+          "operation": "Get Invoice by ID",
+          "method": "GET",
+          "endpoint": "/finance/invoices/1",
+          "success": false,
+          "timestamp": "2025-09-16T00:19:18.525Z",
+          "error": "Request failed with status code 500",
+          "responseData": null
+        }
+      ]
+    },
+    "Auth": {
+      "total": 3,
+      "passed": 2,
+      "failed": 1,
+      "tests": [
+        {
+          "operation": "Login Admin",
+          "method": "POST",
+          "endpoint": "/auth/login",
+          "success": true,
+          "timestamp": "2025-09-16T00:19:19.418Z",
+          "error": null,
+          "responseData": {
+            "success": true,
+            "message": "Login successful",
+            "user": {
+              "id": "7ff3a3b0-c446-47cb-a0ce-bbc659bf5262",
+              "email": "admin@ictu.edu.cm",
+              "firstName": "System",
+              "lastName": "Administrator",
+              "name": "System Administrator",
+              "role": "admin"
+            },
+            "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI3ZmYzYTNiMC1jNDQ2LTQ3Y2ItYTBjZS1iYmM2NTliZjUyNjIiLCJlbWFpbCI6ImFkbWluQGljdHUuZWR1LmNtIiwicm9sZSI6ImFkbWluIiwiaWF0IjoxNzU3OTgxOTU5LCJleHAiOjE3NTg1ODY3NTl9.d5vtxhi4IHIQxn3RTUBwjSIIIiHvQPUH2MMAULMJe0o"
+          }
+        },
+        {
+          "operation": "Login Student",
+          "method": "POST",
+          "endpoint": "/auth/login",
+          "success": true,
+          "timestamp": "2025-09-16T00:19:19.771Z",
+          "error": null,
+          "responseData": {
+            "success": true,
+            "message": "Login successful",
+            "user": {
+              "id": "d7337ceb-fd97-4320-b45a-48a41abcd360",
+              "email": "student@ictu.edu.cm",
+              "firstName": "Test",
+              "lastName": "Student",
+              "name": "Test Student",
+              "role": "student"
+            },
+            "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJkNzMzN2NlYi1mZDk3LTQzMjAtYjQ1YS00OGE0MWFiY2QzNjAiLCJlbWFpbCI6InN0dWRlbnRAaWN0dS5lZHUuY20iLCJyb2xlIjoic3R1ZGVudCIsImlhdCI6MTc1Nzk4MTk1OSwiZXhwIjoxNzU4NTg2NzU5fQ.731DxwKzkG6tNAUObZJaKRimuKpVxKgdGOL7CuLgxtE"
+          }
+        },
+        {
+          "operation": "Get Profile",
+          "method": "GET",
+          "endpoint": "/auth/profile",
+          "success": false,
+          "timestamp": "2025-09-16T00:19:19.776Z",
+          "error": "Request failed with status code 500",
+          "responseData": null
+        }
+      ]
+    },
+    "RBAC": {
+      "total": 3,
+      "passed": 2,
+      "failed": 1,
+      "tests": [
+        {
+          "operation": "Student Access Admin Endpoint",
+          "method": "GET",
+          "endpoint": "/hr/employees",
+          "success": false,
+          "timestamp": "2025-09-16T00:19:20.291Z",
+          "error": "Request failed with status code 403",
+          "responseData": null
+        },
+        {
+          "operation": "Student Access Denied",
+          "method": "GET",
+          "endpoint": "/hr/employees",
+          "success": true,
+          "timestamp": "2025-09-16T00:19:20.291Z",
+          "error": null,
+          "responseData": "Access properly denied"
+        },
+        {
+          "operation": "Lecturer Access Academic",
+          "method": "GET",
+          "endpoint": "/academic/courses",
+          "success": true,
+          "timestamp": "2025-09-16T00:19:20.310Z",
+          "error": null,
+          "responseData": {
+            "success": true,
+            "courses": [],
+            "pagination": {
+              "page": 1,
+              "limit": 10,
+              "total": 0,
+              "pages": 0
+            },
+            "message": "Courses retrieved successfully"
+          }
+        }
+      ]
+    }
+  }
+}
