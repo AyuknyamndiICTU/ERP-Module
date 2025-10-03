@@ -47,6 +47,26 @@ api.interceptors.response.use(
       // Unauthorized - clear token and redirect to login
       localStorage.removeItem('token');
       window.location.href = '/login';
+    } else if (error.response?.status === 429) {
+      // Rate limiting - enhance error message
+      const rateLimitError = {
+        ...error,
+        response: {
+          ...error.response,
+          data: {
+            ...error.response.data,
+            error: error.response.data?.error || 'Too many requests. Please wait a moment and try again.',
+            isRateLimit: true
+          }
+        }
+      };
+      
+      // Log rate limiting in development
+      if (process.env.NODE_ENV === 'development') {
+        logger.warn(`Rate Limited: ${error.config?.url} - ${error.response?.data?.error}`);
+      }
+      
+      return Promise.reject(rateLimitError);
     }
     
     // Log error in development
@@ -177,6 +197,9 @@ export const academicAPI = {
   updateCourse: (id, courseData) => api.put(`/academic/courses/${id}`, courseData),
   deleteCourse: (id) => api.delete(`/academic/courses/${id}`),
 
+  // Programs (Majors)
+  getPrograms: (params) => api.get('/academic/majors', { params }),
+
   // Students
   getStudents: (params) => api.get('/academic/students', { params }),
   getStudent: (id) => api.get(`/academic/students/${id}`),
@@ -273,6 +296,9 @@ export const hrAPI = {
   createEmployee: (employeeData) => api.post('/hr/employees', employeeData),
   updateEmployee: (id, employeeData) => api.put(`/hr/employees/${id}`, employeeData),
   deleteEmployee: (id) => api.delete(`/hr/employees/${id}`),
+
+  // Departments
+  getDepartments: (params) => api.get('/academic/departments', { params }),
 
   // Payroll
   getPayroll: (params) => api.get('/hr/payroll', { params }),
