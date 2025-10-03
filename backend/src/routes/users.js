@@ -1,5 +1,6 @@
 const express = require('express');
 const { sequelize } = require('../config/database');
+const { QueryTypes } = require('sequelize');
 const logger = require('../utils/logger');
 const { authenticateToken } = require('../middleware/auth');
 const { body, param, query, validationResult } = require('express-validator');
@@ -82,16 +83,15 @@ router.get('/profile', authenticateToken, async (req, res) => {
     }
 
     // Get user profile from database
-    const [users] = await sequelize.query(
+    const users = await sequelize.query(
       `SELECT
-        id, email, first_name, last_name, phone, role, status,
-        email_verified, date_of_birth, gender, address,
-        profile_image_url, last_login, created_at
+        id, email, first_name, last_name, phone, role, is_active,
+        last_login, created_at, bio, avatar_url
       FROM users
       WHERE id = :userId`,
       {
         replacements: { userId: req.user.userId },
-        type: sequelize.QueryTypes.SELECT
+        type: QueryTypes.SELECT
       }
     );
 
@@ -115,12 +115,9 @@ router.get('/profile', authenticateToken, async (req, res) => {
         name: `${user.first_name} ${user.last_name}`,
         phone: user.phone,
         role: user.role,
-        status: user.status,
-        emailVerified: user.email_verified,
-        dateOfBirth: user.date_of_birth,
-        gender: user.gender,
-        address: user.address ? JSON.parse(user.address) : null,
-        profileImageUrl: user.profile_image_url,
+        status: user.is_active ? 'active' : 'inactive',
+        bio: user.bio,
+        profileImageUrl: user.avatar_url,
         lastLogin: user.last_login,
         createdAt: user.created_at
       }
@@ -179,12 +176,68 @@ router.get('/profile', authenticateToken, async (req, res) => {
  *       500:
  *         description: Server error
  */
-router.put('/profile', (req, res) => {
-  // TODO: Implement update user profile
-  res.status(501).json({
-    success: false,
-    message: 'Update profile endpoint not implemented yet'
-  });
+router.put('/profile', authenticateToken, async (req, res) => {
+  try {
+    const { firstName, lastName, phone, bio, email } = req.body;
+    const userId = req.user.userId;
+
+    // Validate input
+    if (!firstName || !lastName) {
+      return res.status(400).json({
+        success: false,
+        error: 'First name and last name are required'
+      });
+    }
+
+    // Update user profile in database
+    await sequelize.query(
+      `UPDATE users SET 
+        first_name = :firstName,
+        last_name = :lastName,
+        phone = :phone,
+        bio = :bio,
+        email = :email,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = :userId`,
+      {
+        replacements: { firstName, lastName, phone, bio, email, userId },
+        type: sequelize.QueryTypes.UPDATE
+      }
+    );
+
+    // Get updated user data
+    const users = await sequelize.query(
+      `SELECT id, email, first_name, last_name, phone, role, bio
+      FROM users WHERE id = :userId`,
+      {
+        replacements: { userId },
+        type: QueryTypes.SELECT
+      }
+    );
+
+    const user = users[0];
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        phone: user.phone,
+        role: user.role,
+        bio: user.bio
+      }
+    });
+
+  } catch (error) {
+    logger.error('Update profile error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
 });
 
 /**
@@ -345,12 +398,185 @@ router.delete('/:id', (req, res) => {
  *       500:
  *         description: Server error
  */
-router.put('/change-password', (req, res) => {
-  // TODO: Implement change password
-  res.status(501).json({
-    success: false,
-    message: 'Change password endpoint not implemented yet'
-  });
+router.put('/change-password', authenticateToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.userId;
+
+    // Validate input
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        error: 'Current password and new password are required'
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        error: 'New password must be at least 8 characters long'
+      });
+    }
+
+    // Get current user password
+    const users = await sequelize.query(
+      'SELECT password FROM users WHERE id = :userId',
+      {
+        replacements: { userId },
+        type: QueryTypes.SELECT
+      }
+    );
+
+    if (!users || users.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    const user = users[0];
+
+    // Verify current password
+    const bcrypt = require('bcryptjs');
+    const isValidPassword = await bcrypt.compare(currentPassword, user.password);
+    if (!isValidPassword) {
+      return res.status(400).json({
+        success: false,
+        error: 'Current password is incorrect'
+      });
+    }
+
+    // Hash new password
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password in database
+    await sequelize.query(
+      'UPDATE users SET password = :password, updated_at = CURRENT_TIMESTAMP WHERE id = :userId',
+      {
+        replacements: { password: hashedNewPassword, userId },
+        type: sequelize.QueryTypes.UPDATE
+      }
+    );
+
+    res.json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+
+  } catch (error) {
+    logger.error('Change password error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// Avatar upload endpoint
+router.post('/profile/avatar', authenticateToken, async (req, res) => {
+  try {
+    const { avatarData } = req.body;
+    const userId = req.user.userId;
+
+    if (!avatarData) {
+      return res.status(400).json({
+        success: false,
+        error: 'Avatar data is required'
+      });
+    }
+
+    // Update user avatar in database
+    await sequelize.query(
+      'UPDATE users SET profile_image_url = :avatarData, updated_at = CURRENT_TIMESTAMP WHERE id = :userId',
+      {
+        replacements: { avatarData, userId },
+        type: sequelize.QueryTypes.UPDATE
+      }
+    );
+
+    res.json({
+      success: true,
+      message: 'Avatar updated successfully'
+    });
+
+  } catch (error) {
+    logger.error('Avatar upload error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// Get user preferences
+router.get('/profile/preferences', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    // TODO: Preferences column doesn't exist yet, return default preferences
+    const userPreferences = {
+      theme: 'light',
+      language: 'en',
+      notifications: {
+        email: true,
+        push: true,
+        sms: false
+      },
+      dashboard: {
+        showStats: true,
+        showRecentActivity: true,
+        showQuickActions: true
+      },
+      privacy: {
+        profileVisibility: 'public',
+        showEmail: false,
+        showPhone: false
+      },
+      autoSave: true,
+      compactView: false
+    };
+
+    res.json({
+      success: true,
+      preferences: userPreferences
+    });
+
+  } catch (error) {
+    logger.error('Get preferences error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// Update user preferences
+router.put('/profile/preferences', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const preferences = req.body;
+
+    // Update user preferences in database
+    await sequelize.query(
+      'UPDATE users SET preferences = :preferences, updated_at = CURRENT_TIMESTAMP WHERE id = :userId',
+      {
+        replacements: { preferences: JSON.stringify(preferences), userId },
+        type: sequelize.QueryTypes.UPDATE
+      }
+    );
+
+    res.json({
+      success: true,
+      message: 'Preferences updated successfully'
+    });
+
+  } catch (error) {
+    logger.error('Update preferences error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
 });
 
 // Dashboard Statistics Route
@@ -373,16 +599,18 @@ router.put('/change-password', (req, res) => {
 router.get('/dashboard/stats', authenticateToken, async (req, res) => {
   try {
     // Get basic statistics from the database
-    const [userStats] = await sequelize.query(`
+    const userStatsResult = await sequelize.query(`
       SELECT
         COUNT(CASE WHEN role = 'student' THEN 1 END) as total_students,
-        COUNT(CASE WHEN role = 'academic_staff' THEN 1 END) as total_faculty,
-        COUNT(CASE WHEN role = 'hr_personnel' THEN 1 END) as total_hr,
+        COUNT(CASE WHEN role IN ('lecturer', 'faculty_coordinator') THEN 1 END) as total_faculty,
+        COUNT(CASE WHEN role = 'hr_staff' THEN 1 END) as total_hr,
         COUNT(CASE WHEN role = 'finance_staff' THEN 1 END) as total_finance,
         COUNT(*) as total_users
       FROM users
-      WHERE status = 'active'
-    `);
+      WHERE is_active = true
+    `, { type: QueryTypes.SELECT });
+
+    const userStats = userStatsResult[0] || {};
 
     // Mock additional statistics (these would come from actual tables in a real implementation)
     const stats = {
