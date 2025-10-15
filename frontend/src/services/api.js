@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { logger } from '../utils/logger';
+import { handleApiError, retryApiCall } from '../utils/errorHandler';
 
 // Create axios instance with base configuration
 const api = axios.create({
@@ -31,7 +32,7 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor
+// Response interceptor with enhanced error handling
 api.interceptors.response.use(
   (response) => {
     // Log response in development
@@ -41,14 +42,50 @@ api.interceptors.response.use(
     
     return response;
   },
-  (error) => {
-    // Handle common errors
-    if (error.response?.status === 401) {
-      // Unauthorized - clear token and redirect to login
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Handle 401 Unauthorized - clear token and redirect to login
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      
+      // Clear authentication data
       localStorage.removeItem('token');
-      window.location.href = '/login';
-    } else if (error.response?.status === 429) {
-      // Rate limiting - enhance error message
+      localStorage.removeItem('user');
+      
+      // Log in development
+      if (process.env.NODE_ENV === 'development') {
+        logger.warn('Authentication failed - redirecting to login');
+      }
+      
+      // Delay redirect to allow any pending UI updates
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 1000);
+      
+      return Promise.reject(error);
+    }
+
+    // Handle 429 Rate Limiting with retry logic
+    if (error.response?.status === 429 && !originalRequest._retryCount) {
+      originalRequest._retryCount = (originalRequest._retryCount || 0) + 1;
+      
+      // Get retry-after header or default to 2 seconds
+      const retryAfter = error.response.headers['retry-after'] || 2;
+      const delay = parseInt(retryAfter) * 1000;
+      
+      // Only retry up to 2 times
+      if (originalRequest._retryCount <= 2) {
+        if (process.env.NODE_ENV === 'development') {
+          logger.warn(`Rate limited - retrying after ${retryAfter}s (attempt ${originalRequest._retryCount}/2)`);
+        }
+        
+        // Wait and retry
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return api(originalRequest);
+      }
+      
+      // Max retries exceeded - enhance error message
       const rateLimitError = {
         ...error,
         response: {
@@ -56,22 +93,53 @@ api.interceptors.response.use(
           data: {
             ...error.response.data,
             error: error.response.data?.error || 'Too many requests. Please wait a moment and try again.',
-            isRateLimit: true
+            isRateLimit: true,
+            retryAfter
           }
         }
       };
       
-      // Log rate limiting in development
       if (process.env.NODE_ENV === 'development') {
-        logger.warn(`Rate Limited: ${error.config?.url} - ${error.response?.data?.error}`);
+        logger.error(`Rate limit exceeded after retries: ${error.config?.url}`);
       }
       
       return Promise.reject(rateLimitError);
     }
+
+    // Handle 5xx Server Errors with retry logic
+    if (error.response?.status >= 500 && !originalRequest._serverRetry) {
+      originalRequest._serverRetry = (originalRequest._serverRetry || 0) + 1;
+      
+      // Retry server errors up to 2 times with exponential backoff
+      if (originalRequest._serverRetry <= 2) {
+        const delay = Math.min(1000 * Math.pow(2, originalRequest._serverRetry - 1), 5000);
+        
+        if (process.env.NODE_ENV === 'development') {
+          logger.warn(`Server error - retrying after ${delay}ms (attempt ${originalRequest._serverRetry}/2)`);
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return api(originalRequest);
+      }
+    }
+
+    // Handle Network Errors
+    if (!error.response && error.request) {
+      if (process.env.NODE_ENV === 'development') {
+        logger.error('Network error - no response from server');
+      }
+      
+      error.message = 'Network error. Please check your internet connection.';
+    }
     
-    // Log error in development
+    // Log all errors in development
     if (process.env.NODE_ENV === 'development') {
-      logger.error('API Error:', error.response?.data || error.message);
+      logger.error('API Error:', {
+        url: error.config?.url,
+        method: error.config?.method,
+        status: error.response?.status,
+        message: error.response?.data?.error || error.message
+      });
     }
     
     return Promise.reject(error);
