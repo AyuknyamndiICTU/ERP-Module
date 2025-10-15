@@ -3,13 +3,23 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
-const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const { connectDB } = require('./config/database');
 const logger = require('./utils/logger');
 const errorHandler = require('./middleware/errorHandler');
 const notFound = require('./middleware/notFound');
+const { authenticateToken } = require('./middleware/auth');
+
+// Import smart rate limiters
+const {
+  getEnvironmentLimiter,
+  authLimiter,
+  registerLimiter,
+  academicLimiter,
+  readOnlyLimiter,
+  modificationLimiter
+} = require('./middleware/smartRateLimit');
 
 // Import models to ensure they are initialized
 require('./models/Student');
@@ -65,17 +75,14 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: (process.env.RATE_LIMIT_WINDOW || 15) * 60 * 1000, // 15 minutes
-  max: process.env.RATE_LIMIT_MAX_REQUESTS || 100, // limit each IP to 100 requests per windowMs
-  message: {
-    error: 'Too many requests from this IP, please try again later.'
-  },
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-});
-app.use('/api/', limiter);
+// Smart Rate Limiting
+// Use environment-appropriate limiter (relaxed in development, strict in production)
+const environmentLimiter = getEnvironmentLimiter();
+
+// Apply general rate limiting to all API routes
+app.use('/api/', environmentLimiter);
+
+logger.info(`Rate limiting configured for ${process.env.NODE_ENV || 'development'} environment`);
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
@@ -103,26 +110,47 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API routes
-app.use('/api/public', publicRoutes);
+// API routes with specific rate limiters
+// Public routes (no authentication required) - moderate limits
+app.use('/api/public', readOnlyLimiter, publicRoutes);
+
+// Authentication routes - strict limits to prevent brute force
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', registerLimiter);
 app.use('/api/auth', authRoutes);
-app.use('/api/profile', profileRoutes);
-app.use('/api/students', studentRoutes);
-app.use('/api/installments', installmentRoutes);
-app.use('/api/courses', courseRoutes);
-app.use('/api/grades', gradeRoutes);
-app.use('/api/attendance', attendanceRoutes);
-app.use('/api/finance', financeRoutes);
-app.use('/api/hr', hrRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/academic', academicRoutes);
-app.use('/api/faculties', facultyRoutes);
-app.use('/api/departments', departmentRoutes);
-app.use('/api/majors', majorRoutes);
-app.use('/api/timetables', timetableRoutes);
-app.use('/api/complaints', complaintRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/assignments', assignmentRoutes);
+
+// Profile routes - authenticated, relaxed limits
+app.use('/api/profile', authenticateToken, readOnlyLimiter, profileRoutes);
+
+// Academic routes - authenticated, high limits for normal usage
+app.use('/api/students', authenticateToken, modificationLimiter, studentRoutes);
+app.use('/api/courses', authenticateToken, readOnlyLimiter, courseRoutes);
+app.use('/api/grades', authenticateToken, modificationLimiter, gradeRoutes);
+app.use('/api/attendance', authenticateToken, modificationLimiter, attendanceRoutes);
+app.use('/api/academic', authenticateToken, academicLimiter, academicRoutes);
+
+// Finance routes - authenticated, moderate limits
+app.use('/api/finance', authenticateToken, modificationLimiter, financeRoutes);
+app.use('/api/installments', authenticateToken, modificationLimiter, installmentRoutes);
+
+// HR routes - authenticated, moderate limits
+app.use('/api/hr', authenticateToken, modificationLimiter, hrRoutes);
+
+// User management - authenticated, moderate limits
+app.use('/api/users', authenticateToken, modificationLimiter, userRoutes);
+
+// Reference data - authenticated, high limits (read-only)
+app.use('/api/faculties', authenticateToken, readOnlyLimiter, facultyRoutes);
+app.use('/api/departments', authenticateToken, readOnlyLimiter, departmentRoutes);
+app.use('/api/majors', authenticateToken, readOnlyLimiter, majorRoutes);
+
+// Timetables and assignments - authenticated, moderate limits
+app.use('/api/timetables', authenticateToken, modificationLimiter, timetableRoutes);
+app.use('/api/assignments', authenticateToken, modificationLimiter, assignmentRoutes);
+
+// Complaints and notifications - authenticated, moderate limits
+app.use('/api/complaints', authenticateToken, modificationLimiter, complaintRoutes);
+app.use('/api/notifications', authenticateToken, readOnlyLimiter, notificationRoutes);
 
 // API documentation
 if (process.env.NODE_ENV !== 'production') {
